@@ -1,0 +1,28 @@
+cache/
+.DS_Store
+.claude/
+
+# Рабочая кухня: хендоффы, таски, отчёты, журнал проекта. Лежит локально,
+# в публичный репо НЕ уходит (втык куратора 30.08.2026).
+/README.md
+/HANDOFF*.md
+/CHECK_HANDOFF*.md
+/NIGHT_REPORT*.md
+/REVIEW_*.md
+/TASK_*.md
+
+# data/deepstate/days/ (242 МБ, ~1500 файлов) НУЖНЫ в гите: карта тянет их
+# на лету (index.html, DFETCH 'data/deepstate/days/...'), без них на GitHub
+# Pages отваливается вся война 2022+. Из игнора убраны 29.08.2026.
+
+# Скачанные сканы карт и договоров (~490 МБ): в гит не кладём, они
+# воспроизводимы — URL каждого записан в data/sources/registry.json
+# и в README.txt внутри папок. Текст, описи и выписки границ остаются.
+data/sources/**/*.pdf
+data/sources/**/*.png
+data/sources/**/*.jpg
+data/sources/**/*.jpeg
+data/sources/**/*.gif
+data/sources/**/*.djvu
+data/sources/**/*.tif
+data/sources/**/*.tiff

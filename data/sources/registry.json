@@ -1,0 +1,802 @@
+{
+ "note": "Реестр источников границ imperium-map. Типы: self_determination_map | treaty_annex_map | treaty_text | reference. Статусы: found | downloaded | digitized | integrated | read. Правило 28.08.2026: ни один изученный источник не пропадает - всё, что открывали, попадает сюда с полем used_in (где применено) и честным статусом (read = читали текст, found = видели только выдачу поиска или заголовок).",
+ "updated": "2026-08-29",
+ "items": [
+  {
+   "slug": "ukraine-ppc-1919-delegation",
+   "title": "La République ukrainienne en 1919 (карта из меморандума делегации УНР)",
+   "author": "Délégation de la République ukrainienne",
+   "year": 1919,
+   "subject": "УНР (Украинская Народная Республика), включая Кубань",
+   "type": "self_determination_map",
+   "url": "https://commons.wikimedia.org/wiki/File:Carte_de_la_R%C3%A9publique_ukrainienne_en_1919,_extraite_du_M%C3%A9moire_sur_l%27ind%C3%A9pendance_de_l%27Ukraine,_pr%C3%A9sent%C3%A9_%C3%A0_la_Conf%C3%A9rence_de_la_paix_par_la_D%C3%A9l%C3%A9gation_de_la_R%C3%A9publique_ukrainienne_(page_128).jpg",
+   "path": "data/sources/maps/ukraine-ppc-1919-delegation/ukraine-ppc-1919-delegation.jpg",
+   "license": "public domain (BnF/Gallica via Wikimedia Commons)",
+   "status": "downloaded",
+   "note": "4836x3089px. Карта-приложение к официальному меморандуму УНР на Парижской конференции. Градусная сетка + береговая линия Чёрного/Азовского морей — пригодна для геопривязки."
+  },
+  {
+   "slug": "azerbaijan-forest-1920",
+   "title": "Carte de la République de l'Azerbaïdjan",
+   "author": "J. Forest (géographe), d'après les documents officiels",
+   "year": 1920,
+   "subject": "Азербайджанская Демократическая Республика (АДР)",
+   "type": "self_determination_map",
+   "url": "https://commons.wikimedia.org/wiki/File:Carte_de_la_R%C3%A9publique_de_l%27Azerba%C3%AFdjan_-_dress%C3%A9e_d%27apr%C3%A8s_les_documents_officiels_par_J._Forest..._-_btv1b8459702g.jpg",
+   "path": "data/sources/maps/azerbaijan-forest-1920/azerbaijan-forest-1920.jpg",
+   "license": "public domain (BnF/Gallica via Wikimedia Commons)",
+   "status": "downloaded",
+   "note": "10706x7444px, очень высокое разрешение. Спорные территории (Карабах, Зангезур, Нахичевань) показаны штриховкой. Отличная геопривязка."
+  },
+  {
+   "slug": "armenia-khanzadian-1919",
+   "title": "La République de l'Arménie (1919)",
+   "author": "Z. Khanzadian (по указаниям генерала Назарбекяна)",
+   "year": 1919,
+   "subject": "Республика Армения",
+   "type": "self_determination_map",
+   "url": "https://commons.wikimedia.org/wiki/File:La_r%C3%A9publique_de_l%27Arm%C3%A9nie_(1919)_par_Z._Khanzadian.jpg",
+   "path": "data/sources/maps/armenia-khanzadian-1919/armenia-khanzadian-1919.jpg",
+   "license": "public domain (BnF/Gallica via Wikimedia Commons)",
+   "status": "downloaded",
+   "note": "7853x4946px. Карта делегации Армении на Парижской конференции, две линии границ (заявленная и старая губернская). Отличная геопривязка."
+  },
+  {
+   "slug": "caucasus-overview-forest-1919",
+   "title": "L'Arménie, l'Azerbaïdjan, Géorgie, Caucasie du Nord, Kouban, etc.",
+   "author": "J. Forest, извлечено из карты Европы к Версальскому договору",
+   "year": 1919,
+   "subject": "весь Кавказ и Закавказье одновременно (Армения, Азербайджан, Грузия, Сев. Кавказ, Кубань)",
+   "type": "self_determination_map",
+   "url": "https://commons.wikimedia.org/wiki/File:L%27Arm%C3%A9nie,_l%27Azerba%C3%AFdjan,_G%C3%A9orgie,_Caucasie_du_Nord,_Kouban",
+   "path": "data/sources/maps/caucasus-overview-forest-1919/caucasus-overview-forest-1919.jpg",
+   "license": "public domain (BnF/Gallica via Wikimedia Commons)",
+   "status": "downloaded",
+   "note": "2958x2179px (обрезанный фрагмент большой карты Европы, среднее разрешение). Удобна для сверки взаимных границ всех закавказских субъектов на одном листе."
+  },
+  {
+   "slug": "mountain-republic-ethnographic",
+   "title": "Carte ethnographique et politique de la République de l'Union des Peuples Circassiens et du Daghestan",
+   "author": "не указан (издание делегации Горской республики)",
+   "year": "1918-1920 (в метаданных ошибочно указан 1900)",
+   "subject": "Горская республика (Республика Союза горцев Северного Кавказа)",
+   "type": "self_determination_map",
+   "url": "https://commons.wikimedia.org/wiki/File:MAP_carte_ethnographique_et_politique_de_la_republique_de_l%27union_des_peuples_circassiens_et_du_dagestan_(1).jpg",
+   "path": "data/sources/maps/mountain-republic-ethnographic/mountain-republic-ethnographic.jpg",
+   "license": "public domain",
+   "status": "downloaded",
+   "note": "4171x2643px. Первоисточник — архив библиотеки ООН в Женеве (наследник архива Лиги Наций): https://archives.ungeneva.org/carte-ethnographique-et-politique-de-la-republique-de-lunion-des-peuples-circassiens-et-du-daghestan — вероятно подавалась в Лигу Наций делегацией Горской республики. Тематическая (заливка по народам), хорошая геопривязка по береговой линии и городам."
+  },
+  {
+   "slug": "georgia-delegation-1919",
+   "title": "Carte de la Géorgie (стр. 99/99 дела грузинской делегации в Париже)",
+   "author": "делегация Грузинской Демократической Республики; гравировка Lorrain",
+   "year": 1919,
+   "subject": "Грузинская Демократическая Республика",
+   "type": "self_determination_map",
+   "url": "https://commons.wikimedia.org/wiki/File:Georgie._Documents_dactylographi%C3%A9s_%C3%A9manant_de_la_D%C3%A9l%C3%A9gation_de_la_R%C3%A9publique_g%C3%A9orgienne_%C3%A0_Paris,_1919_(14_pi%C3%A8ces_dont_une_carte_imprim%C3%A9e_au_1-3_000_000)_-_btv1b10891196s_(99_of_99).jpg",
+   "path": "data/sources/maps/georgia-delegation-1919/georgia-delegation-1919.jpg",
+   "license": "public domain (BnF/Gallica via Wikimedia Commons)",
+   "status": "downloaded",
+   "note": "7854x5291px, масштаб 1:3 000 000. Найдена постраничным просмотром 99-страничного дела делегации (98 остальных страниц — машинописный меморандум, не скачаны, текст не карта). Отличная геопривязка (градусная сетка + береговая линия)."
+  },
+  {
+   "slug": "bnr-dovnar-zapolski-1918",
+   "title": "Карта Беларускай Народнай Рэспублікі / Carte de la République Democratique Blanche-Ruthénienne",
+   "author": "коллектив под руководством М. Довнар-Запольского (южная граница) и Я. Карского (восточная)",
+   "year": "1918/1919",
+   "subject": "Белорусская Народная Республика (БНР)",
+   "type": "self_determination_map",
+   "url": "https://commons.wikimedia.org/wiki/File:Mapa_Bia%C5%82oruskiej_Republiki_Ludowej.jpg",
+   "path": "data/sources/maps/bnr-dovnar-zapolski-1918/bnr-dovnar-zapolski-1918.jpg",
+   "license": "public domain",
+   "status": "downloaded",
+   "note": "12326x8619px — максимальное разрешение среди всех карт подборки. Источник: Dorota Michaluk, Białoruska Republika Ludowa 1918-1920, Toruń 2010, s.597. Главная карта БНР, упомянутая в задании. Отличная геопривязка (полная градусная сетка)."
+  },
+  {
+   "slug": "bnr-imago-1918",
+   "title": "BNR (Ruthiénie Blanche) Map 1918 — альтернативный скан того же сюжета",
+   "author": "не указан",
+   "year": 1918,
+   "subject": "Белорусская Народная Республика (БНР)",
+   "type": "self_determination_map",
+   "url": "https://commons.wikimedia.org/wiki/File:BNR_(Ruthienie_Blanche)_Map_1918.jpg",
+   "path": "data/sources/maps/bnr-imago-1918/bnr-imago-1918.jpg",
+   "license": "public domain",
+   "status": "downloaded",
+   "note": "4400x3015px. Тот же картографический сюжет, что bnr-dovnar-zapolski-1918, но другой скан (с доп. жёлтой линией). Скачано с Wikimedia Commons (mirror), т.к. оригинал на imago.by отдаёт Cloudflare-подобную страницу проверки и не скачивается напрямую curl'ом."
+  },
+  {
+   "slug": "rudnytskyi-ukraine-1918",
+   "title": "Карта України",
+   "author": "Степан Рудницький",
+   "year": 1918,
+   "subject": "УНР / этнографическая территория Украины, включая Кубанщину, Воронежчину, Курщину",
+   "type": "self_determination_map",
+   "url": "https://commons.wikimedia.org/wiki/File:Map_of_Ukraine,_1918.png",
+   "path": "data/sources/maps/rudnytskyi-ukraine-1918/rudnytskyi-ukraine-1918.png",
+   "license": "public domain",
+   "status": "downloaded",
+   "note": "7013x4922px, файл 81 МБ (>50 МБ, скачан полностью как ключевая карта). Главная карта Рудницкого 1918 года с явно подписанной Кубанщиной. Отличная геопривязка по береговой линии."
+  },
+  {
+   "slug": "rudnytskyi-ethnographic-1919",
+   "title": "L'Ukraine / The Ukraine dans ses frontières suivant le principe ethnographique (агитплакат, франц./англ.)",
+   "author": "Georges de Gaeckeno (Юрій Гасенко), дані Степана Рудницького",
+   "year": 1919,
+   "subject": "Україна (статистична агітація для Paris Peace Conference)",
+   "type": "self_determination_map",
+   "url": "https://commons.wikimedia.org/wiki/File:L%27Ukraine_dans_ses_fronti%C3%A8res_suivant_le_principe_ethnographique_1919.jpg",
+   "path": "data/sources/maps/rudnytskyi-ethnographic-1919/rudnytskyi-ethnographic-1919.jpg",
+   "license": "public domain (BnF/Gallica via Wikimedia Commons)",
+   "status": "downloaded",
+   "note": "4096x2902px. ВАЖНО: это статистический плакат с ДРЕБНОЙ вставной картой, НЕ детальная карта границ — для геопривязки не годится, только как исторический документ пропаганды УНР."
+  },
+  {
+   "slug": "rudnytskyi-ethnographic-1920-harvard",
+   "title": "Україна / Die Ukraina у своїх етноґрафічних межах (агитплакат, укр./нем.)",
+   "author": "Georges de Gaeckeno (Юрій Гасенко), дані Степана Рудницького",
+   "year": 1920,
+   "subject": "Україна (той самий плакат, друге мовне видання)",
+   "type": "self_determination_map",
+   "url": "https://commons.wikimedia.org/wiki/File:Ukraina_in_ihren_ethnographischen_Grenzen.1920.jpg",
+   "path": "data/sources/maps/rudnytskyi-ethnographic-1920-harvard/rudnytskyi-ethnographic-1920-harvard.jpg",
+   "license": "public domain (Harvard Library via Wikimedia Commons)",
+   "status": "downloaded",
+   "note": "2396x1751px. Украинско-немецкое издание того же плаката, что rudnytskyi-ethnographic-1919. Схематическая, для геопривязки не годится."
+  },
+  {
+   "slug": "rudnytskyi-national-territory-1923",
+   "title": "Огляд національної території України",
+   "author": "Степан Рудницький",
+   "year": 1923,
+   "subject": "Украина (теоретическая монография о концепции национальной территории)",
+   "type": "self_determination_map",
+   "url": "https://commons.wikimedia.org/wiki/File:%D0%A0%D1%83%D0%B4%D0%BD%D0%B8%D1%86%D1%8C%D0%BA%D0%B8%D0%B9_%D0%A1._%D0%9E%D0%B3%D0%BB%D1%8F%D0%B4_%D0%BD%D0%B0%D1%86%D1%96%D0%BE%D0%BD%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D1%97_%D1%82%D0%B5%D1%80%D0%B8%D1%82%D0%BE%D1%80%D1%96%D1%97_%D0%A3%D0%BA%D1%80%D0%B0%D1%97%D0%BD%D0%B8_(1923).pdf",
+   "path": "data/sources/maps/rudnytskyi-national-territory-1923/rudnytskyi-national-territory-1923.pdf",
+   "license": "public domain",
+   "status": "downloaded",
+   "note": "PDF 61.7 МБ, полный текст книги (>50МБ, скачан целиком по прямому указанию в задании). Это книга, не отдельный карта-лист; карты/схемы внутри (если есть) не разбирались постранично. Издан позже целевого окна 1917-1921."
+  },
+  {
+   "slug": "kubijovyc-atlas-1937",
+   "title": "Атляс України й сумежних країв",
+   "author": "ред. Володимир Кубійович, картографія — Микола Кулицький",
+   "year": 1937,
+   "subject": "Украина — общий физико-географический/экономический атлас (не карта самоопределения 1917-1921)",
+   "type": "self_determination_map",
+   "url": "https://archive.org/details/UkrAtlas",
+   "path": "data/sources/maps/kubijovyc-atlas-1937/kubijovyc-atlas-1937.pdf",
+   "license": "public domain (Internet Archive)",
+   "status": "downloaded",
+   "note": "PDF 235 МБ (>50МБ, скачан целиком как ключевой атлас, явно названный в задании). 48+65 карт, изданный позже целевого окна — общий референс, не источник границ 1917-1921. Постранично не разбирался."
+  },
+  {
+   "slug": "alash-orda-territory-map",
+   "title": "Карта территории Алаш-Орды (декабрь 1917, II Всеказахский съезд)",
+   "author": null,
+   "year": 1917,
+   "subject": "Алаш-Орда / Алашская автономия",
+   "type": "self_determination_map",
+   "url": null,
+   "path": null,
+   "license": null,
+   "status": "found",
+   "note": "Период-карта НЕ найдена. По документам съезда территория описана словесно (список областей: Букеевская орда, Уральская, Тургайская, Акмолинская, Семипалатинская области, уезды Закаспийской области и Алтайской губернии), но подтверждённой картографической публикации самой Алаш-Орды в открытом доступе не обнаружено. Единственная найденная 'карта' — современная реконструкция https://rasscrom.github.io/alash-orda/map.html (GitHub-проект, НЕ период-источник, не годится по правилу README). Академическая статья с возможной картой-схемой: 'Territory and the Kazakh Nation: Bordering the Alash Orda' (researchgate/academia.edu) — полный текст не проверялся, требует доступа к статье."
+  },
+  {
+   "slug": "kuban-peoples-republic-map",
+   "title": "Карта Кубанской Народной Республики 1918-1919",
+   "author": null,
+   "year": "1918-1919",
+   "subject": "Кубанская Народная Республика",
+   "type": "self_determination_map",
+   "url": null,
+   "path": null,
+   "license": null,
+   "status": "found",
+   "note": "Отдельная карта самой Кубанской краевой рады НЕ найдена. Территория Кубани хорошо видна как часть двух уже скачанных карт (caucasus-overview-forest-1919, ukraine-ppc-1919-delegation, rudnytskyi-ukraine-1918 — везде подписана Кубань/Кубанщина). Найден текстовый документ 'Договор дружбы между Правительствами Кубани и Республики Союза Горцев Кавказа', июль 1919, скан газеты 'Вольный горец' №6 от 20.10.1919 (не карта, машинописный/газетный текст): https://commons.wikimedia.org/wiki/File:%D0%94%D0%BE%D0%B3%D0%BE%D0%B2%D0%BE%D1%80_%D0%B4%D1%80%D1%83%D0%B6%D0%B1%D1%8B_%D0%9A%D1%83%D0%B1%D0%B0%D0%BD%D0%B8_%D0%B8_%D0%93%D0%BE%D1%80%D1%81%D0%BA%D0%BE%D0%B9_%D1%80%D0%B5%D1%81%D0%BF%D1%83%D0%B1%D0%BB%D0%B8%D0%BA%D0%B8.jpg (источник: Национальная парламентская библиотека Грузии). Собственно современная 'Map of Kuban.png' на Commons — новодел (own work 2022), не период-источник, не скачана."
+  },
+  {
+   "slug": "zeleny-klyn-map",
+   "title": "Карта Зелёного Клина / Українська Далекосхідна Республіка",
+   "author": null,
+   "year": "1918-1922",
+   "subject": "Зелений Клин (Українська Далекосхідна Республіка)",
+   "type": "self_determination_map",
+   "url": null,
+   "path": null,
+   "license": null,
+   "status": "found",
+   "note": "Период-карта НЕ найдена ни на Wikimedia Commons, ни в веб-поиске. Существует современная энциклопедия 'Зелений Клин. Енциклопедичний довідник' (В. Чорномаз, Владивосток, 2011) на diasporiana.org.ua — https://diasporiana.org.ua/ukrainica/zelenyj-klyn-enczyklopedychnyj-dovidnyk/ — современное издание, может содержать репродукции период-карт внутри, но не проверялось постранично (нужен отдельный проход по PDF/файлу справочника). Диаспорные съездовские материалы 1917-1918 (Хабаровск/Нікольск-Уссурійськ) в открытом доступе с картами не обнаружены."
+  },
+  {
+   "slug": "molotov-ribbentrop-map-1939-09-28",
+   "title": "Карта-приложение к германо-советскому договору о дружбе и границе от 28.09.1939 (с собственноручными подписями Сталина и Риббентропа)",
+   "author": "не указан; фотокопия сделана защитой фон Риббентропа и Геринга на Нюрнбергском процессе, 1946",
+   "year": 1939,
+   "subject": "линия раздела Польши между СССР и Германией: Сувалки — Белосток — Западный Буг — Замостье — Жешув — Ужокский перевал",
+   "type": "treaty_annex_map",
+   "url": "https://commons.wikimedia.org/wiki/File:Molotov-Ribbentrop_Pact_showing_the_new_German-Soviet_border_Sept_28_1939.png",
+   "path": "data/sources/treaties/molotov-ribbentrop-1939/maps/map_1939-09-28_signed_stalin_ribbentrop.png",
+   "license": "public domain (официальный межгосударственный акт; фотокопия Нюрнбергского процесса, Wikimedia Commons)",
+   "status": "downloaded",
+   "note": "1280x1700 px, ч/б - это стандартная миниатюра Викисклада; оригинал 1505x1999 px выгрузить не удалось (upload.wikimedia.org отдавал HTTP 429 на прямой адрес, миниатюры отдавались нормально), потеря по линейному разрешению ~15%. Карта, на которую ссылается ст. I договора. Есть градусная сетка и точки городов (Варшава, Люблин, Брест, Львов, Черновцы, Минск) - геопривязка возможна. По ней видно то, чего наш контур 1939 г. НЕ даёт: Белосток на советской стороне линии. Второй, худший кадр той же карты - map_1939-09-28_signed_variant.gif (510x708). Разбор - border_description.md в той же папке."
+  },
+  {
+   "slug": "molotov-ribbentrop-treaties-1939",
+   "title": "Договор о ненападении между Германией и Советским Союзом (23.08.1939), секретный дополнительный протокол к нему и договор о дружбе и границе (28.09.1939) с протоколами",
+   "author": "В. М. Молотов, И. фон Риббентроп",
+   "year": 1939,
+   "subject": "раздел сфер интересов в Восточной Европе и советско-германская граница 1939-1941 гг.",
+   "type": "treaty_text",
+   "url": "https://avalon.law.yale.edu/20th_century/nonagres.asp",
+   "path": "data/sources/treaties/molotov-ribbentrop-1939/",
+   "license": "public domain (официальные межгосударственные акты; публикации Avalon Project, Reichsgesetzblatt, ДВП СССР т. XXII, Wikisource)",
+   "status": "integrated",
+   "note": "Тексты на русском, немецком и английском + открытый дополнительный протокол от 04.10.1939 с посегментным описанием линии (41 сегмент, привязка к рекам). Отсюда берутся акты для срезов 1939-1945 (tools/build_pact_1939.py) и текст попапа истории точки. Прочие 18 папок договоров в этом реестре не значатся - реестр заводился под карты; эта запись добавлена 26.08.2026 из-за карты-приложения."
+  },
+  {
+   "slug": "siberia-declaration-1918-wiki",
+   "title": "Декларация о государственной самостоятельности Сибири",
+   "author": "ru.wikipedia",
+   "year": 1918,
+   "subject": "Временное сибирское правительство, окно 04.07-03.11.1918",
+   "type": "reference",
+   "url": "https://ru.wikipedia.org/wiki/Декларация_о_государственной_самостоятельности_Сибири",
+   "license": "CC BY-SA",
+   "status": "read",
+   "read": "2026-08-28",
+   "used_in": [
+    "data/crosscheck/siberia_actors_1917_1925.md",
+    "tools/build_zones_1917_1921.py (окно SIBERIA_INDEP)"
+   ],
+   "note": "Дала оговорку «не считает Сибирь навсегда оторвавшейся» и дату отмены декларации 03.11.1918 - по ней исправлен конец окна."
+  },
+  {
+   "slug": "vsp-vologodsky-wiki",
+   "title": "Временное Сибирское правительство (Вологодского)",
+   "author": "ru.wikipedia",
+   "year": 1918,
+   "subject": "ВСП 30.06-03.11.1918",
+   "type": "reference",
+   "url": "https://ru.wikipedia.org/wiki/Временное_Сибирское_правительство_(Вологодского)",
+   "license": "CC BY-SA",
+   "status": "read",
+   "read": "2026-08-28",
+   "used_in": [
+    "data/crosscheck/siberia_actors_1917_1925.md"
+   ],
+   "note": "Передача власти Директории 03.11.1918; 04.11.1918 сибирские министерства стали всероссийским Советом министров; в составе - министр туземных дел."
+  },
+  {
+   "slug": "siberian-regional-duma-wiki",
+   "title": "Сибирская областная дума",
+   "author": "ru.wikipedia",
+   "year": 1918,
+   "subject": "областная дума 1917-10.11.1918",
+   "type": "reference",
+   "url": "https://ru.wikipedia.org/wiki/Сибирская_областная_дума",
+   "license": "CC BY-SA",
+   "status": "read",
+   "read": "2026-08-28",
+   "used_in": [
+    "data/crosscheck/siberia_actors_1917_1925.md",
+    "data/crosscheck/cities_civilwar.csv (Томск)"
+   ],
+   "note": "21.09.1918 здание занято войсками с арестом части депутатов; 10.11.1918 самороспуск (66 за, 22 воздержались, 1 против) - до переворота Колчака, а не по нему."
+  },
+  {
+   "slug": "zhuravlev-siberian-counterrevolution",
+   "title": "Органы государственной власти сибирской контрреволюции (октябрь 1917 - ноябрь 1918)",
+   "author": "В. В. Журавлёв, «Сибирская Заимка»",
+   "year": 2000,
+   "subject": "состав и эволюция сибирских правительств",
+   "type": "reference",
+   "url": "http://zaimka.ru/zhuravlev-government/",
+   "license": "авторская публикация",
+   "status": "found",
+   "read": "2026-08-28",
+   "used_in": [
+    "data/crosscheck/siberia_actors_1917_1925.md"
+   ],
+   "note": "Прочитана только выдача поиска: состав Совета министров 30.06.1918, министр туземных дел М. Б. Шатилов. Полный текст не читан - при подъёме ставки открыть."
+  },
+  {
+   "slug": "gorno-altai-uezd-wiki",
+   "title": "Горно-Алтайский уезд",
+   "author": "ru.wikipedia",
+   "year": 1918,
+   "subject": "Каракорум-Алтайская окружная управа и Каракорумский уезд",
+   "type": "reference",
+   "url": "https://ru.wikipedia.org/wiki/Горно-Алтайский_уезд",
+   "license": "CC BY-SA",
+   "status": "read",
+   "read": "2026-08-28",
+   "used_in": [
+    "data/crosscheck/siberia_actors_1917_1925.md"
+   ],
+   "note": "22.02.1918 съезд в Улале образовал Каракорум-Алтайский округ; 30.12.1918 омская власть учредила Каракорумский уезд, то есть вписала управу в свою сетку; 01.1920 упразднён, 04.1920 Горно-Алтайский, 1922 Ойротская АО."
+  },
+  {
+   "slug": "burnatskom-wiki",
+   "title": "Бурнацком (Центральный бурятский национальный комитет)",
+   "author": "ru.wikipedia",
+   "year": 1917,
+   "subject": "бурятское самоуправление 04.1917 - осень 1919",
+   "type": "reference",
+   "url": "https://ru.wikipedia.org/wiki/Бурнацком",
+   "license": "CC BY-SA",
+   "status": "found",
+   "read": "2026-08-28",
+   "used_in": [
+    "data/crosscheck/siberia_actors_1917_1925.md"
+   ],
+   "note": "Прочитана выдача поиска: аймаки, хошуны и сомоны как земская система; 11.1918 Бурятская национальная дума; осенью 1919 раздавлена Семёновым и омской властью. Статью открыть при работе с забайкальской геометрией."
+  },
+  {
+   "slug": "yakut-federalists-wiki",
+   "title": "Якутский трудовой союз федералистов",
+   "author": "ru.wikipedia",
+   "year": 1917,
+   "subject": "якутское национальное движение 1917",
+   "type": "reference",
+   "url": "https://ru.wikipedia.org/wiki/Якутский_трудовой_союз_федералистов",
+   "license": "CC BY-SA",
+   "status": "found",
+   "read": "2026-08-28",
+   "used_in": [
+    "data/crosscheck/siberia_actors_1917_1925.md"
+   ],
+   "note": "Прочитана выдача поиска: 06.1917 союз под председательством В. В. Никифорова-Кюлюмнюра, требование права области самой распоряжаться землями, лесами, водами и недрами; 09.1917 Якутский национальный комитет."
+  },
+  {
+   "slug": "vyaonu-1922-wiki",
+   "title": "Временное Якутское областное народное управление",
+   "author": "ru.wikipedia",
+   "year": 1922,
+   "subject": "ВЯОНУ 02.03-08.09.1922",
+   "type": "reference",
+   "url": "https://ru.wikipedia.org/wiki/Временное_Якутское_областное_народное_управление",
+   "license": "CC BY-SA",
+   "status": "read",
+   "read": "2026-08-28",
+   "used_in": [
+    "data/crosscheck/siberia_actors_1917_1925.md"
+   ],
+   "note": "Само себя объявляло частью Российского государства, российский флаг; 30.03.1922 Куликовский включил область в Приамурский земский край - под «вышла из империи» не подходит."
+  },
+  {
+   "slug": "tungus-uprising-wiki",
+   "title": "Тунгусское восстание",
+   "author": "ru.wikipedia",
+   "year": 1924,
+   "subject": "Временное центральное тунгусское национальное управление 14.07.1924-09.05.1925",
+   "type": "reference",
+   "url": "https://ru.wikipedia.org/wiki/Тунгусское_восстание",
+   "license": "CC BY-SA",
+   "status": "found",
+   "read": "2026-08-28",
+   "used_in": [
+    "data/crosscheck/siberia_actors_1917_1925.md"
+   ],
+   "note": "Прочитана выдача поиска: 10.05.1924 повстанцы заняли Нелькан; съезд аяно-нельканских, охотско-аянских и маймаканских тунгусов и якутов решил отделиться от РСФСР; самороспуск 09.05.1925 по договору. Единственный в Сибири случай прямого решения об отделении - кандидат на окно."
+  },
+  {
+   "slug": "tungus-uprising-cyberleninka",
+   "title": "Тунгусское национальное восстание 1924-1925 гг.",
+   "author": "КиберЛенинка (научная статья)",
+   "year": 2024,
+   "subject": "тунгусское восстание, научный разбор",
+   "type": "reference",
+   "url": "https://cyberleninka.ru/article/n/tungusskoe-natsionalnoe-vosstanie-1924-1925-gg",
+   "license": "открытый доступ",
+   "status": "found",
+   "read": null,
+   "used_in": [],
+   "note": "НЕ читана, только заголовок в выдаче. Первое, что открыть, если куратор даст го на окно тунгусской республики: нужны границы контроля и даты по документам, а не по энциклопедии."
+  },
+  {
+   "slug": "khakas-yenisei-province-nbdrx",
+   "title": "Хакасия времён Енисейской губернии: документальная история",
+   "author": "Национальная библиотека имени Н. Г. Доможакова",
+   "year": 2018,
+   "subject": "хакасские съезды и степное самоуправление 1917-1918",
+   "type": "reference",
+   "url": "https://nbdrx.ru/project/Hakasija_vremjon_Enisejskoj_gubernii/razdel.aspx?id=2",
+   "license": "публичный проект библиотеки",
+   "status": "found",
+   "read": null,
+   "used_in": [
+    "data/crosscheck/siberia_actors_1917_1925.md"
+   ],
+   "note": "Только выдача поиска: съезды 06-07.04.1917 (Аскиз) и далее восемь съездов; 14.03.1918 вопрос об автономии и степной думе; 05.1918 V съезд в Чарковском аале; председатель думы С. Д. Майнагашев. Документальная подборка не открыта."
+  },
+  {
+   "slug": "khakas-statehood-cyberleninka",
+   "title": "Из истории становления национальной государственности хакасов",
+   "author": "КиберЛенинка (научная статья)",
+   "year": 2021,
+   "subject": "хакасская государственность",
+   "type": "reference",
+   "url": "https://cyberleninka.ru/article/n/iz-istorii-stanovleniya-natsionalnoy-gosudarstvennosti-hakasov-k-30-letiyu-respubliki-hakasiya",
+   "license": "открытый доступ",
+   "status": "found",
+   "read": null,
+   "used_in": [],
+   "note": "НЕ читана, только заголовок в выдаче. Открыть при разборе хакасской геометрии."
+  },
+  {
+   "slug": "boplan-1648-muravsky",
+   "title": "Муравский шлях на карте Гийома Левассёра де Боплана, 1648",
+   "author": "Guillaume Le Vasseur de Beauplan",
+   "year": 1648,
+   "subject": "трасса Муравского шляха, подлинная карта эпохи",
+   "type": "reference",
+   "url": "https://commons.wikimedia.org/wiki/File:Муравский_шлях_из_карты_де_Боплана.png",
+   "path": "data/sources/maps/shlyakhi/boplan_muravsky_1648.png",
+   "license": "public domain",
+   "status": "downloaded",
+   "read": "2026-08-28",
+   "used_in": [
+    "data/losses/routes.csv"
+   ],
+   "note": "Фрагмент 992x3060. Шлях подписан «Morawsky Slac» и прочерчен пунктиром от днепровских порогов на северо-восток мимо Ворсклы к Рыльску. Документ эпохи, а не реконструкция - годится как проверка трассы, но координаты с него не снимаем: проекция и привязка приблизительные."
+  },
+  {
+   "slug": "shlyakhi-reconstruction-wiki",
+   "title": "Шляхи центральной и южной Руси (схема-реконструкция)",
+   "author": "участник Викисклада Spuki, по данным Советской исторической энциклопедии",
+   "year": 2012,
+   "subject": "обзорная схема Муравского, Изюмского, Кальмиусского, Пахнутцева, Свиного и Бакаева шляхов",
+   "type": "reference",
+   "url": "https://commons.wikimedia.org/wiki/File:Шляхи_центральной-южной_Руси.png",
+   "path": "data/sources/maps/shlyakhi/shlyakhi_reconstruction.png",
+   "license": "CC BY-SA",
+   "status": "downloaded",
+   "read": "2026-08-28",
+   "used_in": [],
+   "note": "СОВРЕМЕННАЯ РЕКОНСТРУКЦИЯ, не документ: годится иллюстрацией и для сверки порядка точек, но координаты берём из «Книги Большому Чертежу», а не отсюда."
+  },
+  {
+   "slug": "kbch-1627",
+   "title": "Книга Большому Чертежу (1627), издание под редакцией К. Н. Сербиной",
+   "author": "Разрядный приказ; ред. К. Н. Сербина",
+   "year": 1950,
+   "subject": "описание шляхов, сакм, бродов и перелазов - основной источник трасс",
+   "type": "reference",
+   "url": "https://coollib.com/b/271586",
+   "license": "научное издание 1950 года",
+   "status": "read",
+   "read": "2026-08-28",
+   "used_in": [
+    "data/losses/routes.csv"
+   ],
+   "note": "Прочитана целиком в розыске 28.08.2026. Даёт поимённо: Муравский шлях мимо Тулы в Щегловы ворота (л. 6 об.), Дедилов в 20 верстах от Тулы и Костомаров брод на Упе (л. 7), Ливны на Сосне (л. 8 об.), Думчий курган на Муравской дороге (л. 12), Меловой брод на Семи и Пахнутцеву дорогу на Кромы и Орел (л. 34 об.-35 об.), Каменный брод на Тихой Сосне на Кальмиюской дороге (л. 50 об.), от Молочных Вод до Перекопи 100 вёрст (л. 19)."
+  },
+  {
+   "slug": "kurkulev-pahnutceva",
+   "title": "А. Куркулев, «Щигровские загадки». Часть 1: Пахнутцева дорога",
+   "author": "А. Куркулев (old-kursk.ru)",
+   "year": 2020,
+   "subject": "трасса Пахнутцевой дороги по архивным документам",
+   "type": "reference",
+   "url": "http://old-kursk.ru/book/kurkulev_a/",
+   "license": "краеведческая публикация",
+   "status": "read",
+   "read": "2026-08-28",
+   "used_in": [
+    "data/losses/routes.csv"
+   ],
+   "note": "Разбор со ссылками на РГАДА, Акты Московского государства т. I, Беляева 1846 и Труды Орловской учёной архивной комиссии. Ключевое: Меловой брод на Сейме между устьями Хона и Лещина ищут семь лет и точки до сих пор нет - в наших данных этот участок помечен низкой уверенностью."
+  },
+  {
+   "slug": "akak-6-2-958-ermolov-1826",
+   "title": "АКАК т. 6 ч. 2, док. 958: предписание ген. Ермолова ген.-м. Тихтеву, 30.04.1826, секретно",
+   "author": "Кавказская археографическая комиссия",
+   "year": 1875,
+   "subject": "управление кумыкскими владениями: главный пристав над тремя владениями, суд в Андреевой, перенос Аксая в Таш-кичу, конные караулы за счёт жителей",
+   "type": "reference",
+   "url": "http://elib.shpl.ru/ru/nodes/1754-akty-sobrannye-kavkazskoy-arheograficheskoy-komissiey-v-12-ti-t-tiflis-1866-1904",
+   "status": "read",
+   "used_in": [
+    "RESIST KUMYK_PLAIN в tools/build_expansion.py",
+    "data/crosscheck/expansion.csv, проверка 1840-06-01"
+   ],
+   "note": "копия на диске: ~/tmp/MATERIALS/common/akak/AKAK-6_2.md, строки 15845-15875. Ключевое место: суд учреждён, но «дѣйствіе онаго пріостановлено всеобщимъ возмущеніемъ», пристав ушёл в крепость Внезапную"
+  },
+  {
+   "slug": "akak-9-obzor-kumyk-1839",
+   "title": "АКАК т. 9, обзор положения на Кавказской линии конца 1830-х годов",
+   "author": "Кавказская археографическая комиссия",
+   "year": 1884,
+   "subject": "признание, что укрепления в Кумыкской земле не давали контроля",
+   "type": "reference",
+   "url": "http://elib.shpl.ru/ru/nodes/1754-akty-sobrannye-kavkazskoy-arheograficheskoy-komissiey-v-12-ti-t-tiflis-1866-1904",
+   "status": "read",
+   "used_in": [
+    "RESIST KUMYK_PLAIN в tools/build_expansion.py"
+   ],
+   "note": "копия на диске: ~/tmp/MATERIALS/common/akak/AKAK-9.md, строка 6845: «Укрѣпленія, построенныя въ Кумыкской землѣ - Внезапная, Умахан-юртъ и Таш-кичу, не охраняли Кумыковъ отъ нападеній и не упрочивали сообщенія»"
+  },
+  {
+   "slug": "akak-12-561-pristav-1858",
+   "title": "АКАК т. 12, док. 561: записка Главного штаба Кавказской армии о преобразовании приставских управлений, июль 1858",
+   "author": "Главный штаб Кавказской армии",
+   "year": 1904,
+   "subject": "проект Кумыкского округа: «образуется изъ Кумыковъ и Ногайцевъ, а со временемъ къ нему присоединятся и тѣ изъ прилежащихъ обществъ, которыя могутъ намъ покориться»",
+   "type": "reference",
+   "url": "http://elib.shpl.ru/ru/nodes/1754-akty-sobrannye-kavkazskoy-arheograficheskoy-komissiey-v-12-ti-t-tiflis-1866-1904",
+   "status": "read",
+   "used_in": [
+    "RESIST KUMYK_PLAIN в tools/build_expansion.py",
+    "data/crosscheck/expansion.csv, проверка 1860-06-01"
+   ],
+   "note": "копия на диске: ~/tmp/MATERIALS/common/akak/AKAK-12.md, строка 19066; там же 35915 - участки Ауховский и Салатавский присоединены к Кумыкскому округу позже"
+  },
+  {
+   "slug": "permskaya-starina-2-cherdyn-17c",
+   "title": "Пермская старина, вып. II: Чердынский уезд во второй половине XVII века (публикация документов)",
+   "author": "А. А. Дмитриев",
+   "type": "reference",
+   "status": "read",
+   "url": "http://zz-project.ru/permskaya-starina-vyp-ii/762-cherdynskij-uezd-vo-vtoroj-polovine-kh-ii-veka",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "Оброчные статьи Чердыни: Печорский волок отдан в оброк 26.07.1682 (Сенька Девяков, 5 лет, 9 руб. 2 алт. 5 денег в год); река Щугор - на оброк 1681 (Федулов, Мигавин); память 29.04.1681 о запрете провоза хлебных запасов на Печору мимо Чердыни без печатей воеводы; грамота 25.01.1689 о чердынских ясачных вогульских угодьях вверх по Вишере"
+  },
+  {
+   "slug": "korchagin-voevodskoe-pravlenie-perm",
+   "title": "Воеводское правление в Перми Великой в XVII веке",
+   "author": "П. А. Корчагин",
+   "type": "reference",
+   "status": "read",
+   "url": "https://www.permgaspi.ru/deyatelnost/izdaniya/istoriya-mestnogo-upravleniya-i-samoupravleniya-v-permskom-krae/book-istoriya-mestnogo-upravleniya-i-samoupravleniya-v-permskom-krae/voevodskoe-pravlenie-v-permi-velikoj-v-xvii-veke-p-a-korchagin.html",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "Ясачное население Чердынского воеводства XVII в. - менее сотни остяков и вогуличей Сылвенско-Иренского поречья и верховьев Вишеры; ясачных по верхней Печоре в списках нет"
+  },
+  {
+   "slug": "pechorsky-put-wiki",
+   "title": "Печорский путь (навигатор, не пруф)",
+   "author": "Википедия",
+   "type": "reference",
+   "status": "read",
+   "url": "https://ru.wikipedia.org/wiki/Печорский_путь",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "После подчинения Новгорода 1478 путь у московских князей; сбор войск Ушатого и Курбского на Печоре 1499, Пустозерский острог; в XVII в. путём ездили воеводы; закрыт 1706. Первоисточники в статье не приведены - искать отдельно"
+  },
+  {
+   "slug": "cherdyn-uezd-wiki",
+   "title": "Чердынский уезд (навигатор, не пруф)",
+   "author": "Википедия",
+   "type": "reference",
+   "status": "read",
+   "url": "https://ru.wikipedia.org/wiki/Чердынский_уезд",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "Уезд сложился в начале XVI в.; в 1579 делился на четыре стана - Окологородный, Верхний, Нижний, Отхожий; в 1923 верхнепечорские волости (Троицко-Печорская, Савиноборская, Щугорская) переданы в АО Коми"
+  },
+  {
+   "slug": "kaisarov-1623-pistsovaya-kniga",
+   "title": "Писцовая книга Перми Великой Михаила Кайсарова 1623-1624 гг. (предисловие)",
+   "author": "М. Ф. Кайсаров",
+   "type": "reference",
+   "status": "found",
+   "url": "https://www.vostlit.info/Texts/Dokumenty/Russ/XVII/1620-1640/Kaisarov_M/pred.phtml",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "ГЛАВНЫЙ КАНДИДАТ НА ПРОЧТЕНИЕ: нужны печорские оброчные статьи и состав Отхожего стана. Предисловие прочитано, полного текста книги не смотрели"
+  },
+  {
+   "slug": "uraloved-cherdyn-mansi",
+   "title": "Покинутый мир чердынских манси",
+   "author": "Ураловед (по Белдыцкому, Теплоухову, Кривощекову)",
+   "type": "reference",
+   "status": "read",
+   "url": "https://uraloved.ru/mir-cherdinskih-mansi",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "Ареал чердынских манси: от Косы и Юрлы до верхней Печоры - верховья Колвы, Березовой, Вишеры, Печоры, Лозьва, Северная Сосьва. О ясаке и XVI-XVII веках в статье ничего, материал XIX-XX вв."
+  },
+  {
+   "slug": "akty-istoricheskie-t3-1639-ilych",
+   "title": "Акты исторические, т. III (1613-1645), № 203: царская грамота 04.04.1639 чердынскому воеводе Остафьеву об отдаче на оброк рыбной ловли в реке Илыче",
+   "author": "Археографическая комиссия, СПб., 1841",
+   "type": "treaty_text",
+   "status": "read",
+   "url": "https://archive.org/details/aktyistoricheskiesobrannyeiizdannyearhe45",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "КЛЮЧЕВОЙ ДОКУМЕНТ: Илыч (приток верхней Печоры) назван «в Чердынском уезде», казна ставит рыбную ловлю на оброк за 1 руб. 50 коп. в год с поручной записью. Цитата снята с OCR - СВЕРИТЬ СО СКАНОМ с. 356-357 (в OCR «Пермичи»->«Чермичи», номер акта ->205)"
+  },
+  {
+   "slug": "akty-istoricheskie-t2-yasak-pechora",
+   "title": "Акты исторические, т. II (1598-1613), №№ 76, 82, 323: ясак вишерских и печорских вогуличей через Чердынь",
+   "author": "Археографическая комиссия, СПб., 1841",
+   "type": "treaty_text",
+   "status": "read",
+   "url": "https://archive.org/details/aktyistoricheskiesobrannyeiizdannyearhe44",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "1607: ясак переведён с Верхотурья в Пермь; роспись по верхотурским книгам 1605/06 с «Печерскими Остяками юрт»; 1611: Чердынь шлёт сборщиков «по Печерских». Чтение гидронима как Печоры - реконструкция Долгих, не самоочевидность"
+  },
+  {
+   "slug": "dai-t8-shugor-volok",
+   "title": "Дополнения к Актам историческим, т. VIII (1862), №№ 3, 94, 96, 98: Щугор, Печорский волок, ясак верх-печерских вогуличей",
+   "author": "Археографическая комиссия, СПб., 1862",
+   "type": "treaty_text",
+   "status": "read",
+   "url": "https://archive.org/details/dopolnenijakaktamistoricheskimsobrannye49",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "Щугор отдан на оброк 13.01.1681 и был на оброке РАНЬШЕ (Богдашко Григорьев, срок истёк); волок Девяткову 08.10.1681; челобитная 1681 «Верх-Печерских ясашных вагуличишек» о писцовом окладе соболиного ясака"
+  },
+  {
+   "slug": "chelobitnaya-vogulichej-1689",
+   "title": "Челобитная вогуличей Чердынского уезда и царская грамота 1689 г. // Русская старина, 1907, № 8, с. 401-404",
+   "author": "сообщ. Н. Санин",
+   "type": "treaty_text",
+   "status": "read",
+   "url": "https://www.vostlit.info/Texts/Dokumenty/Russ/XVII/1680-1700/Sofja/celob_vogulic_1689.htm",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "«Вишерские и Верх-Печерские ясашные вогуличишки»; оклад положен писцами; в книгах Кайсарова русские оброчные ловли записаны по Вишере только до Морчана"
+  },
+  {
+   "slug": "permskaya-starina-3-otkhozhy-stan",
+   "title": "Пермская старина, вып. III: Отхожий округ Чердынского уезда в 1579 году (по списку писцовой книги Яхонтова)",
+   "author": "А. А. Дмитриев, Пермь, 1891",
+   "type": "reference",
+   "status": "read",
+   "url": "http://zz-project.ru/permskaya-starina-vyp-iii/832-otkhozhij-okrug-cherdynskogo-uezda-v-1579-godu",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "Печоры в Отхожем стане НЕТ: 2 погоста и 22 деревни по Каме, Косе, Иньве, Обве, Яйве, Усолке, Косьве. Северный предел Перми Великой по Яхонтову - Чусовское озеро"
+  },
+  {
+   "slug": "koryakov-2022-mansi",
+   "title": "Изменение этноязыковой территории западных и южных манси в XVII-XX вв. Ч. I // Урало-алтайские исследования, 2022, № 2(45), с. 58-78",
+   "author": "Ю. Б. Коряков",
+   "type": "reference",
+   "status": "read",
+   "url": "https://publications.hse.ru/pubs/share/direct/788705583.pdf",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "Пересказ Долгих 1960 о печорском юрте; верховья Печоры переданы в Троицко-Печорский район Коми АССР только в 1949 - поправка к тезису про 1923 год"
+  },
+  {
+   "slug": "krivoshchekov-1914-cherdyn",
+   "title": "Словарь географическо-статистический Чердынского уезда Пермской губернии, Пермь, 1914",
+   "author": "И. Я. Кривощеков",
+   "type": "reference",
+   "status": "read",
+   "url": "https://elib.uraic.ru/bitstream/123456789/40139/1/0026901.pdf",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "ОСТОРОЖНО: даёт дату отдачи волока Девяткову как 1671 год - ошибка (Фёдор Алексеевич на престоле с 1676; речь о грамоте 1681). Граница уезда на Печоре у него ниже Якши"
+  },
+  {
+   "slug": "rgada-1209-kaisarov-cherdyn",
+   "title": "РГАДА, ф. 1209 (Поместный приказ): книги письма и меры М. Кайсарова 1623-24 по Перми Великой, чердынская часть; переписные книги Елизарова 1647 и Бельского 1678",
+   "author": "-",
+   "type": "reference",
+   "status": "found",
+   "url": "http://rgada.info/opisi/1209-opis_1-1.pdf",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "НЕ ЧИТАНО, нужен архив: изданного текста чердынской части нет, оригинал Кайсарова сгорел в пожаре 1626, издание Шишонко признано негодным, Дубровинский сборник Дмитриева не найден"
+  },
+  {
+   "slug": "shishonko-permskaya-letopis-2",
+   "title": "Пермская летопись, период II (1613-1645): извлечение из писцовых книг М. Кайсарова по Чердыни с уездом, с. 184-251; грамота об Илыче, с. 414",
+   "author": "В. Н. Шишонко, Пермь, 1882",
+   "type": "reference",
+   "status": "read",
+   "url": "http://elib.uraic.ru/bitstream/123456789/40191/1/0026931.pdf",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "Печоры/Илыча/Уньи в чердынской части книги Кайсарова НЕТ (полнотекстовый поиск). «Шугорь» там - приток Вишеры. ОСТОРОЖНО: издание печатает «в сокращении», Дмитриев называл его источником научных заблуждений; на elib запись 40190 подписана вторым периодом, а файл содержит первый"
+  },
+  {
+   "slug": "dmitriev-permskaya-starina-3-kaisarov",
+   "title": "Пермская старина, вып. III: чердынская опись Кайсарова по Дубровинскому списку, с. 53-117, оброчные статьи с. 112-114",
+   "author": "А. А. Дмитриев, Пермь, 1891",
+   "type": "reference",
+   "status": "read",
+   "url": "http://elib.uraic.ru/bitstream/123456789/40185/1/0026886.pdf",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "Второй независимый список Кайсарова: оброчные статьи напечатаны целиком (у Шишонко выброшены), Печоры среди них нет; единственная волоковая статья - Немский волок Колва-Вычегда"
+  },
+  {
+   "slug": "dolgikh-1960-rodovoy-sostav",
+   "title": "Родовой и племенной состав народов Сибири в XVII в., с. 25 (юрт «печерские остяки», «за каменем», на р. Пеыре)",
+   "author": "Б. О. Долгих, М., 1960",
+   "type": "reference",
+   "status": "read",
+   "url": "http://coloniam.ru/gloss/authors/dolgikh/B_O_Dolgikh_Rodovoy_i_plemennoy_sostav_narodov_Sibiri_v_XVII_veke_1960.pdf",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "с. 25: юрт «печерские остяки», «за каменем», на р. Пеыре (Печоре?) - девять плательщиков, отождествление сам Долгих ставит под вопрос. с. 20: в 1598 чусовские и сылвенско-иренские вогулы отошли в Верхотурский уезд, в 1607 вновь приписаны к Чердыни, тогда же к Чердыни отошли вишерские. Сноска 22 «ДАИ т. II» - описка, читать АИ т. II. Оценок «~36 человек» у Долгих нет, это пересчёт Корякова"
+  },
+  {
+   "slug": "glushkov-1900-cherdynskie-voguly",
+   "title": "Чердынские вогулы. Этнографический очерк // Этнографическое обозрение, 1900, кн. XIV, № 2, с. 22-23",
+   "author": "И. Н. Глушков",
+   "type": "reference",
+   "status": "read",
+   "url": "https://www.vostlit.info/Texts/Dokumenty/Russ/XVII/1680-1700/Sofja/celob_vogulic_1689.htm",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "Челобитная 1678: чердынские вогулы «вместе с верхпечерскими»; ясак 167 соболей наложен «в давния времена»; граница чердынских людей по писцовым книгам - до дер. Морчан. Ссылается на Берха 1821, с. 135-143"
+  },
+  {
+   "slug": "popov-1892-yasachnye-voguly",
+   "title": "К истории ясачных вогуличей чердынских и верхъ-печерских // Памятная книжка и адрес-календарь Пермской губернии на 1893 год, Пермь, 1892, с. 8-9",
+   "author": "В. Е. Попов",
+   "type": "reference",
+   "status": "found",
+   "url": "",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "НЕ ЧИТАНО, ДОСТАВАТЬ ПЕРВОЙ: единственная известная работа ровно по теме верхнепечорских ясачных"
+  },
+  {
+   "slug": "or-rgb-256-308-kaisarov",
+   "title": "ОР РГБ, ф. 256 (собрание Румянцева), № 308: Писцовые книги Соликамска и Чердыни (Яхонтов 1579, л. 3-45; Кайсаров 1623-24, л. 46-186)",
+   "author": "-",
+   "type": "reference",
+   "status": "found",
+   "url": "https://kp.rusneb.ru/item/material/piscovye-knigi-solikamska-i-cherdyni-spisok-s-perepisnyh-knig-gorodov-solikamska-i-cherdyni-s-uezdami-uchinennyh-piscami-ivanom-yahontovym-7087-1579-i-mihailom-kaysarovym-s-tovarishchi-7151-i-7152-1623-i-1624-godov",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "НЕ ЧИТАНО: рукопись, с которой печатал Шишонко. Постраничного скана в НЭБ нет, только описание. Дубровинский сборник Дмитриева утрачен"
+  },
+  {
+   "slug": "aleynikov-2017-verhnyaya-pechora",
+   "title": "Население и особенности трансформации природных ландшафтов бассейна Верхней Печоры до начала русской колонизации в XV-XIX вв. // Russian Journal of Ecosystem Ecology, 2017, т. 2(3)",
+   "author": "А. А. Алейников",
+   "type": "reference",
+   "status": "read",
+   "url": "http://rjee.ru/wp-content/uploads/2017/09/rjee_2_3_2017_2_aleynikov.pdf",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "Независимо называет грамоту 1639 г. на оброчное владение угодьями на Илыче. ОСТОРОЖНО: сноска ведёт на Канивца «Канинская пещера» (1964) - битая. Он же: бассейн верхней Печоры относился к ДВУМ уездам - Чердынскому и Усть-Сысольскому. Лид на грамоту 1599 г. о вогульских волостях на Печоре - с той же битой сноской"
+  },
+  {
+   "slug": "mosin-2001-onomastikon",
+   "title": "Уральский исторический ономастикон, Екатеринбург, 2001",
+   "author": "А. Г. Мосин",
+   "type": "reference",
+   "status": "read",
+   "url": "https://archive.org/details/2001_20230423",
+   "used_in": [
+    "data/crosscheck/pechora_upper_2026-08-29.md"
+   ],
+   "note": "Поимённо расписывает ясачных вогуличей росписи 1605/06 со ссылкой на АИ т. II, с. 112 - независимое подтверждение атрибуции имён"
+  }
+ ]
+}

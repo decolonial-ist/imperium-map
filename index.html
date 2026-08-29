@@ -1,0 +1,2138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Расползание российской империи · 1450–2026</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Библиотеки лежат в репозитории (vendor/, скачаны с unpkg 29.08.2026):
+     показ не должен зависеть от доступности CDN. Внешними остаются только
+     тайлы подложки (tiles.openfreemap.org). -->
+<link rel="stylesheet" href="vendor/maplibre-gl.css">
+<script src="vendor/maplibre-gl.js"></script>
+<!-- Настоящее вычитание полигонов. До 28.08.2026 вырезы вставлялись в ядро
+     ДЫРКАМИ, и там, где вырез упирался в государственную границу, линия ядра
+     всё равно шла поперёк: курская операция читалась как котёл, будто украинцы
+     прошли границу насквозь и оказались в окружении. Было не так - границу
+     снесли, и на карте её в этом месте быть не должно. С настоящим вычитанием
+     внешнее кольцо обходит прорыв выемкой, и поперечной линии нет. -->
+<script src="vendor/polygon-clipping.umd.js"></script>
+<style>
+  html, body { margin:0; height:100%; background:#14171c; color:#e6e6e6;
+    font:14px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  #map { position:absolute; inset:0 0 126px 0; }
+  #bar { position:absolute; left:0; right:0; bottom:0; height:126px; background:#1b1f26;
+    border-top:1px solid #2c333d; display:flex; flex-direction:column; justify-content:center;
+    padding:8px 20px 10px; box-sizing:border-box; }
+  #topline { display:flex; align-items:baseline; gap:14px; min-width:0; }
+  #date { font-size:24px; font-weight:700; min-width:132px; color:#ff6a52;
+    font-variant-numeric:tabular-nums; white-space:nowrap; flex:0 0 auto; }
+  #entity { font-size:13px; color:#b7c1ca; white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; min-width:0; }
+  #legend { margin-left:auto; display:flex; gap:14px; font-size:11.5px; color:#9aa4ad;
+    align-items:center; white-space:nowrap; flex:0 0 auto; }
+  .sw { display:inline-block; width:13px; height:9px; border-radius:2px; margin-right:5px; vertical-align:-1px; }
+  #controls { display:flex; align-items:center; gap:8px; margin-top:8px; }
+  button { background:#2d333b; color:#e6e6e6; border:1px solid #444c56; border-radius:6px;
+    height:26px; cursor:pointer; font-size:13px; }
+  button:hover { background:#37404a; }
+  #play { width:34px; }
+  /* Подложка живёт СВОИМ контролом в углу карты, как в гугл-картах, а не
+     кнопкой в общем меню внизу (решение куратора 27.08.2026). */
+  #satCtl { position:absolute; left:14px; bottom:140px; z-index:5;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    width:auto; height:auto; padding:7px 8px 6px; border-radius:8px;
+    background:rgba(20,23,28,.9); border:1px solid #2c333d; color:#9aa4ad;
+    font-size:10px; line-height:1; cursor:pointer; }
+  #satCtl svg { fill:none; stroke:currentColor; stroke-width:1.7;
+    stroke-linejoin:round; stroke-linecap:round; }
+  #satCtl:hover { background:rgba(34,39,46,.95); color:#e6e6e6; }
+  #satCtl.on { border-color:#768390; color:#e6e6e6; }
+  .step { width:30px; }
+  select, input[type=number] { background:#22272e; color:#e6e6e6; border:1px solid #444c56;
+    border-radius:6px; height:26px; font-size:13px; padding:0 4px; box-sizing:border-box; }
+  #pyear { width:64px; }
+  input[type=range] { flex:1; accent-color:#c9412f; }
+  #hdr { position:absolute; top:12px; left:14px; z-index:5; background:rgba(20,23,28,.82);
+    border:1px solid #2c333d; border-radius:8px; padding:8px 14px; max-width:460px; }
+  #hdr h1 { font-size:15px; margin:0 0 2px; }
+  #hdr .sub { font-size:11.5px; color:#9aa4ad; }
+  #hdr h1 { padding-right:22px; }
+  #hdrToggle { position:absolute; top:7px; right:8px; width:20px; height:20px;
+    line-height:18px; padding:0; text-align:center; font-size:13px; color:#9aa4ad;
+    background:#22272e; border:1px solid #39424e; border-radius:5px; cursor:pointer; }
+  #hdrToggle:hover { color:#e6e6e6; background:#2d333b; }
+  #hdr.folded .sub { display:none; }
+  #hdr.folded { padding-bottom:7px; }
+  /* Атрибуция («серая легенда с описанием инструментов») переехала из карты
+     в самый низ панели: внутри карты она перекрывала попапы истории точки
+     (решение куратора 27.08.2026). */
+  #attrib { margin-top:7px; font-size:9.5px; line-height:1.35; color:#5f6a75;
+    max-height:26px; overflow:hidden; }
+  #attrib .maplibregl-ctrl-attrib { background:transparent; margin:0; padding:0;
+    font-size:9.5px; color:#5f6a75; }
+  #attrib .maplibregl-ctrl-attrib a { color:#768390; }
+  #attrib .maplibregl-ctrl-attrib-button { display:none; }
+  #legend .per { display:none; }          /* периодные слои: показ по дате */
+  .ln { display:inline-block; width:15px; height:0; margin-right:5px; vertical-align:3px;
+    border-top:2px solid #768390; }
+  .ln.dash { border-top-style:dashed; }
+  /* ---- попап истории точки ---- */
+  .hist .maplibregl-popup-content { background:#1b1f26; color:#e6e6e6; border:1px solid #39424e;
+    border-radius:8px; padding:10px 12px 11px; box-shadow:0 6px 24px rgba(0,0,0,.5);
+    font:12.5px/1.45 -apple-system,"Segoe UI",Roboto,sans-serif; max-width:none;
+    max-height:62vh; overflow-y:auto; }
+  .hist .maplibregl-popup-tip { border-top-color:#39424e; border-bottom-color:#39424e;
+    border-left-color:#39424e; border-right-color:#39424e; }
+  .hist .maplibregl-popup-close-button { color:#9aa4ad; font-size:17px; padding:0 5px; }
+  .hist .maplibregl-popup-close-button:hover { background:transparent; color:#e6e6e6; }
+  .hist h3 { margin:0 0 7px; font-size:12.5px; font-weight:600; color:#e6e6e6; }
+  .hist h3 .city { color:#e6e6e6; }
+  .hist h3 .co { color:#8c96a0; font-weight:400; font-variant-numeric:tabular-nums; }
+  .hist .row { padding:5px 0 5px 8px; border-left:2px solid #39424e; margin:0 0 5px; }
+  .hist .row.now { border-left-color:#ff6a52; background:rgba(255,106,82,.07); }
+  .hist .lab { color:#8c96a0; font-size:10.5px; text-transform:uppercase;
+    letter-spacing:.4px; }
+  .hist .st { color:#e6e6e6; }
+  .hist .st b { color:#ff8a72; font-weight:600; }
+  .hist .st .out { color:#c4ccd4; font-weight:600; }
+  .hist .dur { color:#c4ccd4; }
+  .hist .prec { color:#7d8791; font-size:10.5px; }
+  .hist .foot { color:#7d8791; font-size:10.5px; border-top:1px solid #2c333d;
+    margin-top:7px; padding-top:6px; }
+  .hist .wait { color:#9aa4ad; font-size:11px; }
+  .hist.maplibregl-popup { max-width:calc(100vw - 20px) !important; }
+  @media (max-width:560px) { .hist .maplibregl-popup-content { font-size:12px;
+    padding:9px 10px 10px; } }
+</style>
+</head>
+<body>
+<div id="hdr">
+  <button id="hdrToggle" title="Свернуть пояснение">–</button>
+  <h1>Расползание российской империи, 1450–2026</h1>
+  <div class="sub">Московия → царство → империя → СССР → РФ. Границы по historical-basemaps
+  (мировой масштаб, приблизительные). Сфера влияния — только подчинение:
+  оккупационные зоны, блок с войсками, интервенции и военное присутствие.
+  Союзные договоры, партнёрство и помощь из показа убраны 27.08.2026 — это
+  отношения между государствами, а не колониальные отношения.
+  Линия фронта с 04.2022 — помесячно, обзорно, данные
+  <a href="https://deepstatemap.live" style="color:#b7c1ca">DeepStateMAP</a>
+  (подневная динамика — у них же).
+  Там, где империя теряла контроль <b>у себя дома</b> (Курская операция, рейды
+  2023–2024), это <b>вырез из красного</b>, и даты там по дням.
+  Границы 1917–1921 - реконструкция зоны ИМПЕРИИ (черновик): белые и
+  красные - две фракции одной империи, их междоусобицы карта не различает,
+  чёрное только там, где территория реально вышла из империи.
+  Вторая мировая, 22.06.1941–03.09.1945, идёт помесячными срезами -
+  реконструкция линии фронта по датам взятия и освобождения городов
+  (черновик): оккупация вырезана из красного, а занятые Красной армией
+  Польша, Румыния, Болгария, Венгрия, Югославия, Чехословакия, Австрия,
+  восточная Германия, Маньчжурия, Северная Корея, Южный Сахалин и Курилы
+  красные - военная оккупация это имперский контроль.
+  Показ бинарный: красное - империя тут была, чёрное - не была. Где она
+  объявила землю своей актом, но вела войну за контроль (горная Чечня и
+  Дагестан до 1859, Черкесия до 1864), красного нет - даты по окнам кампаний
+  базы decolonial.ist.
+  Окно 1450–1492 - реконструкция: своих срезов на эти годы у источника нет,
+  контур 1492 г. минус то, чего у Москвы на дату ещё не было. Новгородская
+  земля до 15.01.1478 чёрная - это другой субъект, а не империя; Тверь
+  краснеет 12.09.1485, Вятка 16.08.1489, Псков 13.01.1510, Рязань в 1521.
+  <b style="color:#e0654f">Клик по карте — история точки</b>: что было до, что сейчас,
+  что дальше. Проект decolonial.ist.</div>
+</div>
+<div id="map"></div>
+<div id="bar">
+  <div id="topline">
+    <span id="date">1450</span>
+    <span id="entity"></span>
+    <div id="legend">
+      <span><span class="sw" style="background:#a41f12"></span>империя</span>
+      <span><span class="sw" style="background:#d9553d;opacity:.32"></span>сфера влияния</span>
+      <span><span class="sw" style="background:#a41f12;opacity:.85;width:9px;height:9px;border-radius:50%"></span>острог</span>
+      <!-- Убраны 19.08.2026 по решению куратора «никаких штриховок»: жёлтые
+           линии советского контроля 1918/1919 из атласа УІФ и пунктирная
+           пометка «реконструкция (черновик)». Показ бинарный: красное -
+           империя тут была, чёрное - не была. Данные линий остаются на диске
+           (data/atlas/rozd44_soviet_control_*.geojson), пометка про черновик
+           реконструкции - текстом в шапке. -->
+    </div>
+  </div>
+  <div id="controls">
+    <button id="play" title="Автопрогон">▶</button>
+    <button id="prev" class="step" title="Предыдущий слой">◀</button>
+    <button id="next" class="step" title="Следующий слой">▶</button>
+    <input type="number" id="pyear" min="1450" max="2026" value="1450" title="Год">
+    <select id="pmonth" title="Месяц"></select>
+    <select id="pday" title="День"></select>
+    <div style="flex:1;position:relative">
+      <input type="range" id="slider" min="0" max="100000" step="1" value="0" style="width:100%">
+      <div id="sliceTicks" style="position:absolute;left:0;right:0;top:20px;height:6px;pointer-events:none"></div>
+    </div>
+  </div>
+  <div id="attrib"></div>
+</div>
+<button id="satCtl" title="Подложка карты">
+  <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+    <path d="M12 3.2 2.6 8 12 12.8 21.4 8 12 3.2z"/>
+    <path d="M2.6 12.4 12 17.2l9.4-4.8"/>
+    <path d="M2.6 16.8 12 21.6l9.4-4.8"/>
+  </svg>
+  <span id="satCap">Спутник</span>
+</button>
+<script>
+const ENTITY = y =>
+  y < 1547 ? 'Великое княжество Московское' :
+  y < 1721 ? 'Русское царство (Московия)' :
+  y < 1917 ? 'Российская империя' :
+  y < 1923 ? 'РСФСР (Советская Россия)' :
+  y < 1992 ? 'СССР' : 'Российская Федерация' ;
+
+// Сопротивление, депортации и ликвидированные автономии выключены целиком
+// (решение куратора 27.08.2026: «оно пока не нужно»). Выключено ВСЁ: вырезы из
+// красного, слои-переключатели, кнопки и строки в истории точки. Данные и
+// сборщики не тронуты — вернуть показ значит поставить здесь true.
+const EXTRA_LAYERS = false;
+
+const MONTHS = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+const EMPTY = {type: 'FeatureCollection', features: []};
+
+// Все файлы data/* тянем с обязательной сверкой с сервером. 26.08.2026:
+// куратор дважды видел уже исправленные дефекты (прорезь под Шепетовкой,
+// круг Байконура) - браузер отдавал закешированный geojson, и приходилось
+// жать Cmd+Shift+R. Пересборка данных теперь видна сразу после F5.
+const DFETCH = url => fetch(url, {cache: 'no-cache'});
+
+// ---- чистка колец от отрезков нулевой длины -------------------------------
+// Две соседние вершины могут совпасть - после округления координат у нас или
+// уже в исходнике (сырые снимки DeepStateMAP). Shapely и любая проверка
+// геометрии такое кольцо считают валидными, а триангулятор MapLibre (earcut)
+// на вырожденном отрезке ошибается: он выдаёт лишний треугольник, и поверх
+// заливки появляется яркая прямая или клин - «дебильная прямая внутри
+// закрашенного». На кольце в 15 561 вершину хватало ОДНОЙ дублирующей пары
+// (срез 1921-08-14: клин от Волгограда до Алтая).
+// На диске это чистят сборщики (tools/geoclean.py); здесь тот же проход стоит
+// СЕТКОЙ БЕЗОПАСНОСТИ на всё, что грузится, включая чужие данные.
+const dedupRing = r => {
+  const out = [r[0]];
+  for (let i = 1; i < r.length; i++) {
+    const a = out[out.length - 1], b = r[i];
+    if (a[0] !== b[0] || a[1] !== b[1]) out.push(b);
+  }
+  if (out.length > 2) {
+    const f = out[0], l = out[out.length - 1];
+    if (f[0] !== l[0] || f[1] !== l[1]) out.push([f[0], f[1]]);
+  }
+  return out.length >= 4 ? out : null;
+};
+const cleanPoly = poly => {
+  const rings = poly.map(dedupRing);
+  return (!rings.length || !rings[0]) ? null : rings.filter(Boolean);
+};
+const cleanFC = fc => {
+  if (!fc || !fc.features) return fc;
+  for (const f of fc.features) {
+    const g = f.geometry;
+    if (!g) continue;
+    if (g.type === 'Polygon') {
+      const p = cleanPoly(g.coordinates);
+      if (p) g.coordinates = p; else f.geometry = null;
+    } else if (g.type === 'MultiPolygon') {
+      g.coordinates = g.coordinates.map(cleanPoly).filter(Boolean);
+      if (!g.coordinates.length) f.geometry = null;
+    }
+  }
+  fc.features = fc.features.filter(f => f.geometry);
+  return fc;
+};
+const $ = id => document.getElementById(id);
+
+// ---- сворачиваемая шапка (решение куратора 26.08.2026) --------------------
+(() => {
+  const hdr = $('hdr'), btn = $('hdrToggle');
+  const apply = folded => {
+    hdr.classList.toggle('folded', folded);
+    btn.textContent = folded ? '?' : '–';
+    btn.title = folded ? 'Показать пояснение' : 'Свернуть пояснение';
+  };
+  let folded = false;
+  try { folded = localStorage.getItem('hdrFolded') === '1'; } catch (e) {}
+  apply(folded);
+  btn.onclick = () => {
+    folded = !folded;
+    apply(folded);
+    try { localStorage.setItem('hdrFolded', folded ? '1' : '0'); } catch (e) {}
+  };
+})();
+
+const map = new maplibregl.Map({
+  container: 'map',
+  style: 'https://tiles.openfreemap.org/styles/dark',
+  center: [55, 45],
+  zoom: 1.7,
+  attributionControl: {compact: false}
+});
+map.addControl(new maplibregl.NavigationControl({showCompass: false}));
+new ResizeObserver(() => map.resize()).observe($('map'));
+let nudges = 0;
+const nudge = setInterval(() => { map.resize(); map.triggerRepaint(); if (++nudges >= 6) clearInterval(nudge); }, 700);
+
+// ---- модель времени: слои = годовые срезы + дневные срезы фронта ----------
+// слой: {t: миллисекунды UTC, key, kind: 'year'|'day'}
+let LAYERS = [], core = {}, sphere = EMPTY;
+
+// ---- сфера влияния: эпизоды отношений с датами, причинами и пруфами --------
+// data/sphere.geojson собирается tools/build_sphere.py из курируемой таблицы
+// data/sphere/registry.csv (задача куратора 26.08.2026: «давай ищи источники и
+// заполняй все в таблицу чтобы оно адекватно отображалось, когда кто что
+// почему»). Строка таблицы = ЭПИЗОД, а не страна: у Египта их три, у Сомали
+// два. `from`/`to` - ISO-даты эпизода (пустой `to` = не закрыт), `gfrom`/`gto`
+// - под-окно КОНТУРА (у CShapes внутри эпизода граница могла меняться:
+// Египет с Синаем до 09.06.1967 и без него после). Показ прежний - одна
+// заливка своим оттенком, без штриховок (правило куратора «красное и
+// не-красное»); тип зависимости, даты, событие и источник живут в попапе.
+const sphereOn = (f, t) => {
+  const p = f.properties;
+  return t >= parseKey(p.gfrom || p.from)
+      && (!(p.gto || p.to) || t <= parseKey(p.gto || p.to) + 86399999);
+};
+
+// ---- потери имперского контроля НА СОБСТВЕННОЙ территории ------------------
+// Задача куратора 19.08.2026: над территорией самой империи семантика фронта
+// переворачивается. «Освобождено» в Курской или Белгородской области - это не
+// зелёная заливка поверх красного, а ВЫРЕЗ из красного: здесь империи нет.
+// Внутри Украины семантика прежняя (зелёное - освобождённое от оккупанта).
+// Данные - data/losses/* (tools/build_losses.py), даты ПО ДНЯМ: общая сетка
+// периода 2022+ помесячная, но потеря контроля у империи дома - редкое
+// событие, и день у него должен быть точным.
+//   kind: lost   - контроль Украины на территории РФ (Курская операция);
+//         grey   - серая зона: не держит никто;
+//         occupation - участком неделями и годами распоряжался кто-то другой
+//                 (26.08.2026, эпизоды до XX века: война 1812 года, Крымская
+//                 война, Сахалин 1905, Москва 1610-1612). ВЫРЕЗАЕТСЯ;
+//         raid   - набег, контроль часами-сутками, геометрия условная;
+//         contested - участок был под ударом, но НП империя удержала.
+//   raid и contested из красного НЕ вырезаются и в показ не идут вовсе - они
+//   живут строкой «Тогда же» в попапе (требование куратора 26.08.2026: «тип
+//   raid не вырезает и живёт строкой в попапе»). Дырка в красном значит
+//   «участок держал кто-то другой», а набег - это не держание; Грайворон,
+//   Шебекино, Тёткино и Петропавловский порт взяты не были, и приписывать им
+//   взятие незачем. То же множество NO_CUT - в tools/build_losses.py.
+let LOSS = [];
+const NO_CUT = {contested: 1};   // рейд вырезает: решение куратора 28.08.2026
+const dayMs = (k, end) => {              // «2024-08-12» -> мс UTC (конец дня)
+  const p = String(k).split('-').map(Number);
+  return Date.UTC(p[0], (p[1] || 1) - 1, p[2] || 1) + (end ? 86399999 : 0);
+};
+const lossActive = t => LOSS.filter(f => t >= f.t0 && t <= f.t1);
+
+// ---- постсоветские эпизоды 1990-2022 ---------------------------------------
+// data/postsoviet.geojson собирается tools/build_postsoviet.py из курируемой
+// таблицы data/postsoviet/registry.csv. До 26.08.2026 весь промежуток между
+// 1992 и 2022 годом держался одним статичным файлом
+// data/deepstate/territories.geojson с ГОДОВОЙ пометкой, и листание прыгало из
+// 1992 сразу в 2015 (баг куратора: «прыжок из 1992 в 2015, и сразу появляются
+// и осетия, и абхазия, и донбас и крым? там все по очереди было вообще-то»).
+// Чечни на карте не было вовсе. Статичный файл остался на диске и остался
+// источником геометрии для билдера, в показ идёт этот слой.
+//   paint: 'red'  - территория соседнего государства, которой распоряжается
+//                   империя (Приднестровье, Абхазия, Южная Осетия, Крым,
+//                   ОРДЛО, буферные зоны в Грузии 2008): красим красным;
+//          'cut'  - точка внутри контура империи, но контроля империя там не
+//                   имела (Ичкерия 1996-1999, обе чеченские войны): вырезаем
+//                   из красного тем же приёмом, что и потери контроля;
+//          'none' - война за территорию соседнего государства, контроль ещё
+//                   не установлен: карту не красим, эпизод живёт в попапе и
+//                   даёт остановку ползунка.
+// 26.08.2026, второй баг куратора: «донецкая область появляется сразу вместе с
+// крымом, сплошным куском. там бои шли и они пытались захватывать города и их
+// отбивали». Так и было: весь Донбасс включался одним полигоном 06.04.2014,
+// причём полигоном ОРДЛО - линией, на которой фронт встал только после
+// Дебальцева, в феврале 2015 года. Теперь апрель 2014 - февраль 2015 и первые
+// недели вторжения 2022 года идут ДАТИРОВАННЫМИ СРЕЗАМИ реконструкции (строки
+// donbas_* в реестре, геометрия - tools/build_donbas.py по таблице
+// городов-якорей, тем же методом и тем же кодом, что слой Второй мировой).
+// Полигон ОРДЛО включается 19.02.2015, посуточный DeepStateMAP - 03.04.2022:
+// ни провала, ни двойного показа на стыках нет.
+let PS = [];
+const psAt = t => PS.filter(f => t >= f.t0 && t <= f.t1);
+const psCuts = t => psAt(t).filter(f => f.p.paint === 'cut');
+const psReds = t => psAt(t).filter(f => f.p.paint === 'red');
+
+// ---- остроги: то, чем империя в Сибири владела на самом деле ---------------
+// Решение куратора 28.08.2026 на всю острожную эпоху: «отмечай только остроги
+// красным (как будто они в котлах) да и всё». Острог - это не захват края, а
+// изба с гарнизоном посреди чужой земли, живущая на ясак, который ещё надо
+// суметь собрать. Поэтому в Сибири XVII века красится не земля, а сами
+// укреплённые точки. Геометрия условная - кружок радиусом 15 км, обозначение
+// места; тем же приёмом показаны рейды 2023-2024.
+// Таблица: data/ostrogs/registry.csv, сборка: tools/build_ostrogs.py.
+// Остроги, которые империя БРОСИЛА, гаснут по своей дате: Мангазея 1672,
+// Анадырский острог 1771 (указ о ликвидации 04.05.1764).
+let OSTROG = [];
+let SUBS_EXPL = [];               // вычитания с обоснованиями, для попапа
+const subsAt = (t, x, y) => SUBS_EXPL.filter(
+  f => t >= f.t0 && t < f.t1 && inGeom(x, y, f.geometry));
+// Острог гаснет НАВСЕГДА, когда земля вокруг него покраснела впервые: дата
+// red_from посчитана в tools/build_ostrogs.py по срезам. Раньше точки гасились
+// живым правилом «пока земля не красная», и на срезе 15.08.1918, где Сибирь
+// снова чёрная (окно самостоятельности областников), остроги XVI-XVII веков
+// зажигались заново - брак, пойманный куратором 28.08.2026.
+const ostrogAt = t => OSTROG.filter(f => t >= f.t0 && t <= f.t1
+                                        && t < f.tRed);
+
+// ---- антиколониальное сопротивление ----------------------------------------
+// data/resistance/cuts.geojson (tools/build_uprisings.py) - территории, которые
+// сопротивление УДЕРЖАЛО: Астрахань 24.06.1670-27.11.1671 (казацкий круг после
+// ухода Разина), Башкортостан 1708-1711 (Башкирская орда со своим ханом), степи
+// Среднего жуза 1841-1845 (Кенесары Касымов, хан всех казахов). Показ бинарный,
+// штриховок нет, поэтому удержанная территория просто вырезается из красного -
+// тем же приёмом, что Ичкерия и потери контроля. Выступления, территории НЕ
+// удержавшие, заливкой не показываются вовсе: они живут строкой в попапе
+// истории точки (data/resistance/uprisings.geojson, грузится лениво по клику).
+// Имамат и Ичкерия удержание тоже прошли, но вычтены другими механизмами
+// (RESIST в tools/build_expansion.py и слой постсоветских эпизодов) - второй раз
+// то же самое не вычитаем.
+let RCUT = [];
+const rcAt = t => RCUT.filter(f => t >= f.t0 && t <= f.t1);
+
+// ---- депортации и ликвидированные автономии --------------------------------
+// Ни то, ни другое НЕ меняет того, кто контролирует землю: земля остаётся за
+// империей, у людей отнимают дом, у народа - субъектность. Поэтому в основную
+// заливку эти слои не идут ни в каком виде, а живут переключателями рядом со
+// спутником (по умолчанию выключены) и строками в попапе истории точки.
+// Данные: data/deportations/deportations.geojson (tools/build_deportations.py),
+// data/peoples/abolished.geojson (tools/build_autonomies.py).
+let DEP = [], AUT = [];
+const depAt = t => DEP.filter(f => t >= f.t0);            // депортация уже была
+const autAt = t => AUT.filter(f => t >= f.t0 && t <= f.t1);  // автономия упразднена
+
+// ---- период советско-украинской войны 1917–1921 ---------------------------
+// 'recon' — окно, внутри которого ядро идёт по реконструкции зоны контроля;
+// на карте оно ничем не выделено (решение куратора 19.08.2026: никаких
+// штриховок и пунктиров, показ бинарный), пометка про черновик — текстом в
+// шапке. Жёлтые линии советского контроля 1918/1919 из атласа УІФ убраны
+// из показа и легенды; файлы остаются на диске.
+// Беларусь ('by') — несуверенна, непрерывно от распада СССР до сегодня
+// (решение куратора 18.08.2026)
+// ВМВ ('ww2') — помесячные срезы фронта 22.06.1941–03.09.1945
+// (tools/build_ww2.py, задача куратора 26.08.2026): в этом окне срезы
+// датированные, поэтому на табло стоит день, а не год, и автопрогон идёт
+// быстро — иначе откат 1941-го и возврат 1944-го не читаются движением
+const PER = {
+  recon: [Date.UTC(1917, 11, 1), Date.UTC(1921, 2, 18, 23, 59, 59)],
+  ww2:   [Date.UTC(1941, 5, 22), Date.UTC(1945, 8, 3, 23, 59, 59)],
+  by:    [Date.UTC(1991, 11, 26), Date.UTC(2100, 0, 1)],
+};
+const inPer = (k, t) => t >= PER[k][0] && t <= PER[k][1];
+const dayCache = new Map();               // key -> geojson (LRU до 200 дней)
+const utc = (y, m = 1, d = 1) => Date.UTC(y, m - 1, d);
+const yearOf = t => new Date(t).getUTCFullYear();
+
+// ---- кусочный ползунок: 0..SPLIT — годы 1450..начало фронта, дальше дни ----
+// шаг мелкий (SMAX=100000): в левой части ~2.7 дня на деление, иначе окна
+// событий 1917–1921 (15 дней) перескакивались бы при перетаскивании
+const SMAX = 100000;
+let T0 = utc(1450), TW = utc(2022, 4, 3), T1 = utc(2026, 1, 1), SPLIT = 0.7 * SMAX;
+function tToSlider(t) {
+  if (t <= TW || TW >= T1) return Math.round((t - T0) / (Math.min(TW, T1) - T0) * SPLIT);
+  return SPLIT + Math.round((t - TW) / (T1 - TW) * (SMAX - SPLIT));
+}
+function sliderToT(v) {
+  if (v <= SPLIT || TW >= T1) return T0 + (Math.min(TW, T1) - T0) * v / SPLIT;
+  return TW + (T1 - TW) * (v - SPLIT) / (SMAX - SPLIT);
+}
+const pct = t => tToSlider(t) / SMAX * 100;   // позиция на риске ползунка, %
+
+function layerAt(t) {                     // последний слой не позже t
+  let best = 0;
+  for (let i = 0; i < LAYERS.length; i++) if (LAYERS[i].t <= t) best = i;
+  return best;
+}
+
+let current = -1;                         // индекс текущего слоя
+let curT = null;                          // текущая дата на ползунке
+
+// ---- остановки листания ◀▶ ------------------------------------------------
+// даты слоёв (срезы ядра, в 1917–1921 их 18 штук, и дни фронта DeepState) плюс
+// начало периода реконструкции
+let STOPS = [];
+function buildStops() {
+  const s = new Set(LAYERS.map(l => l.t));
+  s.add(PER.recon[0]);
+  // потери контроля на своей территории: остановка на начале и на дне после
+  // конца КАЖДОГО эпизода (не каждой фичи - иначе один Курск даст 89 щелчков).
+  // Без этого двухдневный Грайворон между помесячными снимками не поймать.
+  const ep = new Map();
+  for (const f of LOSS) {
+    const e = ep.get(f.p.episode) || {t0: f.t0, t1: f.t1};
+    ep.set(f.p.episode, {t0: Math.min(e.t0, f.t0), t1: Math.max(e.t1, f.t1)});
+  }
+  for (const e of ep.values()) s.add(e.t0).add(e.t1 + 1);
+  // Сфера влияния: остановка на КАЖДОЙ ДАТЕ, где эпизод начинается или
+  // кончается. 26.08.2026, баг куратора «из 1946 сразу прыжок в 1992, где
+  // Африка и весь послевоенный движ»: границы СССР с 1946 по 1991 почти не
+  // менялись, срезов ядра там нет, и листание перепрыгивало сорок шесть лет
+  // разом - вместе со всей динамикой блока, Африки, Кубы, Вьетнама и
+  // Афганистана. С 26.08.2026 даты точные (data/sphere/registry.csv):
+  // остановка встаёт на 25 дек 1979 (ввод войск в Афганистан), а не на 1979 г.
+  for (const f of (sphere.features || [])) {
+    const p = f.properties;
+    if (p.from) s.add(parseKey(p.from));
+    if (p.to) s.add(parseKey(p.to) + 86400000);
+  }
+  // Постсоветские эпизоды: остановка на КАЖДОЙ дате начала и конца эпизода
+  // (data/postsoviet/registry.csv, tools/build_postsoviet.py). Раньше тут
+  // стояли годовые пометки статичного файла DeepStateMAP, и весь период
+  // читался тремя щелчками: 1992, 2008, 2014. Теперь их два десятка - от боёв
+  // в Дубоссарах 02.03.1992 до полномасштабного вторжения 24.02.2022.
+  for (const f of PS) {
+    s.add(f.t0);
+    if (f.p.to) s.add(f.t1 + 1);
+  }
+  // Сопротивление, депортации и автономии: остановка на каждой дате, где
+  // что-то меняется. Без этого Астрахань 1670-1671 и Башкирская орда 1708-1711
+  // между срезами ядра просто не поймать - ближайшие срезы стоят в 1654 и 1686
+  // годах, а вырез живёт полтора года.
+  for (const f of RCUT) s.add(f.t0).add(f.t1 + 1);
+  // Остроги: остановка на дате постановки и на дате, когда точка гаснет.
+  // Без них на срезе 1632 года вываливались разом Тюмень 1586, Тобольск 1587,
+  // Сургут 1594, Мангазея 1601, Томск 1604, Кузнецк 1618, Енисейск 1619,
+  // Красноярск 1628 и Якутск 1632 - куратор 28.08.2026: «там миллион острогов
+  // разом возник что ли? почему не по порядку?».
+  for (const f of OSTROG) {
+    s.add(f.t0);
+    if (f.t1 < 8.64e15) s.add(f.t1 + 1);
+    if (f.tRed < 8.64e15) s.add(f.tRed);
+  }
+  for (const f of DEP) s.add(f.t0);
+  for (const f of AUT) { s.add(f.t0); if (f.t1 < 8.64e15) s.add(f.t1 + 1); }
+  STOPS = [...s].sort((a, b) => a - b);
+}
+
+function stepTo(dir) {                    // следующая остановка от текущей даты
+  const t = curT === null ? STOPS[0] : curT;
+  if (dir > 0) return STOPS.find(x => x > t) ?? STOPS[STOPS.length - 1];
+  const prev = STOPS.filter(x => x < t);
+  return prev.length ? prev[prev.length - 1] : STOPS[0];
+}
+
+function dateFromUrl() {
+  const raw = new URLSearchParams(location.search).get('d');
+  if (!raw) return null;
+  const m = /^(-?\d{3,4})(?:-(\d{1,2}))?(?:-(\d{1,2}))?$/.exec(raw.trim());
+  if (!m) return null;
+  const t = Date.UTC(+m[1], (+m[2] || 1) - 1, +m[3] || 1);
+  const d = new Date(t);
+  d.setUTCFullYear(+m[1]);                // годы до 100 не должны уехать в XX век
+  return Number.isNaN(d.getTime()) ? null : d.getTime();
+}
+
+function urlSetDate(t) {                  // адрес идёт за ползунком - можно копировать
+  const d = new Date(t);
+  const p = n => String(n).padStart(2, '0');
+  const q = `?d=${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`;
+  try { history.replaceState(null, '', q); } catch (e) {}
+}
+
+function dmy(t) {
+  const d = new Date(t);
+  return d.getUTCDate() + ' ' + MONTHS[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
+}
+
+function fmt(l, t) {
+  // На табло - ЗАПРОШЕННАЯ дата, а не дата среза под ней. 26.08.2026, баг
+  // куратора «30 апреля и 22 мая 2023 зависли в цикле»: для месячных снимков
+  // фронта здесь стояло dmy(l.t), и при движении вперёд подпись прыгала назад
+  // на дату снимка - со стороны это читалось как петля. Какой срез под датой,
+  // сказано рядом в подписи «границы среза ...».
+  if (l.kind === 'day') return dmy(t);
+  if (inPer('recon', t) || inPer('ww2', t)) return dmy(t);  // датированные срезы
+  return String(yearOf(t));
+}
+
+async function dayData(key) {
+  if (dayCache.has(key)) { const v = dayCache.get(key); dayCache.delete(key); dayCache.set(key, v); return v; }
+  const d = cleanFC(await DFETCH('data/deepstate/days/' + key + '.geojson')
+    .then(r => r.ok ? r.json() : EMPTY));
+  dayCache.set(key, d);
+  if (dayCache.size > 200) dayCache.delete(dayCache.keys().next().value);
+  return d;
+}
+
+// ---- ленивая загрузка годовых срезов (29.08.2026) -------------------------
+// Раньше старт качал все 192 среза разом (~35-40 МБ, 250 запросов) до
+// появления карты: с localhost терпимо, с удалённого сервера - минуты белого
+// экрана. Теперь при старте грузится ТОЛЬКО срез стартовой даты, остальные
+// догреваются фоном от текущей даты в стороны; render() и история точки
+// дожидаются недостающего сами.
+let CORE_KEYS = [];                       // порядок манифеста = хронология
+const corePending = new Map();
+function coreLoad(key) {
+  if (core[key]) return Promise.resolve(core[key]);
+  if (corePending.has(key)) return corePending.get(key);
+  const p = DFETCH(`data/years/${key}.geojson`).then(r => r.json())
+    .then(d => { core[key] = cleanFC(d); corePending.delete(key); return core[key]; })
+    .catch(e => { corePending.delete(key); throw e; });
+  corePending.set(key, p);
+  return p;
+}
+async function warmCore(fromKey) {
+  const i0 = Math.max(0, CORE_KEYS.indexOf(String(fromKey)));
+  const order = [];
+  for (let d = 1; d < CORE_KEYS.length; d++) {
+    if (i0 + d < CORE_KEYS.length) order.push(CORE_KEYS[i0 + d]);
+    if (i0 - d >= 0) order.push(CORE_KEYS[i0 - d]);
+  }
+  const queue = order.filter(k => !core[k]);
+  const worker = async () => {
+    while (queue.length) {
+      const k = queue.shift();
+      try { await coreLoad(k); } catch (e) { /* дырку дотянет render */ }
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker(), worker()]);
+}
+
+// ---- вырез из красного ----------------------------------------------------
+// MapLibre не умеет вычитать один слой из другого, а тащить ради этого
+// библиотеку булевых операций незачем: вырезы при сборке обрезаны по контуру
+// РФ и целиком лежат внутри полигона ядра. Значит, достаточно добавить их
+// контур ВНУТРЕННИМ кольцом того полигона ядра, который его содержит: дырка в
+// полигоне GeoJSON и есть «здесь империи нет», подложка видна насквозь.
+// Исходные срезы не трогаем - копируем массивы колец перед push.
+function outerRings(g) {
+  if (!g) return [];
+  if (g.type === 'Polygon') return [g.coordinates[0]];
+  if (g.type === 'MultiPolygon') return g.coordinates.map(p => p[0]);
+  return [];
+}
+function ringInside(ring) {             // точка заведомо внутри кольца выреза
+  let x = 0, y = 0;
+  for (const p of ring) { x += p[0]; y += p[1]; }
+  return [x / ring.length, y / ring.length];
+}
+// ---- вычитание вырезов из ядра -------------------------------------------
+// Настоящая разность полигонов (polygon-clipping). Кэш по ключу среза и списку
+// вырезов: на одной дате render() зовут несколько раз, а ядро тяжёлое.
+const CUTCACHE = new Map();
+function cutCoreReal(fc, cuts, ck) {
+  if (typeof polygonClipping === 'undefined') return null;
+  if (CUTCACHE.has(ck)) return CUTCACHE.get(ck);
+  const holes = [];
+  for (const c of cuts) {
+    const g = c.geometry;
+    if (!g) continue;
+    if (g.type === 'Polygon') holes.push(g.coordinates);
+    else if (g.type === 'MultiPolygon') holes.push(...g.coordinates);
+  }
+  if (!holes.length) return fc;
+  // Вычитаем ПОПОЛИГОННО и только там, где bbox полигона ядра пересекает
+  // bbox хоть одной дырки: вычитание непересекающегося - no-op, а
+  // polygon-clipping не отсекает по bbox сам и на полном ядре 1992 года
+  // (78 тыс. вершин) стоил до 600 мс на первый заход в чеченское окно.
+  // Непересекающиеся полигоны идут в выход как есть, порядок сохраняется.
+  const bboxRings = rings => {
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const [x, y] of rings[0]) {
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+    }
+    return [x0, y0, x1, y1];
+  };
+  const hb = holes.map(bboxRings);
+  const touches = b => hb.some(q =>
+    !(b[2] < q[0] || b[0] > q[2] || b[3] < q[1] || b[1] > q[3]));
+  let out;
+  try {
+    out = {type: 'FeatureCollection', features: fc.features.map(f => {
+      const g = f.geometry;
+      if (!g || (g.type !== 'Polygon' && g.type !== 'MultiPolygon')) return f;
+      const a = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
+      const res = [];
+      for (const p of a) {
+        if (!touches(bboxRings(p))) { res.push(p); continue; }
+        for (const q of polygonClipping.difference([p], holes)) res.push(q);
+      }
+      return {type: 'Feature', properties: f.properties,
+              geometry: res.length ? {type: 'MultiPolygon', coordinates: res} : null};
+    }).filter(f => f.geometry)};
+  } catch (e) {
+    console.warn('вычитание вырезов не удалось, падаем на дырки:', e);
+    return null;
+  }
+  if (CUTCACHE.size > 40) CUTCACHE.delete(CUTCACHE.keys().next().value);
+  CUTCACHE.set(ck, out);
+  return out;
+}
+
+// Запасной путь: вырез вставляется дыркой. Работает, пока библиотека не
+// загрузилась; у границы оставляет линию поперёк прорыва - см. комментарий
+// к подключению polygon-clipping в шапке.
+function cutCore(fc, cuts) {
+  if (!cuts.length || !fc.features || !fc.features.length) return fc;
+  const out = {type: 'FeatureCollection', features: fc.features.map(f => {
+    const g = f.geometry;
+    return {type: 'Feature', properties: f.properties, geometry:
+      !g ? g :
+      g.type === 'Polygon' ? {type: 'Polygon', coordinates: g.coordinates.slice()} :
+      g.type === 'MultiPolygon' ? {type: 'MultiPolygon',
+        coordinates: g.coordinates.map(p => p.slice())} : g};
+  })};
+  for (const c of cuts) {
+    for (const ring of outerRings(c.geometry)) {
+      // пробуем центр кольца, а если он попал в дырку ядра - его вершины
+      const probes = [ringInside(ring)].concat(ring);
+      let done = false;
+      for (const [px, py] of probes) {
+        for (const f of out.features) {
+          const g = f.geometry;
+          if (!g) continue;
+          if (g.type === 'Polygon') {
+            if (inRings(px, py, g.coordinates)) { g.coordinates.push(ring); done = true; }
+          } else if (g.type === 'MultiPolygon') {
+            for (const poly of g.coordinates)
+              if (inRings(px, py, poly)) { poly.push(ring); done = true; break; }
+          }
+          if (done) break;
+        }
+        if (done) break;
+      }
+    }
+  }
+  return out;
+}
+
+// ---- шов на границе с занятой территорией --------------------------------
+// Занятую часть Украины красит слой фронта (DeepStateMAP), саму РФ - ядро
+// (контур CShapes 1992). Линию границы эти два источника рисуют по-разному, на
+// 4-8 км, и вдоль всей границы шли то ЯРКАЯ ПОЛОСА (две полупрозрачные заливки
+// легли друг на друга), то чёрные прорехи. Куратор 28.08.2026 увидел это как
+// «странный клин» под Белгородом.
+// Лечим вычитанием: из фронта убираем всё, что уже накрыто ядром. Показ от
+// этого не меняется - под красным и так было красное, - а двойной заливки и
+// яркого шва больше нет. Кэш по паре ключей: ядро на дате и снимок фронта.
+//
+// Вычитать весь контур ядра нельзя: в срезе 1992 года 122 полигона на 78
+// тысяч вершин, и difference(кусок фронта, вся РФ с Сибирью) стоил по 10-17
+// секунд НА КАЖДЫЙ месячный снимок - проход ползунком по 2022-2026 собирал
+// минуты пауз. Поэтому ядро один раз обрезается прямоугольником театра
+// фронта (охват занятых кусков, раздвинутый до целых градусов) и дальше
+// вычитается только эта полоска. Результат тот же байт в байт: кусок фронта
+// лежит внутри прямоугольника, значит P \ ядро = P \ (ядро ∩ прямоугольник).
+const CORENEAR = new Map();
+function coreNear(coreFC, coreKey, box) {
+  const ck = coreKey + '|' + box.join(',');
+  if (CORENEAR.has(ck)) return CORENEAR.get(ck);
+  const core = [];
+  for (const f of (coreFC.features || [])) {
+    const g = f.geometry;
+    if (!g) continue;
+    if (g.type === 'Polygon') core.push(g.coordinates);
+    else if (g.type === 'MultiPolygon') core.push(...g.coordinates);
+  }
+  let near = core;
+  if (core.length) {
+    const [x0, y0, x1, y1] = box;
+    try {
+      near = polygonClipping.intersection(core,
+        [[[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]]]);
+    } catch (e) {
+      console.warn('обрезка ядра под фронт не удалась, вычитаем целиком:', e);
+    }
+  }
+  if (CORENEAR.size > 8) CORENEAR.delete(CORENEAR.keys().next().value);
+  CORENEAR.set(ck, near);
+  return near;
+}
+const FRONTCACHE = new Map();
+function trimFront(fc, coreFC, coreKey, dayKey) {
+  if (typeof polygonClipping === 'undefined' || !fc || !fc.features) return fc;
+  const ck = coreKey + '|' + dayKey;
+  if (FRONTCACHE.has(ck)) return FRONTCACHE.get(ck);
+  // прямоугольник театра: охват занятых кусков этого снимка, до целых
+  // градусов - чтобы соседние месяцы попадали в один закэшированный ключ
+  let b = null;
+  for (const f of fc.features) {
+    if (!f.geometry || f.properties.s !== 'occupied') continue;
+    const q = bboxOf(f);
+    b = b ? [Math.min(b[0], q[0]), Math.min(b[1], q[1]),
+             Math.max(b[2], q[2]), Math.max(b[3], q[3])] : q.slice();
+  }
+  if (!b) return fc;
+  const core = coreNear(coreFC, coreKey,
+    [Math.floor(b[0]), Math.floor(b[1]), Math.ceil(b[2]), Math.ceil(b[3])]);
+  if (!core.length) return fc;
+  let out;
+  try {
+    out = {type: 'FeatureCollection', features: fc.features.map(f => {
+      const g = f.geometry;
+      if (!g || f.properties.s !== 'occupied') return f;
+      const a = g.type === 'Polygon' ? [g.coordinates]
+              : g.type === 'MultiPolygon' ? g.coordinates : null;
+      if (!a) return f;
+      const r = polygonClipping.difference(a, core);
+      return {type: 'Feature', properties: f.properties,
+              geometry: r.length ? {type: 'MultiPolygon', coordinates: r} : null};
+    }).filter(f => f.geometry)};
+  } catch (e) {
+    console.warn('подрезка фронта не удалась:', e);
+    return fc;
+  }
+  if (FRONTCACHE.size > 20) FRONTCACHE.delete(FRONTCACHE.keys().next().value);
+  FRONTCACHE.set(ck, out);
+  return out;
+}
+
+// Ключ снимка фронта на дату: последний снимок DeepStateMAP не позже t.
+// Раньше фронт был привязан к типу активного слоя (kind === 'day'), и любая
+// остановка иного рода внутри окна снимков гасила его.
+const frontKeyAt = t => {
+  let k = null;
+  for (const l of LAYERS) {
+    if (l.kind !== 'day') continue;
+    if (l.t <= t) k = l.key; else break;
+  }
+  return k;
+};
+
+let renderSeq = 0;
+async function render(t, fromPicker) {
+  const i = layerAt(t);
+  const l = LAYERS[i];
+  current = i;
+  const y = yearOf(t);
+  const seq = ++renderSeq;
+
+  // ядро: ближайший годовой срез не позже t
+  let coreKey = null;
+  for (const l2 of LAYERS) if (l2.kind === 'year' && l2.t <= t) coreKey = l2.key;
+  // потери контроля на своей территории: вырезаем их из ядра, а сами полигоны
+  // отдаём отдельному слою на обводку (см. блок «потери имперского контроля»)
+  const cuts = lossActive(t);
+  // постсоветские вырезы: Ичкерия 1996-1999 и обе чеченские войны. Точка
+  // внутри контура империи, а контроля империя там не имела - значит, дырка
+  const pscut = psCuts(t);
+  // удержанные сопротивлением территории: тот же вырез, что у Ичкерии.
+  // Пока слой выключен (EXTRA_LAYERS), вырезов нет вовсе
+  const rcut = EXTRA_LAYERS ? rcAt(t) : [];
+  const allCuts = cuts.filter(f => !NO_CUT[f.kind]).concat(pscut).concat(rcut);
+  let base = core[coreKey];
+  if (!base && coreKey !== null) {
+    base = await coreLoad(coreKey).catch(() => EMPTY);
+    if (seq !== renderSeq) return;       // пока качали срез, уехали на другую дату
+  }
+  base = base || EMPTY;
+  // В ключе кэша обязаны быть ДАТЫ ОКНА каждого выреза, а не только имя.
+  // 29.08.2026: имени хватало для Ичкерии (один вырез - одно окно), но у
+  // Курской операции 89 дневных фич под одним именем, и ключ у всех выходил
+  // «1992|Курская операция»: после первого рендера карта показывала
+  // замороженную геометрию того дня, сколько ни води ползунком. Куратор
+  // видел это как «полосочки за спинами украинцев, которые прорвались,
+  // заняли Суджу» - на экране стоял клин другого дня.
+  const ck = coreKey + '|' + allCuts.map(f => ((f.p && (f.p.name || f.p.slug))
+    || (f.properties && f.properties.name) || '?')
+    + '@' + (f.t0 ?? '') + '..' + (f.t1 ?? '')).join(',');
+  const coreData = cutCoreReal(base, allCuts, ck) || cutCore(base, allCuts);
+  map.getSource('core').setData(coreData);
+  if (map.getSource('loss'))
+    map.getSource('loss').setData({type: 'FeatureCollection', features: cuts});
+  map.getSource('sphere').setData({type: 'FeatureCollection',
+    features: sphere.features.filter(f => sphereOn(f, t))});
+  map.getSource('terr').setData({type: 'FeatureCollection', features: psReds(t)});
+  // Острог показываем ТОЛЬКО пока земля вокруг него не покраснела. Как только
+  // край перешёл под контроль империи, точка теряет смысл: она была нужна
+  // ровно затем, чтобы показать избу с гарнизоном посреди чужой земли.
+  // Куратор 28.08.2026: «у меня там твои остроги висят уже когда все красным
+  // закрашено».
+  if (map.getSource('ostrog'))
+    map.getSource('ostrog').setData({type: 'FeatureCollection',
+      features: ostrogAt(t)});
+  if (map.getSource('pscut'))
+    map.getSource('pscut').setData({type: 'FeatureCollection', features: pscut});
+
+  // Фронт берём не по типу активного слоя, а по ДАТЕ: внутри окна помесячных
+  // снимков показываем последний снимок не позже t. Иначе остановка другого
+  // рода, попавшая внутрь окна, гасит фронт целиком - так 28.08.2026 на
+  // 23.05.2023 (граница окна Грайворонского рейда) с карты пропала вся
+  // занятая часть Украины.
+  const fkey = frontKeyAt(t);
+  if (fkey) {
+    const d = await dayData(fkey);
+    if (seq !== renderSeq) return;       // пока качали, уехали на другую дату
+    map.getSource('front').setData(trimFront(d, base, coreKey, fkey));
+  } else {
+    map.getSource('front').setData(EMPTY);
+  }
+
+  periods(t);
+
+  // дата на табло. Обычно фронт 2022+ прищёлкивается к помесячному снимку, но
+  // если на точной дате открыто окно потери контроля - день не теряем: рейд на
+  // Грайворон длился двое суток и между снимками просто исчез бы.
+  $('date').textContent = cuts.length ? dmy(t) : fmt(l, t);
+  $('entity').textContent = ENTITY(y) + (
+    l.kind === 'day' ? ' · фронт DeepStateMAP (помесячно)'
+      + (cuts.length ? ', потери контроля - по дням' : '') :
+    String(l.key).includes('-') ? ` · границы среза ${l.key}` :
+    yearOf(l.t) !== y ? ` · границы среза ${yearOf(l.t)} г.` : '');
+
+  // 26.08.2026, баг куратора «30 апреля и 22 мая 2023 зависли в цикле»:
+  // раньше на месячных снимках фронта curT прищёлкивался к дате СНИМКА
+  // (l.t), и после окна рейда 22-23.05 дата отскакивала назад на 30.04,
+  // откуда следующий шаг снова вёл на 22.05 - петля из трёх шагов.
+  // Текущая дата теперь всегда та, что запрошена; какой срез под ней -
+  // сказано в подписи «границы среза ...».
+  curT = t;
+  urlSetDate(curT);                       // адрес идёт за датой: ссылку можно копировать
+  histRefresh();                          // попап истории точки идёт за датой
+  $('slider').value = tToSlider(curT);
+  if (!fromPicker) {
+    const d = new Date(l.kind === 'day' ? l.t : t);
+    $('pyear').value = d.getUTCFullYear();
+    $('pmonth').value = d.getUTCMonth() + 1;
+    syncDayOptions();
+    $('pday').value = d.getUTCDate();
+  }
+}
+
+// ---- периодные слои: показ по дате ползунка -------------------------------
+// Линии советского контроля 1918/1919 и пометка «реконструкция» убраны
+// 19.08.2026 (решение куратора «никаких штриховок»): 1917–1921 рисуется так
+// же бинарно, как остальное. Осталась Беларусь и легенда потерь контроля.
+function periods(t) {
+  if (!map.getLayer('by-fill')) return;
+  const cuts = lossActive(t);
+  for (const [k, ids] of [['by', ['by-fill', 'by-line']]]) {
+    const on = inPer(k, t);
+    for (const id of ids)
+      map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
+    // записи легенды для периодных слоёв убраны 26.08.2026 (решение куратора:
+    // длинная легенда ломала верстку - дата переносилась, кнопки съезжали)
+  }
+}
+
+// ---- пикер: год / месяц / день -------------------------------------------
+function syncDayOptions() {
+  const y = +$('pyear').value, m = +$('pmonth').value;
+  const n = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const sel = $('pday'), keep = Math.min(+sel.value || 1, n);
+  sel.innerHTML = '';
+  for (let d = 1; d <= n; d++) sel.add(new Option(d, d));
+  sel.value = keep;
+}
+MONTHS.forEach((m, i) => $('pmonth').add(new Option(m, i + 1)));
+syncDayOptions();
+function pickerChanged() {
+  stopPlay();
+  syncDayOptions();
+  const y = Math.min(2026, Math.max(1450, +$('pyear').value || 1450));
+  $('pyear').value = y;
+  render(utc(y, +$('pmonth').value, +$('pday').value), true);
+}
+$('pyear').onchange = $('pmonth').onchange = $('pday').onchange = pickerChanged;
+
+// ---- листание по доступным слоям -----------------------------------------
+function step(dir) {
+  stopPlay();
+  render(stepTo(dir));
+}
+$('prev').onclick = () => step(-1);
+$('next').onclick = () => step(1);
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'ArrowLeft') step(-1);
+  if (e.key === 'ArrowRight') step(1);
+});
+
+$('slider').oninput = e => { stopPlay(); render(sliderToT(+e.target.value)); };
+
+// ---- автопрогон: годы медленно, события 1917–1921 и дни фронта быстро ------
+let playing = false;
+function stopPlay() { playing = false; $('play').textContent = '▶'; }
+function pause(t) {
+  if (LAYERS[layerAt(t)].kind === 'day') return 260;   // месяцы фронта DeepState
+  return (inPer('recon', t) || inPer('ww2', t)) ? 120 : 450;  // срезы периода / годы
+}
+$('play').onclick = () => {
+  if (playing) { stopPlay(); return; }
+  playing = true;
+  $('play').textContent = '⏸';
+  (async function tick() {
+    if (!playing) return;
+    const t = (curT !== null && curT >= STOPS[STOPS.length - 1]) ? STOPS[0] : stepTo(1);
+    await render(t);
+    setTimeout(tick, pause(t));
+  })();
+};
+
+// ---- загрузка -------------------------------------------------------------
+const grab = url => DFETCH(url).then(r => r.ok ? r.json() : EMPTY)
+  .then(cleanFC).catch(() => EMPTY);
+
+// ===== история точки: клик по карте ========================================
+// Задача куратора 19.08.2026: ткнуть в любую точку - и увидеть ТРИ состояния
+// относительно даты, на которой стоит ползунок: что было ДО (кто держал, когда
+// кончилось), что СЕЙЧАС (в империи или вне, кто там, сколько уже длится и
+// сколько ещё продлится) и что будет ПОСЛЕ. Полная хронология точки считается
+// внутри (без неё не найти соседние состояния), но в интерфейс не выводится.
+//
+// Откуда берётся ответ «кто там был»:
+//  * ядро империи - наши срезы data/years/*.geojson (уже загружены в core);
+//  * 12.1917-03.1921 - окна фронтов реконструкции (data/attribution/
+//    windows_1917_1921.geojson, таблица WINDOWS): там даты точные, по взятиям
+//    городов, и есть имя держателя;
+//  * остальное время - облегчённые срезы всех государств мира
+//    (data/attribution/<год>.geojson, tools/build_attribution.py);
+//  * 2022+ - помесячные снимки DeepStateMAP (дневных не грузим).
+//
+// Честность про точность: если смена произошла между двумя срезами, так и
+// пишем - «по срезам, между 1783 и 1800». «Точно» - только там, где дата есть
+// в данных (окна фронтов 1917-1921). Помесячные снимки помечаются «помесячно».
+const ATTR = {years: [], year: new Map(), win: null};
+
+const attrYear = y => {
+  if (!ATTR.year.has(y)) ATTR.year.set(y, grab('data/attribution/' + y + '.geojson'));
+  return ATTR.year.get(y);
+};
+const attrWindows = () => (ATTR.win = ATTR.win
+  || grab('data/attribution/windows_1917_1921.geojson'));
+const attrYearFor = t => {
+  const y = yearOf(t);
+  let best = null;
+  for (const a of ATTR.years) if (a <= y) best = a;
+  return best === null ? (ATTR.years[0] ?? null) : best;
+};
+const parseKey = k => {
+  const p = String(k).split('-').map(Number);
+  return utc(p[0], p[1] || 1, p[2] || 1);
+};
+
+// ---- точка в полигоне (луч вправо), с отсечением по bbox -------------------
+function bboxOf(f) {
+  if (f.__bb) return f.__bb;
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  (function walk(c) {
+    if (typeof c[0] === 'number') {
+      if (c[0] < x0) x0 = c[0];
+      if (c[0] > x1) x1 = c[0];
+      if (c[1] < y0) y0 = c[1];
+      if (c[1] > y1) y1 = c[1];
+    } else for (const q of c) walk(q);
+  })((f.geometry || {}).coordinates || []);
+  return (f.__bb = [x0, y0, x1, y1]);
+}
+function inRing(x, y, r) {
+  let hit = false;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    const xi = r[i][0], yi = r[i][1], xj = r[j][0], yj = r[j][1];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) hit = !hit;
+  }
+  return hit;
+}
+const inRings = (x, y, rings) => {
+  if (!rings.length || !inRing(x, y, rings[0])) return false;
+  for (let i = 1; i < rings.length; i++) if (inRing(x, y, rings[i])) return false;
+  return true;                              // дырки полигона - не «внутри»
+};
+function inGeom(x, y, g) {
+  if (!g) return false;
+  if (g.type === 'Polygon') return inRings(x, y, g.coordinates);
+  if (g.type === 'MultiPolygon') return g.coordinates.some(p => inRings(x, y, p));
+  return false;
+}
+function hitFeature(x, y, fc, pred) {
+  for (const f of (fc && fc.features) || []) {
+    if (pred && !pred(f.properties || {})) continue;
+    const b = bboxOf(f);
+    if (x < b[0] || x > b[2] || y < b[1] || y > b[3]) continue;
+    if (inGeom(x, y, f.geometry)) return f;
+  }
+  return null;
+}
+// Клик по берегу или устью: контуры мирового масштаба режут лиманы и русла, и
+// точка ровно в городе может оказаться «в воде» - Херсон и Николаев на срезах
+// CShapes лежат вне полигона, хотя вокруг них на 2 км всё имперское. Поэтому
+// промах проверяем ещё четырьмя точками в 0.02° (~2 км): считаем попаданием,
+// если накрыты хотя бы три из четырёх. Настоящую границу (река между двумя
+// государствами) такое правило не размывает - там попаданий будет два.
+const NEAR = 0.02;
+function hitNear(x, y, fc, pred) {
+  const f0 = hitFeature(x, y, fc, pred);
+  if (f0) return f0;
+  let n = 0, f1 = null;
+  for (const [dx, dy] of [[NEAR, 0], [-NEAR, 0], [0, NEAR], [0, -NEAR]]) {
+    const f = hitFeature(x + dx, y + dy, fc, pred);
+    if (f) { n++; f1 = f1 || f; }
+  }
+  return n >= 3 ? f1 : null;
+}
+
+function fcBox(fc) {                        // общий охват слоя (зона покрытия)
+  let b = null;
+  for (const f of (fc && fc.features) || []) {
+    const q = bboxOf(f);
+    b = b ? [Math.min(b[0], q[0]), Math.min(b[1], q[1]),
+             Math.max(b[2], q[2]), Math.max(b[3], q[3])] : q.slice();
+  }
+  return b;
+}
+
+// ---- хронология точки -----------------------------------------------------
+// Отрезки строятся по ВСЕМ срезам ядра (46 ключей), плюс статичные
+// оккупированные территории и помесячные снимки фронта, если точка в их зоне.
+async function timelineAt(x, y, onStep) {
+  const yl = LAYERS.filter(l => l.kind === 'year');
+  const months = LAYERS.filter(l => l.kind === 'day');
+  const coreIn = new Map();
+  // история точки идёт по ВСЕМ годовым срезам - дотянуть недогретые
+  await Promise.all(yl.map(l => coreLoad(l.key).catch(() => null)));
+  for (const l of yl) coreIn.set(l.key, !!hitNear(x, y, core[l.key] || EMPTY));
+
+  // постсоветские эпизоды: окна с точностью до дня. Красящие эпизоды делают
+  // точку имперской, вырезающие - наоборот; эпизоды с paint 'none' карту не
+  // трогают, но в истории точки называются
+  const psHits = PS.filter(f => inGeom(x, y, f.geometry));
+  const psRedH = psHits.filter(f => f.p.paint === 'red');
+  const psCutH = psHits.filter(f => f.p.paint === 'cut');
+  const psRedAt = t => psRedH.find(f => t >= f.t0 && t <= f.t1) || null;
+  const psCutAt = t => psCutH.find(f => t >= f.t0 && t <= f.t1) || null;
+
+  const frontIn = new Map();
+  let war = false;
+  if (months.length) {
+    const last = await dayData(months[months.length - 1].key);
+    const b = fcBox(last);
+    war = !!b && x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3];
+    if (war) for (let i = 0; i < months.length; i++) {
+      if (onStep) onStep(i + 1, months.length);
+      const d = await dayData(months[i].key);
+      frontIn.set(months[i].key, !!hitNear(x, y, d, p => p.s === 'occupied'));
+    }
+  }
+
+  // потери имперского контроля на своей территории: окна с точностью до дня,
+  // они перебивают всё остальное - если в этот день империя участком не
+  // владела, то никакие годовые срезы этого не отменяют
+  const lossHits = LOSS.filter(f => !NO_CUT[f.kind] && inGeom(x, y, f.geometry));
+  const contested = LOSS.filter(f => NO_CUT[f.kind] && inGeom(x, y, f.geometry));
+  const lossAtT = t => lossHits.find(f => t >= f.t0 && t <= f.t1) || null;
+
+  const samples = yl.map(l => ({t: l.t, key: l.key, kind: 'slice'}));
+  for (const f of psHits) {
+    if (f.p.paint === 'none') continue;
+    samples.push({t: f.t0, key: f.p.from, kind: 'ps', ps: f});
+    if (f.p.to) samples.push({t: f.t1 + 1, key: f.p.to, kind: 'ps'});
+  }
+  if (war) for (const m of months) samples.push({t: m.t, key: m.key, kind: 'month'});
+  for (const f of lossHits) {
+    samples.push({t: f.t0, key: f.p.from, kind: 'loss', loss: f});
+    samples.push({t: f.t1 + 1, key: f.p.to, kind: 'loss'});   // назавтра после
+  }
+  samples.sort((a, b2) => a.t - b2.t);
+
+  const keyAt = t => { let k = null; for (const l of yl) if (l.t <= t) k = l.key; return k; };
+  const monthAt = t => { let k = null; for (const m of months) if (m.t <= t) k = m.key; return k; };
+  const statusAt = t => {
+    if (lossAtT(t) || psCutAt(t)) return '';
+    if (coreIn.get(keyAt(t))) return 'core';
+    if (psRedAt(t)) return 'ps';
+    if (war) { const k = monthAt(t); if (k && frontIn.get(k)) return 'front'; }
+    return '';
+  };
+
+  const runs = [];
+  for (let i = 0; i < samples.length; i++) {
+    const s = samples[i], via = statusAt(s.t), on = !!via;
+    const last = runs[runs.length - 1];
+    if (last && last.in === on) continue;   // отрезок продолжается
+    if (last) last.to = s.t;
+    runs.push({in: on, via, from: s.t, at: s, prev: i ? samples[i - 1] : null, to: null});
+  }
+  for (const r of runs) {
+    r.loss = r.in ? null : lossAtT(r.from);
+    r.ps = r.in ? psRedAt(r.from) : psCutAt(r.from);
+  }
+  return {runs, war, psHits, contested};
+}
+
+// ---- окна фронтов 1917-1921: точная дата смены и имя держателя -------------
+const winRange = p => [p.frm ? parseKey(p.frm) : PER.recon[0],
+                       p.to ? parseKey(p.to) : PER.recon[1]];
+
+async function exactFor(x, y, run) {        // дата смены статуса из окон фронтов
+  if (!run.prev) return null;
+  const a = run.prev.t, b = run.at.t;
+  if (b < PER.recon[0] || a > PER.recon[1]) return null;
+  const w = await attrWindows();
+  for (const f of (w.features || [])) {
+    const p = f.properties, [t0, t1] = winRange(p);
+    // смену статуса «в империи ↔ вне империи» объясняют только окна kind=out;
+    // окна kind=in - это смена ФРАКЦИИ внутри империи, статуса она не меняет
+    if (p.kind === 'in') continue;
+    const t = run.in ? t1 : t0;             // ушли из империи = начало окна
+    if (!(t > a && t <= b)) continue;
+    if (p.frm === null && !run.in) continue;
+    if (p.to === null && run.in) continue;
+    const bb = bboxOf(f);
+    if (x < bb[0] || x > bb[2] || y < bb[1] || y > bb[3]) continue;
+    if (inGeom(x, y, f.geometry)) return {t: t, who: p.who, why: p.why};
+  }
+  return null;
+}
+
+// имена самой империи в срезах атрибуции: если наша карта говорит «точка вне
+// красного», а срез атрибуции этих лет всё ещё рисует тут империю (де-юре
+// контур источника), держателя по нему называть нельзя - берём ближайший
+// СЛЕДУЮЩИЙ срез и честно подписываем, каким годом отвечаем
+const EMPIRE_RE = /^(Russian Empire|Russia|USSR|Tsardom of Muscovy|Grand Duchy of Moscow)$/;
+
+async function holderAt(x, y, t, isOut) {   // кто держал точку на дату t
+  // В окне 1917-1921 у нас две таблицы держателей (tools/build_zones_1917_1921.py):
+  // kind=out - субъект, вышедший из империи («Грузинская Демократическая
+  // Республика»); kind=in - фракция империи, державшая точку («белые (Колчак)»,
+  // «ВСЮР (Деникин)»). Спрашиваем ту, которая отвечает нынешнему статусу точки:
+  // иначе Крым при Врангеле подписывался бы как «вне империи».
+  if (t >= PER.recon[0] && t <= PER.recon[1]) {
+    const w = await attrWindows(), who = [];
+    for (const f of (w.features || [])) {
+      const p = f.properties;
+      if ((p.kind === 'out') !== !!isOut) continue;
+      const [t0, t1] = winRange(p);
+      if (t < t0 || t >= t1) continue;
+      const bb = bboxOf(f);
+      if (x < bb[0] || x > bb[2] || y < bb[1] || y > bb[3]) continue;
+      if (inGeom(x, y, f.geometry)) who.push(p.who);
+    }
+    if (who.length) return {name: [...new Set(who)].join('; '),
+                            src: 'окно 1917-1921'};
+    if (!isOut) return null;                // красное без окна = РСФСР
+  }
+  const nameOf = f => {
+    const p = f.properties;
+    return (p.name_ru || p.name)
+      + (p.subjecto ? ' (под властью: ' + (p.subjecto_ru || p.subjecto) + ')' : '');
+  };
+  const try1 = attrYearFor(t);
+  if (try1 === null) return null;
+  let f = hitNear(x, y, await attrYear(try1));
+  if (f && !(isOut && EMPIRE_RE.test(f.properties.name)))
+    return {name: nameOf(f), src: 'срез ' + try1};
+  const nxt = ATTR.years.find(a => a > yearOf(t));   // ближайший следующий срез
+  if (nxt !== undefined) {
+    const f2 = hitNear(x, y, await attrYear(nxt));
+    if (f2 && !EMPIRE_RE.test(f2.properties.name))
+      return {name: nameOf(f2), src: 'срез ' + nxt};
+  }
+  return {name: '', src: 'срез ' + try1};
+}
+
+// ---- подписи --------------------------------------------------------------
+const plural = (n, f) => f[(n % 10 === 1 && n % 100 !== 11) ? 0 :
+  (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? 1 : 2];
+function durTxt(ms) {
+  const days = Math.max(0, Math.round(ms / 86400000));
+  if (days < 31) return days + ' ' + plural(days, ['день', 'дня', 'дней']);
+  let yy = Math.floor(days / 365.2425);
+  let mm = Math.round((days - yy * 365.2425) / 30.44);
+  if (mm >= 12) { yy++; mm = 0; }
+  const py = yy ? yy + ' ' + plural(yy, ['год', 'года', 'лет']) : '';
+  const pm = mm ? mm + ' ' + plural(mm, ['месяц', 'месяца', 'месяцев']) : '';
+  return [py, pm].filter(Boolean).join(' ') || 'меньше месяца';
+}
+function whenTxt(s) {
+  if (!s) return '—';
+  if (s.kind === 'month') {
+    const d = new Date(s.t);
+    return MONTHS[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
+  }
+  if (s.kind === 'ps') return dmy(s.t);
+  if (s.kind === 'loss') return dmy(s.t);
+  return String(s.key).includes('-') ? dmy(s.t) : String(s.key);
+}
+function precTxt(run) {
+  const s = run.at, p = run.prev;
+  if (!p) return 'начало нашего покрытия';
+  if (s.kind === 'loss')
+    return 'точно, по дням: слой потерь имперского контроля'
+      + (run.loss ? ' (' + run.loss.p.kind_ru + ')' : '');
+  if (s.kind === 'month')
+    return 'помесячно (DeepStateMAP): между ' + whenTxt(p) + ' и ' + whenTxt(s);
+  if (s.kind === 'ps')
+    return 'точно, по дням: таблица постсоветских эпизодов'
+      + (run.ps ? ' (' + run.ps.p.kind_ru + ')' : '');
+  if (run.exact)
+    return 'точно: ' + dmy(run.exact.t) + ' - ' + run.exact.why;
+  return (String(s.key).includes('-') ? 'по датированному срезу' : 'по срезам')
+    + ': между ' + whenTxt(p) + ' и ' + whenTxt(s);
+}
+function startTxt(run) {
+  return run.exact ? dmy(run.exact.t) : whenTxt(run.at);
+}
+function stateTxt(run, t0, t1, holder) {
+  if (run.in) {
+    // 1917-1921: внутри империи держателя называем ФРАКЦИЕЙ - «белые (Колчак)»,
+    // «ВСЮР (Деникин)». Белые и красные - две фракции одной империи (решение
+    // куратора 18.08.2026), поэтому цвет один, а подпись честная.
+    if (holder && holder.name && String(holder.src).startsWith('окно'))
+      return '<b>в империи</b> · ' + holder.name
+        + ' <span class="prec">(' + holder.src + ')</span>';
+    // отрезок может пережить смену вывески: 1815-1918 это «Российская империя
+    // -> РСФСР», а 1920-1992 - «РСФСР -> СССР». Пишем обе, если разные.
+    const a = ENTITY(yearOf(t0)), b2 = ENTITY(yearOf(t1));
+    const who = run.via === 'front' ? 'оккупация (фронт DeepStateMAP)'
+      : run.via === 'ps' ? (run.ps ? run.ps.p.kind_ru + ' - ' + run.ps.p.name_ru
+                                   : 'оккупация')
+      : (a === b2 ? a : a + ' → ' + b2);
+    return '<b>в империи</b> · ' + who;
+  }
+  // потеря контроля империей на собственной территории: держателя из срезов
+  // атрибуции спрашивать нечего, там на эти годы стоит РФ. Отвечаем эпизодом.
+  // Ичкерия и обе чеченские войны: империя контроля не имела. Пишем эпизодом
+  // и его же словами - «независимость, отстоянная в войне», «война за
+  // контроль», а не «империя потеряла своё»
+  if (run.ps)
+    return '<span class="out">вне империи</span> · ' + run.ps.p.name_ru
+      + ' <span class="prec">(' + run.ps.p.kind_ru + ')</span>';
+  if (run.loss)
+    return '<span class="out">вне империи</span> · ' + run.loss.p.name
+      + ' <span class="prec">(' + run.loss.p.kind_ru + ')</span>';
+  if (!holder || !holder.name) {
+    // Прежде чем разводить руками, спросим таблицу вычитаний: если земля
+    // вычтена нашей же строкой, у неё есть имя и обоснование.
+    const sub = (run.subs && run.subs[0]) || null;
+    if (sub)
+      return '<span class="out">вне империи</span> · ' + sub.p.name
+        + ' <span class="prec">(наше вычитание, красное придёт '
+        + (sub.p.to ? dmy(dayMs(sub.p.to)) : 'позже') + ')</span>';
+    return '<span class="out">вне империи</span>'
+      + ' <span class="prec">(кто держал - наши данные не говорят)</span>';
+  }
+  return '<span class="out">вне империи</span> · ' + holder.name
+    + ' <span class="prec">(' + holder.src + ')</span>';
+}
+
+// ---- попап ----------------------------------------------------------------
+let histPopup = null, hist = null, histSeq = 0, histTimer = null;
+
+function coordTxt(x, y) {
+  return Math.abs(y).toFixed(2) + '° ' + (y >= 0 ? 'с.ш.' : 'ю.ш.') + ', '
+    + Math.abs(x).toFixed(2) + '° ' + (x >= 0 ? 'в.д.' : 'з.д.');
+}
+// Ориентир в заголовке — ближайший город из СВОЕГО справочника (data/gazetteer.
+// json, tools/build_gazetteer.py), не из подложки. Прежняя попытка (19.08.2026)
+// брала подписи через queryRenderedFeatures и залипала на чужих городах:
+// подложка на обзорных зумах подпись самого города чаще всего не рисует вовсе
+// (коллизия символов съедает её), а ближайшей оказывается подпись за сотни
+// километров, оставшаяся с других тайлов. Свой справочник от тайлов не зависит.
+// Грузится лениво, при первом клике; если файл не загрузился - просто нет
+// ориентира. Дальше 150 км город не называем - в тайге или в море это шум.
+let gazPromise = null;
+function loadGazetteer() {
+  if (!gazPromise) gazPromise = DFETCH('data/gazetteer.json')
+    .then(r => r.ok ? r.json() : []).catch(() => []);
+  return gazPromise;
+}
+function nearestCity(gaz, x, y) {
+  if (!gaz || !gaz.length) return null;
+  const R = 6371, rad = Math.PI / 180;
+  let best = null, bestKm = Infinity;
+  for (const c of gaz) {
+    const dLat = (c.y - y) * rad, dLon = (c.x - x) * rad;
+    const a = Math.sin(dLat / 2) ** 2
+      + Math.cos(y * rad) * Math.cos(c.y * rad) * Math.sin(dLon / 2) ** 2;
+    const km = 2 * R * Math.asin(Math.sqrt(a));
+    if (km < bestKm) { bestKm = km; best = c; }
+  }
+  return best && bestKm <= 150 ? {name: best.n, km: bestKm} : null;
+}
+// ---- война сопротивления: акт есть, контроля нет --------------------------
+// data/campaigns/resistance.geojson (tools/build_resistance.py) - территории,
+// которые империя объявила своими актом, а контроль получила войной и много
+// позже. Ядро карты уже идёт по факту (эти территории вычтены до даты
+// контроля, tools/build_expansion.py), а здесь берутся кампании нашей базы,
+// чтобы попап назвал период фактом: «до 19.08.1859 - война сопротивления,
+// империя контроля не имела (кампании: ...)». Грузится лениво, при первом
+// клике; нет файла - просто нет строки.
+let resistPromise = null;
+function loadResistance() {
+  if (!resistPromise) resistPromise = DFETCH('data/campaigns/resistance.geojson')
+    .then(r => r.ok ? r.json() : EMPTY).catch(() => EMPTY);
+  return resistPromise;
+}
+const campTxt = cs => cs.slice(0, 3).map(c => c.short + ' (' + c.id + ')')
+  .join('; ') + (cs.length > 3 ? ' и ещё ' + (cs.length - 3) : '');
+
+// ---- приобретения 1939-1945: пакт и раздел Европы --------------------------
+// data/pact1939.geojson (tools/build_pact_1939.py) - куски, взятые между
+// 17.09.1939 и 29.06.1945, с датой и правовым актом. Сам пакт
+// Молотова-Риббентропа делил СФЕРЫ ИНТЕРЕСОВ, а не границы, поэтому слоя у
+// него нет (показ бинарный) - он живёт датированным фактом в попапе:
+// «в империи с 17 сен 1939 (пакт Молотова-Риббентропа 23.08.1939, секретный
+// протокол; вторжение 17.09.1939)». Грузится лениво, нет файла - нет строки.
+// ---- реестр антиколониальных выступлений для попапа ------------------------
+// data/resistance/uprisings.geojson (tools/build_uprisings.py) - 142 выступления
+// с датами, народом, событием и источником. В отрисовку слой НЕ идёт: заливкой
+// показаны только удержания (RCUT выше), остальное живёт строкой «на этой земле
+// в такие-то годы шло восстание такое-то». Файл крупный (~600 КБ), поэтому
+// грузится лениво, при первом клике по карте; нет файла - просто нет строк.
+let uprPromise = null;
+function loadUprisings() {
+  if (!uprPromise) uprPromise = DFETCH('data/resistance/uprisings.geojson')
+    .then(r => r.ok ? r.json() : EMPTY).catch(() => EMPTY);
+  return uprPromise;
+}
+
+let pactPromise = null;
+function loadPact() {
+  if (!pactPromise) pactPromise = DFETCH('data/pact1939.geojson')
+    .then(r => r.ok ? r.json() : EMPTY).catch(() => EMPTY);
+  return pactPromise;
+}
+
+const histHead = () => '<h3>История точки '
+  + (hist.city ? '<span class="city">' + hist.city.name + ' · '
+      + Math.round(hist.city.km) + ' км</span> ' : '')
+  + '<span class="co">' + coordTxt(hist.x, hist.y) + '</span></h3>';
+
+// maplibre не двигает попап, если тот вылез за край карты: на телефоне попап,
+// открытый у правого края, уезжает за экран. Сдвигаем его обратно вручную.
+function clampPopup() {
+  if (!histPopup || !histPopup.isOpen()) return;
+  const el = histPopup.getElement();
+  if (!el) return;
+  el.style.marginLeft = '0px';
+  const mc = map.getContainer().getBoundingClientRect();
+  const rc = el.getBoundingClientRect();
+  let dx = 0;
+  if (rc.right > mc.right - 6) dx = mc.right - 6 - rc.right;
+  if (rc.left + dx < mc.left + 6) dx = mc.left + 6 - rc.left;
+  if (dx) el.style.marginLeft = Math.round(dx) + 'px';
+}
+
+function rowHTML(cls, lab, body, dur, prec) {
+  return '<div class="row' + cls + '"><div class="lab">' + lab + '</div>'
+    + '<div class="st">' + body + '</div>'
+    + (dur ? '<div class="dur">' + dur + '</div>' : '')
+    + (prec ? '<div class="prec">' + prec + '</div>' : '') + '</div>';
+}
+
+async function renderHistory() {
+  if (!hist || !hist.tl || !histPopup) return;
+  const seq = ++histSeq;
+  const {x, y, tl} = hist, t = curT === null ? T0 : curT;
+  const runs = tl.runs;
+  let i = 0;
+  for (let k = 0; k < runs.length; k++) if (runs[k].from <= t) i = k;
+  const cur = runs[i], prev = runs[i - 1] || null, next = runs[i + 1] || null;
+  // Отрезок «Сейчас» может накрывать несколько эпизодов подряд: война
+  // 1994-1996 и независимая Ичкерия 1996-1999 идут встык, и статус точки
+  // между ними не меняется - отрезок один. Для строки «Сейчас» берём эпизод
+  // на ДАТЕ ПОЛЗУНКА, иначе 1997 год подписывался бы войной.
+  {
+    const want = cur.in ? 'red' : 'cut';
+    const now = ((tl && tl.psHits) || []).find(f => t >= f.t0 && t <= f.t1
+      && f.p.paint === want);
+    if (now) cur.ps = now;
+  }
+  for (const r of [prev, cur, next]) {
+    if (!r) continue;
+    // чем объясняется чёрное: ищем наше же вычитание на дату отрезка
+    if (r.subs === undefined)
+      r.subs = r.in ? [] : subsAt(r === cur ? t : r.from, x, y);
+    if (r.exact === undefined) r.exact = await exactFor(x, y, r);
+  }
+  // держателя спрашиваем: для «до» - на последний срез перед сменой, для
+  // «сейчас» - на дату ползунка, для «после» - на дату смены
+  const tPrev = cur.prev ? cur.prev.t : (prev ? prev.from : t);
+  const hPrev = prev ? await holderAt(x, y, tPrev, !prev.in) : null;
+  const hCur = await holderAt(x, y, t, !cur.in);
+  const hNext = next ? await holderAt(x, y, next.from, !next.in) : null;
+  if (seq !== histSeq) return;              // пока считали, кликнули заново
+
+  let html = histHead();
+  html += prev
+    ? rowHTML('', 'До', stateTxt(prev, prev.from, tPrev, hPrev),
+        'с ' + startTxt(prev)
+        + (whenTxt(cur.prev) !== startTxt(prev) ? ' по ' + whenTxt(cur.prev) : '')
+        + ' · ' + durTxt(cur.from - prev.from), precTxt(prev))
+    : rowHTML('', 'До', '<span class="prec">раньше данных нет: наше покрытие'
+        + ' начинается с 1450 года</span>', '', '');
+  html += rowHTML(' now', 'Сейчас', stateTxt(cur, cur.from, t, hCur),
+    'с ' + startTxt(cur) + ' · уже ' + durTxt(t - cur.from)
+    + (next ? ', до ' + startTxt(next) + ' остаётся ' + durTxt(next.from - t)
+            : ', смен дальше в наших данных нет'),
+    precTxt(cur));
+  html += next
+    ? rowHTML('', 'После', stateTxt(next, next.from, next.from, hNext),
+        'с ' + startTxt(next), precTxt(next))
+    : rowHTML('', 'После', '<span class="prec">дальше данных нет: смены статуса'
+        + ' в наших срезах больше не случается</span>', '', '');
+
+  // участок был под ударом, но империя его удержала: отдельной строкой, без
+  // выреза и без «вне империи» - Грайворон, Шебекино и Тёткино взяты не были
+  for (const f of (tl.contested || []))
+    if (t >= f.t0 && t <= f.t1)
+      html += rowHTML('', 'Тогда же', f.p.name + ' <span class="prec">('
+        + f.p.kind_ru + ')</span>',
+        dmy(f.t0) + ' - ' + dmy(f.t1), f.p.note);
+
+  // акт против контроля: тут империя объявила себя хозяйкой актом, а контроль
+  // взяла войной и много позже. Пишем это фактом периода, а не отдельным
+  // статусом на карте (решение куратора 19.08.2026: показ бинарный)
+  const notes = [];
+  // Почему тут чёрное: наше вычитание со своим обоснованием. Куратор
+  // 28.08.2026, ткнув в дырку внутри Коми на срезе 1585 года: «что за дырка?
+  // почему в попапе нет инфы?»
+  for (const f of subsAt(t, x, y)) {
+    const p = f.p;
+    notes.push('<b style="color:#ff8a72">Почему тут чёрное</b>: ' + p.name
+      + (p.to ? ' — красное приходит ' + dmy(dayMs(p.to)) : '')
+      + '<br><span style="color:#7d8791">' + p.why + '</span>');
+  }
+  for (const f of (hist.resist || [])) {
+    const p = f.properties, t1 = parseKey(p.to);
+    const act = p.campaigns.filter(c => t >= parseKey(c.from)
+                                     && t <= parseKey(c.to));
+    const proof = p.campaigns.length
+      ? (act.length ? 'кампании нашей базы на эту дату: ' + campTxt(act)
+                    : 'кампании нашей базы: ' + campTxt(p.campaigns))
+      : p.source;
+    if (t < t1)
+      html += rowHTML('', 'Война сопротивления',
+        p.name + ': <b>империя контроля не имела</b>',
+        'до ' + dmy(t1) + ' - ' + p.event, proof);
+    else
+      notes.push('<b style="color:#ff8a72">' + p.name + '</b>: до ' + dmy(t1)
+        + ' - война сопротивления, империя контроля не имела ('
+        + p.event + '). ' + proof
+        + '<br>Красила карту как: ' + p.painted);
+  }
+
+  // приобретения 1939-1945: называем дату и акт, которым участок взят.
+  // Пакт Молотова-Риббентропа отдельного слоя не имеет (делил сферы, а не
+  // границы) - он тут, фактом внутри окна
+  for (const f of (hist.pact || [])) {
+    const p = f.properties, t0 = parseKey(p.from);
+    if (t < t0) continue;
+    // `until` - день, с которого участок из контура уходит: западная граница
+    // по протоколу 04.10.1939 живёт только в окне 17.09.1939-21.06.1941
+    const t1 = p.until ? parseKey(p.until) : null;
+    const win = t1 ? (t < t1 ? 'в империи с ' + dmy(t0) + ' до ' + dmy(t1)
+                             : 'была в империи с ' + dmy(t0) + ' до ' + dmy(t1))
+                   : 'в империи с ' + dmy(t0);
+    html += rowHTML('', 'Акт', p.name + ': <b>' + win + '</b> (' + p.act + ')',
+                    p.act_full, p.source);
+    notes.push('<b style="color:#ff8a72">' + p.name + '</b>: ' + p.pact
+      + (p.note ? '<br>' + p.note : '')
+      + (p.approximate ? '<br>Геометрия: ' + p.geometry_source : ''));
+  }
+
+  // сфера влияния: КОГДА, КТО, ЧТО и ПОЧЕМУ. Строка называет тип зависимости,
+  // даты эпизода, событие на входе и выходе и пруф - всё из курируемой таблицы
+  // data/sphere/registry.csv (tools/build_sphere.py). Заливка на карте от этого
+  // не меняется: слой остаётся одноцветным (правило куратора «без штриховок»).
+  const spEps = new Map();
+  for (const f of (hist.sphere || []))
+    if (!spEps.has(f.properties.ep)) spEps.set(f.properties.ep, f.properties);
+  const spAll = [...spEps.values()]
+    .sort((a, b) => parseKey(a.from) - parseKey(b.from));
+  const spTxt = p => 'с ' + dmy(parseKey(p.from))
+    + (p.to ? ' по ' + dmy(parseKey(p.to)) : ' — по сегодня');
+  for (const p of spAll) {
+    if (t < parseKey(p.from)) continue;
+    if (p.to && t > parseKey(p.to) + 86399999) continue;
+    html += rowHTML('', 'Сфера',
+      '<b>' + p.name_ru + '</b>: в сфере влияния — ' + p.kind_ru,
+      spTxt(p) + ' · ' + p.event_from + (p.event_to ? ' → ' + p.event_to : ''),
+      p.source + ' · достоверность: ' + p.confidence);
+  }
+  if (spAll.length)
+    notes.push('<b style="color:#f08a72">' + spAll[0].name_ru
+      + '</b> в советской сфере влияния — эпизоды отношений:<br>'
+      + spAll.map(p => spTxt(p) + ' — ' + p.kind_ru + ' (' + p.event_from
+          + (p.event_to ? '; конец: ' + p.event_to : '') + ')'
+          + (p.note ? '. ' + p.note : '')).join('<br>')
+      + '<br>Геометрия: ' + spAll[0].geometry_source
+      + '<br>Таблица: data/sphere/registry.csv (tools/build_sphere.py)');
+
+  // постсоветские эпизоды: КОГДА, ЧТО и ЧЕМ ПОДТВЕРЖДЕНО. Строка называет
+  // эпизод, его даты, событие на входе и выходе и пруф - всё из курируемой
+  // таблицы data/postsoviet/registry.csv (tools/build_postsoviet.py). В
+  // подвале - вся цепочка эпизодов этой точки, даже те, что вне текущей даты:
+  // клик в Грозный должен рассказывать обе войны и Ичкерию, на какой бы дате
+  // ни стоял ползунок.
+  const psAll = ((tl && tl.psHits) || []).slice().sort((a, b) => a.t0 - b.t0);
+  const psWin = p => 'с ' + dmy(parseKey(p.from))
+    + (p.to ? ' по ' + dmy(parseKey(p.to)) : ' — по сегодня');
+  for (const f of psAll) {
+    if (t < f.t0 || t > f.t1) continue;
+    const p = f.p;
+    html += rowHTML('', 'Эпизод', '<b>' + p.name_ru + '</b>: ' + p.kind_ru,
+      psWin(p) + ' · ' + p.event_from + (p.event_to ? ' → ' + p.event_to : ''),
+      p.source + ' · достоверность: ' + p.confidence);
+  }
+  // В подвале серия датированных срезов (`series`) сворачивается в ОДНУ
+  // строку. С 26.08.2026 Донбасс апреля 2014 - февраля 2015 и первые недели
+  // вторжения 2022 года идут двумя десятками помесячных срезов
+  // (tools/build_donbas.py), и без свёртки клик в Донецк выдавал бы двадцать
+  // семь одинаковых по смыслу строк вместо цепочки эпизодов.
+  if (psAll.length) {
+    const seen = new Set(), lines = [];
+    for (const f of psAll) {
+      const s = f.p.series;
+      if (!s) {
+        lines.push(psWin(f.p) + ' — ' + f.p.kind_ru + ' (' + f.p.event_from
+          + (f.p.event_to ? '; конец: ' + f.p.event_to : '') + ')'
+          + (f.p.note ? '. ' + f.p.note : ''));
+        continue;
+      }
+      if (seen.has(s)) continue;
+      seen.add(s);
+      const all = psAll.filter(x => x.p.series === s);
+      const last = all[all.length - 1].p;
+      lines.push('с ' + dmy(parseKey(all[0].p.from))
+        + (last.to ? ' по ' + dmy(parseKey(last.to)) : ' — по сегодня')
+        + ' — ' + all.length + ' датированных срезов: ' + last.series_ru);
+    }
+    notes.push('<b style="color:#ff8a72">Постсоветские эпизоды этой точки</b>:<br>'
+      + lines.join('<br>')
+      + '<br>Геометрия: ' + psAll[0].p.geometry_source
+      + '<br>Таблица: data/postsoviet/registry.csv (tools/build_postsoviet.py)');
+  }
+
+  // сопротивление: КОГДА, КТО и ЧЕМ ПОДТВЕРЖДЕНО. Выступление, удержавшее
+  // территорию, к этому моменту уже перекрасило карту (вырез); остальные живут
+  // только этой строкой - заливкой их показывать нечем, штриховок у нас нет.
+  const uprAll = (hist.upr || []).slice()
+    .sort((a, b) => parseKey(a.properties.from) - parseKey(b.properties.from));
+  for (const f of uprAll) {
+    const p = f.properties, t0 = parseKey(p.from), t1 = parseKey(p.to) + 86399999;
+    if (t < t0 || t > t1) continue;
+    const held = p.hold_from
+      ? ' · <b>территория удержана ' + dmy(parseKey(p.hold_from)) + ' - '
+        + dmy(parseKey(p.hold_to)) + '</b>'
+        + (p.paint === 'shown_elsewhere' ? ' (показано отдельным слоем)' : '')
+      : '';
+    html += rowHTML('', 'Сопротивление',
+      '<b>' + p.name_ru + '</b>' + (p.people ? ' · ' + p.people : ''),
+      'с ' + dmy(t0) + ' по ' + dmy(parseKey(p.to)) + ' · ' + p.kind_ru + ': '
+        + p.event + held,
+      p.source + ' · достоверность: ' + p.confidence);
+  }
+  if (uprAll.length)
+    notes.push('<b style="color:#ff8a72">На этой земле шли выступления</b> ('
+      + uprAll.length + '):<br>'
+      + uprAll.slice(0, 12).map(f => {
+          const p = f.properties;
+          return dmy(parseKey(p.from)) + ' - ' + dmy(parseKey(p.to)) + ' — '
+            + p.name_ru + (p.people ? ' (' + p.people + ')' : '');
+        }).join('<br>')
+      + (uprAll.length > 12 ? '<br>и ещё ' + (uprAll.length - 12) : '')
+      + '<br>Заливкой показаны только те, что территорию УДЕРЖАЛИ: показ '
+      + 'бинарный, штриховок нет.'
+      + '<br>Таблица: data/resistance/registry.csv (tools/build_uprisings.py)');
+
+  // депортации: с этой земли вывезли народ. Контроля над землёй это не меняет,
+  // поэтому в заливку сюжет не идёт - только строка и слой-переключатель
+  const depAll = (hist.dep || []).slice()
+    .sort((a, b) => parseKey(a.properties.date) - parseKey(b.properties.date));
+  for (const f of depAll) {
+    const p = f.properties, td = parseKey(p.date);
+    if (t < td) continue;
+    html += rowHTML('', 'Депортация',
+      '<b>' + p.people_ru + '</b>: вывезены с этой земли ' + dmy(td),
+      (p.people_count ? p.people_count + ' · ' : '')
+        + (p.to_territory ? 'куда: ' + p.to_territory : ''),
+      p.decree + ' · ' + p.source);
+  }
+  if (depAll.length)
+    notes.push('<b style="color:#ff8a72">С этой земли вывозили людей</b>:<br>'
+      + depAll.map(f => {
+          const p = f.properties;
+          return dmy(parseKey(p.date)) + ' — ' + p.people_ru
+            + (p.people_count ? ', ' + p.people_count : '')
+            + '<br><span style="color:#7d8791">' + p.decree + '</span>';
+        }).join('<br>')
+      + '<br>Таблица: data/deportations/registry.csv '
+      + '(tools/build_deportations.py)');
+
+  // ликвидированные автономии: у народа отняли не землю, а субъектность
+  for (const f of (hist.aut || [])) {
+    const p = f.properties, ta = parseKey(p.abolished);
+    const tr = p.restored ? parseKey(p.restored) : null;
+    if (t < ta) continue;
+    const now = tr === null || t < tr;
+    html += rowHTML('', 'Автономия',
+      '<b>' + p.name_ru + '</b>: ' + (now ? 'упразднена' : 'была упразднена')
+        + ' ' + dmy(ta),
+      tr ? 'восстановлена ' + dmy(tr) : 'не восстановлена',
+      p.decree_abolished + ' · ' + p.source);
+  }
+  if ((hist.aut || []).length)
+    notes.push('<b style="color:#ff8a72">Автономия на этой земле</b>:<br>'
+      + hist.aut.map(f => {
+          const p = f.properties;
+          return p.name_ru + ' — упразднена ' + dmy(parseKey(p.abolished))
+            + (p.restored ? ', восстановлена ' + dmy(parseKey(p.restored))
+                          : ', не восстановлена')
+            + (p.note ? '<br><span style="color:#7d8791">' + p.note + '</span>'
+                      : '');
+        }).join('<br>')
+      + '<br>Таблица: data/peoples/abolished.csv (tools/build_autonomies.py)');
+
+  for (const r of [prev, cur, next])
+    if (r && r.loss) {
+      notes.push('<b style="color:#ff8a72">' + r.loss.p.name + '</b>: '
+        + r.loss.p.note
+        + (r.loss.p.geometry_note ? ' <i>' + r.loss.p.geometry_note + '</i>' : '')
+        + '<br>Источник: ' + r.loss.p.source);
+      break;
+    }
+  if ([prev, cur, next].some(r => r && r.at.kind === 'loss'))
+    notes.push('Потери контроля империи на своей территории идут ПО ДНЯМ '
+      + '(остальной фронт 2022+ - помесячно): data/losses, '
+      + 'tools/build_losses.py');
+  if ([prev, cur, next].some(r => r && r.at.kind === 'month'))
+    notes.push('2022+ - помесячные снимки DeepStateMAP (обзорно; по дням - у них'
+      + '); 24.02-02.04.2022 истории нет, 2014-2022 - только статичные контуры');
+  if ([prev, cur, next].some(r => r && r.from >= PER.recon[0] && r.from <= PER.recon[1]))
+    notes.push('1917-1921 - реконструкция зоны ИМПЕРИИ (черновик): белые'
+      + ' (Комуч, Колчак, ВСЮР, Врангель, Северная область, Семёнов, ДВР) -'
+      + ' имперская фракция, их территория красная; границы приближены'
+      + ' современными областями');
+  if ([prev, cur, next].some(r => r && r.at.key === '1921-03-18'))
+    notes.push('с 18.03.1921 идёт контур де-юре (CShapes): Дальний Восток по нему'
+      + ' советский, хотя интервенты ушли 25.10.1922');
+  if (notes.length) html += '<div class="foot">' + notes.join('<br>') + '</div>';
+  histPopup.setHTML(html);
+  clampPopup();
+}
+
+async function showHistory(ll) {
+  if (!LAYERS.length) return;
+  const seq = ++histSeq;
+  const x = ((ll.lng + 180) % 360 + 360) % 360 - 180, y = ll.lat;
+  const [gaz, res, pct, upr] = await Promise.all([loadGazetteer(),
+    loadResistance(), loadPact(), loadUprisings()]);
+  if (seq !== histSeq) return;               // кликнули заново, пока грузили справочник
+  hist = {x, y, ll, tl: null, city: nearestCity(gaz, x, y),
+          resist: ((res && res.features) || []).filter(f => inGeom(x, y, f.geometry)),
+          pact: ((pct && pct.features) || []).filter(f => inGeom(x, y, f.geometry)),
+          // выступления на этой земле (реестр, в отрисовку не идёт)
+          upr: EXTRA_LAYERS
+            ? ((upr && upr.features) || []).filter(f => inGeom(x, y, f.geometry))
+            : [],
+          // депортации и автономии уже в памяти: файлы мелкие, грузятся сразу
+          dep: EXTRA_LAYERS ? DEP.filter(f => inGeom(x, y, f.geometry)) : [],
+          aut: EXTRA_LAYERS ? AUT.filter(f => inGeom(x, y, f.geometry)) : [],
+          // сфера уже вся в памяти (грузится вместе с манифестом), качать нечего
+          sphere: ((sphere && sphere.features) || []).filter(f => inGeom(x, y, f.geometry))};
+  if (histPopup) histPopup.remove();         // ширину считаем по окну: телефон
+  histPopup = new maplibregl.Popup({className: 'hist', closeOnMove: false,
+    closeOnClick: false, focusAfterOpen: false,
+    maxWidth: Math.min(340, map.getContainer().clientWidth - 28) + 'px'});
+  histPopup.setLngLat(ll).setHTML(histHead()
+    + '<div class="wait">считаю историю точки…</div>').addTo(map);
+  clampPopup();
+  const tl = await timelineAt(x, y, (i, n) => {
+    if (seq === histSeq && histPopup.isOpen())
+      histPopup.setHTML(histHead() + '<div class="wait">считаю историю точки… '
+        + 'фронт ' + i + '/' + n + '</div>');
+  });
+  if (seq !== histSeq) return;
+  hist.tl = tl;
+  renderHistory();
+}
+
+function histRefresh() {                    // ползунок поехал - пересобрать блоки
+  if (!hist || !hist.tl || !histPopup || !histPopup.isOpen()) return;
+  clearTimeout(histTimer);
+  histTimer = setTimeout(renderHistory, 120);
+}
+
+Promise.all([
+  DFETCH('data/manifest.json').then(r => r.json()),
+  DFETCH('data/sphere.geojson').then(r => r.json()),
+  DFETCH('data/deepstate/manifest.json').then(r => r.ok ? r.json() : {days: []}).catch(() => ({days: []})),
+  // постсоветские эпизоды 1990-2022 (tools/build_postsoviet.py). Статичный
+  // data/deepstate/territories.geojson в показ больше не идёт - он остался
+  // источником геометрии для билдера
+  DFETCH('data/postsoviet.geojson').then(r => r.ok ? r.json() : EMPTY).catch(() => EMPTY),
+  grab('data/belarus.geojson'),
+  // список срезов атрибуции «кто держал точку» (сами срезы качаются по клику)
+  DFETCH('data/attribution/manifest.json').then(r => r.ok ? r.json() : {years: []})
+    .catch(() => ({years: []})),
+  // потери контроля империи на своей территории: файлы мелкие, грузим сразу -
+  // они нужны и показу, и истории точки
+  DFETCH('data/losses/manifest.json').then(r => r.ok ? r.json() : {episodes: []})
+    .catch(() => ({episodes: []}))
+    .then(m => Promise.all((m.episodes || []).map(e =>
+      grab('data/losses/' + e.slug + '.geojson'))))
+    .then(fcs => fcs.flatMap(fc => (fc.features || []).map(f => ({
+      t0: dayMs(f.properties.from), t1: dayMs(f.properties.to, true),
+      kind: f.properties.kind, p: f.properties, geometry: f.geometry,
+      type: 'Feature', properties: f.properties,
+    })))).catch(() => []),
+  // удержания сопротивления, депортации и ликвидированные автономии
+  // (tools/build_uprisings.py, build_deportations.py, build_autonomies.py).
+  // Файлы мелкие, нужны и показу, и истории точки - грузим сразу. Крупный
+  // реестр всех 142 выступлений качается лениво, по первому клику.
+  EXTRA_LAYERS ? grab('data/resistance/cuts.geojson') : Promise.resolve(EMPTY),
+  EXTRA_LAYERS ? grab('data/deportations/deportations.geojson') : Promise.resolve(EMPTY),
+  EXTRA_LAYERS ? grab('data/peoples/abolished.geojson') : Promise.resolve(EMPTY),
+  grab('data/ostrogs/ostrogs.geojson'),
+  grab('data/subs.geojson'),
+  new Promise(res => {
+    map.once('load', res);
+    (function probe() {
+      try {
+        map.addSource('__p', {type:'geojson', data: EMPTY}); map.removeSource('__p'); res();
+      } catch (e) { setTimeout(probe, 300); }
+    })();
+  })
+]).then(async ([mf, sph, dsmf, psfc, bel, amf, loss, rcfc, depfc, autfc,
+                ostfc, subsfc]) => {
+  // Вычитания с обоснованиями (data/subs.geojson, tools/build_expansion.py):
+  // попап истории точки объясняет ими чёрное - какая земля, с какой даты и
+  // почему. Куратор 28.08.2026: «что за дырка? почему в попапе нет инфы?»
+  SUBS_EXPL = ((subsfc && subsfc.features) || []).map(f => ({
+    t1: f.properties.to ? dayMs(f.properties.to) : 8.64e15,
+    t0: f.properties.from ? dayMs(f.properties.from) : -8.64e15,
+    p: f.properties, geometry: f.geometry,
+  }));
+  OSTROG = ((ostfc && ostfc.features) || []).map(f => ({
+    t0: dayMs(f.properties.from),
+    t1: f.properties.to ? dayMs(f.properties.to, true) : 8.64e15,
+    tRed: f.properties.red_from ? dayMs(f.properties.red_from) : 8.64e15,
+    p: f.properties, geometry: f.geometry,
+    type: 'Feature', properties: f.properties,
+  })).sort((a, b) => a.t0 - b.t0);
+  sphere = sph;
+  RCUT = ((rcfc && rcfc.features) || []).map(f => ({
+    t0: dayMs(f.properties.hold_from),
+    t1: dayMs(f.properties.hold_to, true),
+    p: f.properties, geometry: f.geometry,
+    type: 'Feature', properties: f.properties,
+  })).sort((a, b) => a.t0 - b.t0);
+  DEP = ((depfc && depfc.features) || []).map(f => ({
+    t0: dayMs(f.properties.date),
+    p: f.properties, geometry: f.geometry,
+    type: 'Feature', properties: f.properties,
+  })).sort((a, b) => a.t0 - b.t0);
+  AUT = ((autfc && autfc.features) || []).map(f => ({
+    t0: dayMs(f.properties.abolished),
+    t1: f.properties.restored ? dayMs(f.properties.restored) - 1 : 8.64e15,
+    p: f.properties, geometry: f.geometry,
+    type: 'Feature', properties: f.properties,
+  })).sort((a, b) => a.t0 - b.t0);
+  ATTR.years = (amf && amf.years) || [];
+  LOSS = (loss || []).sort((a, b) => a.t0 - b.t0);
+  PS = ((psfc && psfc.features) || []).map(f => ({
+    t0: dayMs(f.properties.from),
+    t1: f.properties.to ? dayMs(f.properties.to, true) : 8.64e15,
+    p: f.properties, geometry: f.geometry,
+    type: 'Feature', properties: f.properties,
+  })).sort((a, b) => a.t0 - b.t0);
+  // ключ среза = дата, с которой он показывается: «1918» — 1 янв 1918,
+  // «1940-06-28» — этот день (тот же разбор в tools/build_data.py)
+  LAYERS = mf.years.map(k => {
+    const p = String(k).split('-').map(Number);
+    return {t: utc(p[0], p[1] || 1, p[2] || 1), key: k, kind: 'year'};
+  });
+  // фронт 2022+ идёт ПОМЕСЯЧНО (решение куратора 19.08.2026): в манифесте
+  // months — последний доступный день каждого месяца (53 снимка вместо 1514
+  // дней). Дневные файлы остаются на диске как задел, подневная динамика — у
+  // самого DeepStateMAP. Старые манифесты без months читаются по days.
+  for (const day of (dsmf.months || dsmf.days || [])) {
+    const [y, m, d] = day.split('-').map(Number);
+    LAYERS.push({t: utc(y, m, d), key: day, kind: 'day'});
+  }
+  // ---- остановки по датам потерь контроля --------------------------------
+  // Потери у себя дома датированы ПО ДНЯМ, но ползунок останавливался только
+  // на срезах ядра, а между ними бывают дыры в годы: между 1812-05-16 и
+  // 1813-10-12 остановок не было ВООБЩЕ. Из-за этого весь путь Наполеона -
+  // Вильна 28.06.1812, Минск и Могилёв 08.07, Витебск 28.07, Смоленск 18.08,
+  // Москва 14.09-19.10 - лежал в данных, но на карте не показывался никак:
+  // ни листанием, ни автопрогоном, только ручным вводом даты. Куратор
+  // 28.08.2026: «я по-прежнему не вижу, как Наполеон захватил и сжёг Москву,
+  // где вообще его путь внутрь империи».
+  // Добавляем остановку на каждую границу окна потери. Ядро на этой дате -
+  // тот же годовой срез, что и слева, поэтому key берём у него.
+  // 29.08.2026: у ПОДНЕВНЫХ эпизодов остановок выходило по две на каждую
+  // фичу, и одна Курская операция (89 фич) давала под две сотни щелчков - весь
+  // 2024 год листался по дням: 114 остановок против 19 в 2022-м. Куратор:
+  // «мне надо курск все же не в две остановки, но и не в стопицот... пусть там
+  // будет 5 щелчков с захватом и выходом». Поэтому эпизод длиннее EP_STOPS
+  // фич сводится к пяти вехам: вход, разгон, наибольшее продвижение, отход,
+  // выход - по площади занятого. Короткие эпизоды идут как были: у Наполеона
+  // ровно пять фич (Вильна, Смоленск, Москва...), у Грайворона две.
+  {
+    const EP_STOPS = 5;
+    const ringArea = r => {                   // площадь кольца, шнуровка
+      let s = 0;
+      for (let i = 0; i < r.length - 1; i++)
+        s += r[i][0] * r[i + 1][1] - r[i + 1][0] * r[i][1];
+      return Math.abs(s / 2);
+    };
+    const geomArea = g => {
+      const ps = !g ? [] : g.type === 'Polygon' ? [g.coordinates]
+               : g.type === 'MultiPolygon' ? g.coordinates : [];
+      let s = 0;
+      for (const p of ps) s += ringArea(p[0]);
+      return s;
+    };
+    const byEp = new Map();
+    for (const f of LOSS) {
+      const k = (f.p && f.p.episode) || '?';
+      if (!byEp.has(k)) byEp.set(k, []);
+      byEp.get(k).push(f);
+    }
+    const times = [];
+    for (const feats of byEp.values()) {
+      feats.sort((a, b) => a.t0 - b.t0);
+      if (feats.length <= EP_STOPS) {
+        for (const f of feats) {
+          times.push(f.t0);
+          if (f.t1 !== 8.64e15) times.push(f.t1);
+        }
+        continue;
+      }
+      const area = feats.map(f => geomArea(f.geometry));
+      let peak = 0;
+      for (let i = 1; i < area.length; i++) if (area[i] > area[peak]) peak = i;
+      // разгон - наибольший прирост до пика, отход - наибольшая убыль после
+      let rise = -1, riseD = 0, fall = -1, fallD = 0;
+      for (let i = 1; i < area.length; i++) {
+        const d = area[i] - area[i - 1];
+        if (i <= peak && d > riseD) { riseD = d; rise = i; }
+        if (i > peak && -d > fallD) { fallD = -d; fall = i; }
+      }
+      const set = new Set();
+      for (const i of [0, rise, peak, fall]) if (i > -1) set.add(feats[i].t0);
+      const end = feats[feats.length - 1].t1;
+      if (end !== 8.64e15) set.add(end);       // выход: последний день окна
+      // если вех вышло меньше пяти (площадь росла ровно) - добить по счёту
+      for (let k = 1; set.size < EP_STOPS && k < feats.length; k++)
+        set.add(feats[Math.round(k * (feats.length - 1) / EP_STOPS)].t0);
+      for (const t of set) times.push(t);
+    }
+
+    const yearStops = LAYERS.filter(l => l.kind === 'year')
+                            .sort((a, b) => a.t - b.t);
+    const keyAt = t => {
+      let k = yearStops[0] && yearStops[0].key;
+      for (const l of yearStops) if (l.t <= t) k = l.key;
+      return k;
+    };
+    const have = new Set(LAYERS.map(l => l.t));
+    let added = 0;
+    for (const t of times.sort((a, b) => a - b)) {
+      if (have.has(t)) continue;
+      const k = keyAt(t);
+      if (!k) continue;
+      LAYERS.push({t, key: k, kind: 'year', lossStop: true});
+      have.add(t);
+      added++;
+    }
+    if (added) console.log('остановок по датам потерь добавлено:', added);
+  }
+
+  LAYERS.sort((a, b) => a.t - b.t);
+  buildStops();
+  const days = LAYERS.filter(l => l.kind === 'day');
+  if (days.length) { TW = days[0].t; T1 = days[days.length - 1].t; }
+  else { TW = utc(2026); T1 = utc(2026); }
+
+  // риски: годовые срезы + полоса дневного покрытия фронта
+  const tk = $('sliceTicks');
+  for (const l of LAYERS) {
+    if (l.kind !== 'year') continue;
+    const t = document.createElement('div');
+    t.style.cssText = 'position:absolute;width:2px;height:5px;background:#768390;top:0;' +
+      'left:' + pct(l.t) + '%';
+    t.title = l.key;
+    tk.appendChild(t);
+  }
+  if (days.length) {
+    const b = document.createElement('div');
+    b.style.cssText = 'position:absolute;height:3px;top:1px;background:#c9412f;opacity:.65;' +
+      'left:' + pct(TW) + '%;right:0';
+    b.title = 'фронт помесячно (DeepStateMAP)';
+    tk.appendChild(b);
+  }
+  {
+    const b = document.createElement('div');
+    b.style.cssText = 'position:absolute;height:3px;top:1px;background:#768390;opacity:.75;' +
+      'left:' + pct(PER.recon[0]) + '%;width:' + (pct(PER.recon[1]) - pct(PER.recon[0])) + '%';
+    b.title = 'реконструкция зоны контроля 1917-1921 (черновик)';
+    tk.appendChild(b);
+  }
+  {
+    const b = document.createElement('div');
+    b.style.cssText = 'position:absolute;height:3px;top:1px;background:#768390;opacity:.75;' +
+      'left:' + pct(PER.ww2[0]) + '%;width:' + (pct(PER.ww2[1]) - pct(PER.ww2[0])) + '%';
+    b.title = 'Вторая мировая: помесячные срезы фронта 1941-1945 (реконструкция)';
+    tk.appendChild(b);
+  }
+
+  // грузим только срез стартовой даты; остальные догревает warmCore фоном
+  CORE_KEYS = mf.years.map(String);
+  const startT = dateFromUrl() ?? T0;
+  let startKey = null;
+  for (const l of LAYERS) if (l.kind === 'year' && l.t <= startT) startKey = l.key;
+  if (startKey !== null) await coreLoad(startKey).catch(() => null);
+  warmCore(startKey);
+
+  map.addSource('core', {type: 'geojson', data: EMPTY});
+  map.addSource('sphere', {type: 'geojson', data: EMPTY});
+  map.addSource('terr', {type: 'geojson', data: EMPTY});
+  map.addSource('front', {type: 'geojson', data: EMPTY});
+  // ---- спутниковая подложка -----------------------------------------------
+  // Решение куратора 26.08.2026: «сделай шар спутником, чтобы можно было видеть
+  // свободные чеченские горные аулы». Векторная подложка показывает абстракцию,
+  // спутник - сами сёла в горах. Растр кладём НИЖЕ наших слоёв, поэтому
+  // заливки остаются поверх; при включении спутника заливки становятся
+  // прозрачнее, чтобы местность читалась.
+  map.addSource('sat', {
+    type: 'raster', tileSize: 256, maxzoom: 18,
+    tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/'
+            + 'MapServer/tile/{z}/{y}/{x}'],
+    attribution: 'Спутник: Esri, Maxar, Earthstar Geographics'
+  });
+  map.addLayer({id: 'sat-layer', type: 'raster', source: 'sat',
+    layout: {visibility: 'none'}, paint: {'raster-opacity': 1}});
+
+  // Сфера БЛЕДНЕЕ ядра: до 27.08.2026 было наоборот (0.62 против 0.55 у
+  // империи), и подчинённая чужая земля читалась на карте сильнее самой
+  // империи.
+  map.addLayer({id: 'sphere-fill', type: 'fill', source: 'sphere',
+    paint: {'fill-color': '#d9553d', 'fill-opacity': 0.28}});
+  map.addLayer({id: 'sphere-line', type: 'line', source: 'sphere',
+    paint: {'line-color': '#c9584a', 'line-width': 1}});
+  map.addLayer({id: 'core-fill', type: 'fill', source: 'core',
+    paint: {'fill-color': '#a41f12', 'fill-opacity': 0.55}});
+  // Остроги: та же красная гамма, что у империи, но точками поверх незакрашенной
+  // земли. Решение куратора 28.08.2026 - см. блок «остроги» выше.
+  map.addSource('ostrog', {type: 'geojson', data: EMPTY});
+  map.addLayer({id: 'ostrog-fill', type: 'fill', source: 'ostrog',
+    paint: {'fill-color': '#a41f12', 'fill-opacity': 0.75}});
+  map.addLayer({id: 'ostrog-line', type: 'line', source: 'ostrog',
+    paint: {'line-color': '#d43b28', 'line-width': 1.2}});
+  map.addLayer({id: 'core-line', type: 'line', source: 'core',
+    paint: {'line-color': '#d43b28', 'line-width': 1.2}});
+  map.addLayer({id: 'terr-fill', type: 'fill', source: 'terr',
+    paint: {'fill-color': '#a41f12', 'fill-opacity': 0.55}});
+  map.addLayer({id: 'terr-line', type: 'line', source: 'terr',
+    paint: {'line-color': '#d43b28', 'line-width': 1}});
+  // вырез «здесь империи нет» на постсоветских датах: из красного он уже
+  // вырезан в render() через cutCore, здесь только обводка - чтобы дырка
+  // читалась как событие, а не как дырка в данных. Цвет тот же, что у потерь
+  // контроля империи: смысл один - на этом участке империя не распоряжалась
+  // Вырез «здесь империя контроля не имела» обводки НЕ получает: решение
+  // куратора 27.08.2026 - на карте только красное и не-красное, отступило
+  // красное значит видно подложку, а не голубая линия поверх.
+  // Слои сопротивления, депортаций и автономий сняты этим же решением.
+  // Беларусь: несуверенный сателлит — красная гамма, но светлее ядра и с
+  // пунктирным контуром (это не территория РФ). Решение куратора 18.08.2026.
+  map.addSource('belarus', {type: 'geojson', data: bel});
+  map.addLayer({id: 'by-fill', type: 'fill', source: 'belarus',
+    layout: {visibility: 'none'},
+    paint: {'fill-color': '#c0392b', 'fill-opacity': 0.45}});
+  map.addLayer({id: 'by-line', type: 'line', source: 'belarus',
+    layout: {visibility: 'none'},
+    paint: {'line-color': '#f08a76', 'line-width': 1.4, 'line-dasharray': [4, 2]}});
+  // Решение куратора 26.08.2026: показ только красное / не-красное.
+  // Слои 'liberated' (зелёный) и 'unknown' (серый) из показа убраны:
+  // отвоёванное - это просто «не империя», отдельного статуса ему не надо.
+  // Данные статусов остаются в data/deepstate/days/* без изменений.
+  map.addLayer({id: 'front-occupied', type: 'fill', source: 'front',
+    filter: ['==', ['get', 's'], 'occupied'],
+    paint: {'fill-color': '#a41f12', 'fill-opacity': 0.6}});
+  map.addLayer({id: 'front-occupied-line', type: 'line', source: 'front',
+    filter: ['==', ['get', 's'], 'occupied'],
+    paint: {'line-color': '#d43b28', 'line-width': 1}});
+
+  // ---- потери имперского контроля на своей территории --------------------
+  // Из красного вырез уже сделан в render() (cutCore). Здесь только обводка,
+  // чтобы вырез читался как событие, а не как дырка в данных, и лёгкая
+  // подкраска одним цветом: важно только «тут империя не распоряжалась».
+  // raid и contested в показ не идут совсем (26.08.2026): красное они не
+  // вырезают, а рисовать их поверх красного - та же штриховка, которой быть не
+  // должно. Их место - строка «Тогда же» в попапе.
+  // Источник остаётся: он нужен истории точки. Слоёв над ним нет — вырез уже
+  // сделан в render() через cutCore, и этого достаточно: империя отступила,
+  // видно подложку. Голубая заливка и голубая обводка убраны 27.08.2026.
+  map.addSource('loss', {type: 'geojson', data: EMPTY});
+
+  // ---- 1917–1921 ----------------------------------------------------------
+  // Жёлтые линии советского контроля 1918/1919 из атласа УІФ убраны из показа
+  // 19.08.2026 (решение куратора «никаких штриховок»: где империя была -
+  // красное, где не была - чёрное, полутонов нет). Файлы остаются на диске
+  // (data/atlas/rozd44_soviet_control_1918.geojson и ..._1919.geojson) и
+  // остаются якорями реконструкции в tools/build_zones_1917_1921.py.
+  // Точки-события 1917–1921 из показа убраны 18.08.2026 (решение куратора):
+  // вместо них датированные срезы зоны контроля (tools/build_zones_1917_1921.py).
+  // Данные и tools/build_events.py остаются - они якоря реконструкции и пойдут
+  // в отдельный проект.
+
+  // ---- клик по карте: история точки (см. блок «история точки» выше) -------
+  map.on('click', e => showHistory(e.lngLat));
+  map.getCanvas().style.cursor = 'crosshair';
+
+  // Контрол атрибуции переезжает из карты в самый низ панели: внутри карты он
+  // перекрывал попапы истории точки (решение куратора 27.08.2026). Сам контрол
+  // остаётся живым - MapLibre продолжает дописывать в него источники подложки.
+  {
+    const box = $('attrib');
+    const move = () => {
+      const a = document.querySelector('.maplibregl-ctrl-attrib');
+      if (a && a.parentElement !== box) box.appendChild(a);
+    };
+    move();
+    map.on('sourcedata', move);
+    map.on('styledata', move);
+  }
+
+  map.getSource('core').attribution =
+    'Границы: historical-basemaps · Фронт: <a href="https://deepstatemap.live">DeepStateMAP</a>' +
+    ' · 1917–1921: реконструкция (черновик)' +
+    ' · потери контроля империи на своей территории: DeepStateMAP + курируемые записи' +
+    ' · война сопротивления вместо даты акта: база кампаний decolonial.ist' +
+    ' · постсоветские эпизоды 1990-2022: курируемая таблица с датами и пруфами';
+  // переключатель спутника: растр уходит под самый нижний слой данных,
+  // заливки приглушаются, чтобы под ними читалась местность
+  const FILLS = ['core-fill', 'sphere-fill', 'terr-fill', 'front-occupied',
+                 'postsoviet-fill'];
+  let satOn = false;
+  try { satOn = localStorage.getItem('satOn') === '1'; } catch (e) {}
+  function applySat() {
+    map.setLayoutProperty('sat-layer', 'visibility', satOn ? 'visible' : 'none');
+    for (const id of FILLS) {
+      if (!map.getLayer(id)) continue;
+      const base = FILL_BASE[id];
+      if (base === undefined) continue;
+      map.setPaintProperty(id, 'fill-opacity', satOn ? Math.min(base, 0.38) : base);
+    }
+    $('satCtl').classList.toggle('on', satOn);
+    $('satCap').textContent = satOn ? 'Схема' : 'Спутник';
+    $('satCtl').title = satOn ? 'Вернуть схему' : 'Спутниковая подложка';
+  }
+  const FILL_BASE = {};
+  for (const id of FILLS)
+    if (map.getLayer(id)) FILL_BASE[id] = map.getPaintProperty(id, 'fill-opacity');
+  applySat();
+  $('satCtl').onclick = () => {
+    satOn = !satOn;
+    try { localStorage.setItem('satOn', satOn ? '1' : '0'); } catch (e) {}
+    applySat();
+  };
+
+  // Ссылка на дату: ?d=1571-05-24 (день можно опустить: ?d=1930-12 или ?d=1783).
+  // Заведено 28.08.2026 по вопросу куратора «это можно посмотреть на карте?» -
+  // чтобы конкретный день открывался ссылкой, а не набором в трёх полях.
+  render(dateFromUrl() ?? T0);
+}).catch(e => console.error('карта не собралась:', e));
+</script>
+</body>
+</html>
