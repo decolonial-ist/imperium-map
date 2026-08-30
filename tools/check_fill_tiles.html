@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Проверка: не пропадает ли заливка целым тайлом</title>
+<script src="../vendor/maplibre-gl.js"></script>
+<link href="../vendor/maplibre-gl.css" rel="stylesheet">
+<style>
+  body { background: #14100f; color: #e8e0d8; font: 14px/1.5 -apple-system,
+         BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif; margin: 0;
+         padding: 24px; }
+  h1 { font-size: 19px; margin: 0 0 4px; }
+  p { max-width: 60em; color: #b7aca3; }
+  #map { width: 1100px; height: 700px; max-width: 100%; margin-top: 16px;
+         border: 1px solid #3a2f2b; }
+  button { background: #b23; color: #fff; border: 0; border-radius: 4px;
+           padding: 8px 16px; font-size: 14px; cursor: pointer; margin-right: 8px; }
+  button:disabled { background: #4a3b36; cursor: default; }
+  label { color: #b7aca3; margin-right: 16px; }
+  #out { white-space: pre-wrap; font: 12px/1.6 ui-monospace, Menlo, monospace;
+         margin-top: 16px; }
+  .bad { color: #ff6a4d; }
+  .ok { color: #7fd18a; }
+</style>
+</head>
+<body>
+<h1>Не пропадает ли заливка целым тайлом</h1>
+<p>MapLibre режет фичу на тайлы и решает, где внешнее кольцо, а где дырка,
+разбирая кольца тайла по порядку. Крошечный полигон, попавший в тайл первым,
+сбивает разбор: заливка исчезает <b>ровным прямоугольником по границам
+тайла</b>, обводка при этом остаётся. Так 30.08.2026 на срезах 1945 года
+пропадала вся европейская часть с Казахстаном и Средней Азией (тайл 2/2/1) —
+виновата была Куршская коса, полоса шириной в 400 метров, стоявшая в списке
+полигонов первой.</p>
+<p>Лечится порядком: полигоны идут от крупного к мелкому. Это делает
+<code>sortPolys</code> в <code>index.html</code> при загрузке и
+<code>sort_polygons</code> в <code>tools/geoclean.py</code> при сборке.
+Проверка гоняет каждый срез через настоящий MapLibre и смотрит на треугольники
+в каждом тайле: вершины есть, а треугольников почти нет — заливка пропала.
+Воспроизвести это без браузера нельзя: подразбиение геометрии живёт внутри
+MapLibre, простая модель на geojson-vt и earcut поломку не даёт.</p>
+<p><b>Запуск:</b> сервер уже поднят на 8931 (<code>python3 -m http.server
+8931</code> из корня репозитория), открыть
+<code>http://localhost:8931/tools/check_fill_tiles.html</code>. Вкладку держать
+на виду: в фоне браузер тормозит отрисовку и проверка идёт втрое дольше. Полный
+прогон — около трёх минут.</p>
+<p>
+  <button id="go">Проверить все срезы</button>
+  <label><input type="checkbox" id="raw"> без сортировки (как лежит в файлах —
+    так видно, что чинит правка)</label>
+</p>
+<div id="out"></div>
+<div id="map"></div>
+<script>
+// Только те зумы, на которых мир целиком помещается в окно 1100x700: проверка
+// смотрит тайлы, которые карта реально загрузила, а грузит она видимые. Дальше
+// третьего зума сетка внутри тайла мельче полукилометра, и полоса вроде
+// Куршской косы там уже не схлопывается - беда живёт на дальних зумах.
+const ZOOMS = [0, 1, 2];
+const CENTER = [90, 55];
+const out = document.getElementById('out');
+const say = (html, cls) => {
+  const d = document.createElement('div');
+  if (cls) d.className = cls;
+  d.innerHTML = html;
+  out.appendChild(d);
+};
+
+const map = new maplibregl.Map({
+  container: 'map', style: {version: 8, sources: {}, layers: []},
+  center: [55, 45], zoom: 2, attributionControl: false
+});
+
+const ringArea = r => {
+  let s = 0;
+  for (let i = 0; i < r.length - 1; i++)
+    s += r[i][0] * r[i + 1][1] - r[i + 1][0] * r[i][1];
+  return Math.abs(s) / 2;
+};
+
+// Тайлы, где вершины есть, а треугольников почти нет: заливка не построилась.
+function brokenTiles() {
+  const caches = map.style.sourceCaches || map.style._otherSourceCaches;
+  const sc = caches['core'];
+  const bad = [];
+  for (const t of Object.values(sc._tiles)) {
+    const b = t.buckets && t.buckets['core-fill'];
+    if (!b) continue;
+    const v = b.layoutVertexArray.length, i = b.indexArray.length;
+    if (v >= 50 && i < v * 0.3) {
+      const c = t.tileID.canonical;
+      bad.push(c.z + '/' + c.x + '/' + c.y + ' (вершин ' + v +
+               ', треугольников ' + i + ')');
+    }
+  }
+  return bad;
+}
+
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+async function run() {
+  const btn = document.getElementById('go');
+  const raw = document.getElementById('raw').checked;
+  btn.disabled = true;
+  out.textContent = '';
+  say('порядок полигонов: ' + (raw ? 'КАК В ФАЙЛАХ'
+      : 'от крупного к мелкому, как в index.html'));
+
+  const man = await (await fetch('../data/manifest.json')).json();
+  const dates = man.years;
+  say('срезов: ' + dates.length + ', зумы ' + ZOOMS.join(', '));
+
+  let broken = 0, checked = 0;
+  for (const d of dates) {
+    const fc = await (await fetch('../data/years/' + d + '.geojson')).json();
+    if (!raw) {
+      for (const f of fc.features) {
+        const g = f.geometry;
+        if (g && g.type === 'MultiPolygon')
+          g.coordinates.sort((a, b) => ringArea(b[0]) - ringArea(a[0]));
+      }
+    }
+    map.getSource('core').setData(fc);
+    const hits = [];
+    for (const z of ZOOMS) {
+      map.jumpTo({center: CENTER, zoom: z});
+      await wait(280);
+      hits.push(...brokenTiles());
+    }
+    checked++;
+    if (hits.length) {
+      broken++;
+      say('<b>' + d + '</b>: ' + [...new Set(hits)].join(', '), 'bad');
+    }
+    if (checked % 20 === 0) say('… проверено ' + checked + ' из ' + dates.length);
+  }
+  say(broken
+      ? 'КРАСНЫЙ: заливка пропадает на ' + broken + ' срезах из ' + checked
+      : 'зелёный: заливка не пропадает ни на одном срезе (' + checked + ')',
+      broken ? 'bad' : 'ok');
+  btn.disabled = false;
+}
+
+map.on('load', () => {
+  map.addSource('core', {type: 'geojson', data:
+    {type: 'FeatureCollection', features: []}});
+  map.addLayer({id: 'core-fill', type: 'fill', source: 'core',
+                paint: {'fill-color': '#b23', 'fill-opacity': 0.7}});
+  document.getElementById('go').onclick = run;
+  say('карта готова, можно запускать');
+});
+</script>
+</body>
+</html>

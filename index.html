@@ -227,6 +227,30 @@ const cleanPoly = poly => {
   const rings = poly.map(dedupRing);
   return (!rings.length || !rings[0]) ? null : rings.filter(Boolean);
 };
+// Площадь кольца (формула шнурков), без знака: нужна только для сравнения.
+const ringArea = r => {
+  let s = 0;
+  for (let i = 0; i < r.length - 1; i++)
+    s += r[i][0] * r[i + 1][1] - r[i + 1][0] * r[i][1];
+  return Math.abs(s) / 2;
+};
+// Полигоны внутри MultiPolygon - от самого крупного к самому мелкому.
+// ЗАЧЕМ (30.08.2026): MapLibre режет фичу на тайлы и решает, где внешнее
+// кольцо, а где дырка, ПО ЗНАКУ ПЛОЩАДИ ПЕРВОГО кольца, попавшего в тайл
+// (classifyRings). Координаты внутри тайла целые - сетка 4096 на тайл, на
+// zoom 2 это ~22 км, - и крошечный полигон схлопывается там в вырожденное
+// кольцо со случайным знаком. Попав в тайл первым, он объявляет свою
+// ориентацию эталоном, и все настоящие внешние кольца этого тайла считаются
+// дырками: заливка пропадает ЦЕЛЫМ ПРЯМОУГОЛЬНИКОМ по границам тайла, а
+// обводка остаётся. Так на срезах 1945 года исчезала вся европейская часть
+// с Казахстаном и Средней Азией (тайл 2/2/1: 2133 вершины, 18 индексов
+// вместо 2020) - виноват был полигон в 0,007 кв. градуса, стоявший первым.
+// Самый крупный полигон выродиться не может, поэтому первым идёт он.
+// Порядок полигонов в MultiPolygon смысла не несёт, сортировать безопасно.
+// Сюда же тянется недетерминизм сборки: порядок полигонов гуляет между
+// прогонами, и дыра то появлялась, то нет. Условие риска - первый полигон
+// не самый крупный - было на 168 срезах из 205.
+const sortPolys = polys => polys.sort((a, b) => ringArea(b[0]) - ringArea(a[0]));
 const cleanFC = fc => {
   if (!fc || !fc.features) return fc;
   for (const f of fc.features) {
@@ -236,7 +260,7 @@ const cleanFC = fc => {
       const p = cleanPoly(g.coordinates);
       if (p) g.coordinates = p; else f.geometry = null;
     } else if (g.type === 'MultiPolygon') {
-      g.coordinates = g.coordinates.map(cleanPoly).filter(Boolean);
+      g.coordinates = sortPolys(g.coordinates.map(cleanPoly).filter(Boolean));
       if (!g.coordinates.length) f.geometry = null;
     }
   }
@@ -655,7 +679,7 @@ function cutCoreReal(fc, cuts, ck) {
         for (const q of polygonClipping.difference([p], holes)) res.push(q);
       }
       return {type: 'Feature', properties: f.properties,
-              geometry: res.length ? {type: 'MultiPolygon', coordinates: res} : null};
+              geometry: res.length ? {type: 'MultiPolygon', coordinates: sortPolys(res)} : null};
     }).filter(f => f.geometry)};
   } catch (e) {
     console.warn('вычитание вырезов не удалось, падаем на дырки:', e);
@@ -773,7 +797,7 @@ function trimFront(fc, coreFC, coreKey, dayKey) {
       if (!a) return f;
       const r = polygonClipping.difference(a, core);
       return {type: 'Feature', properties: f.properties,
-              geometry: r.length ? {type: 'MultiPolygon', coordinates: r} : null};
+              geometry: r.length ? {type: 'MultiPolygon', coordinates: sortPolys(r)} : null};
     }).filter(f => f.geometry)};
   } catch (e) {
     console.warn('подрезка фронта не удалась:', e);
@@ -1357,7 +1381,7 @@ function nearestCity(gaz, x, y) {
 let resistPromise = null;
 function loadResistance() {
   if (!resistPromise) resistPromise = DFETCH('data/campaigns/resistance.geojson')
-    .then(r => r.ok ? r.json() : EMPTY).catch(() => EMPTY);
+    .then(r => r.ok ? r.json() : EMPTY).then(cleanFC).catch(() => EMPTY);
   return resistPromise;
 }
 const campTxt = cs => cs.slice(0, 3).map(c => c.short + ' (' + c.id + ')')
@@ -1379,14 +1403,14 @@ const campTxt = cs => cs.slice(0, 3).map(c => c.short + ' (' + c.id + ')')
 let uprPromise = null;
 function loadUprisings() {
   if (!uprPromise) uprPromise = DFETCH('data/resistance/uprisings.geojson')
-    .then(r => r.ok ? r.json() : EMPTY).catch(() => EMPTY);
+    .then(r => r.ok ? r.json() : EMPTY).then(cleanFC).catch(() => EMPTY);
   return uprPromise;
 }
 
 let pactPromise = null;
 function loadPact() {
   if (!pactPromise) pactPromise = DFETCH('data/pact1939.geojson')
-    .then(r => r.ok ? r.json() : EMPTY).catch(() => EMPTY);
+    .then(r => r.ok ? r.json() : EMPTY).then(cleanFC).catch(() => EMPTY);
   return pactPromise;
 }
 
@@ -1753,12 +1777,13 @@ function histRefresh() {                    // ползунок поехал - �
 
 Promise.all([
   DFETCH('data/manifest.json').then(r => r.json()),
-  DFETCH('data/sphere.geojson').then(r => r.json()),
+  DFETCH('data/sphere.geojson').then(r => r.json()).then(cleanFC),
   DFETCH('data/deepstate/manifest.json').then(r => r.ok ? r.json() : {days: []}).catch(() => ({days: []})),
   // постсоветские эпизоды 1990-2022 (tools/build_postsoviet.py). Статичный
   // data/deepstate/territories.geojson в показ больше не идёт - он остался
   // источником геометрии для билдера
-  DFETCH('data/postsoviet.geojson').then(r => r.ok ? r.json() : EMPTY).catch(() => EMPTY),
+  DFETCH('data/postsoviet.geojson').then(r => r.ok ? r.json() : EMPTY)
+    .then(cleanFC).catch(() => EMPTY),
   grab('data/belarus.geojson'),
   // список срезов атрибуции «кто держал точку» (сами срезы качаются по клику)
   DFETCH('data/attribution/manifest.json').then(r => r.ok ? r.json() : {years: []})

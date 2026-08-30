@@ -380,9 +380,48 @@ def sanitize_geom(geom):
         parts = [p for p in parts if p.area > 0]
         if not parts:
             return geom
-        return clean_rings(mapping(unary_union(parts)))
+        return sort_polygons(clean_rings(mapping(unary_union(parts))))
     except Exception:
         return geom
+
+
+def sort_polygons(geom):
+    """Полигоны в MultiPolygon - от крупного к мелкому.
+
+    ЗАЧЕМ. MapLibre режет фичу на тайлы и решает, где внешнее кольцо, а где
+    дырка, разбирая кольца тайла по порядку, начиная с первого. Крошечный
+    полигон в начале списка сбивает этот разбор, и заливка пропадает целым
+    прямоугольником по границам тайла - обводка при этом остаётся. Так
+    30.08.2026 на срезах 1945 года исчезала вся европейская часть с Казахстаном
+    и Средней Азией; виновата была Куршская коса - полоса шириной в 400 метров,
+    стоявшая в списке первой. Крупнейший полигон сбить разбор не может.
+
+    ВТОРАЯ ПРИЧИНА: unary_union отдаёт полигоны в произвольном порядке, и от
+    прогона к прогону он гуляет - отсюда часть недетерминизма сборки, из-за
+    которого md5-приёмка пересборок не работала (находка 29.08.2026).
+    Сортировка этот порядок закрепляет.
+
+    Тот же порядок наводит index.html (sortPolys) при загрузке, чтобы правка
+    работала и на срезах, собранных раньше.
+    """
+    if not isinstance(geom, dict) or geom.get('type') != 'MultiPolygon':
+        return geom
+    polys = geom.get('coordinates')
+    if not isinstance(polys, list) or len(polys) < 2:
+        return geom
+
+    def area(poly):
+        if not poly or len(poly[0]) < 4:
+            return 0.0
+        ring = poly[0]
+        s = 0.0
+        for i in range(len(ring) - 1):
+            s += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1]
+        return abs(s) / 2.0
+
+    out = dict(geom)
+    out['coordinates'] = sorted(polys, key=area, reverse=True)
+    return out
 
 
 def sanitize_obj(obj):

@@ -228,7 +228,13 @@ def extra_geom(eid):
     elif eid == 'SAKHALIN_S':
         g = clip(ne('Russia', ['Sakhalin']), lat1=50.0, lon1=145.5)
     elif eid == 'KURILS':
-        g = clip(ne('Russia', ['Sakhalin']), lon0=145.5)
+        # Гряду берём из курируемого файла, а не из Сахалинской области
+        # Natural Earth: административный регион включает акваторию, и гряда
+        # красила воду (30.08.2026, разбор - data/crosscheck/kurils_sea_2026-08-30.md).
+        # Файл собран tools/build_kurils.py, обрезан по суше.
+        with open(os.path.join(DATA, 'kurils', 'all.geojson')) as fh:
+            g = unary_union([shape(f['geometry'])
+                             for f in json.load(fh)['features']])
     else:
         raise SystemExit(f'неизвестный кусок {eid}')
     _g[eid] = g.buffer(0)
