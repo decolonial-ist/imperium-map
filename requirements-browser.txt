@@ -1,0 +1,12 @@
+# Окружение проверок карты в браузере (Playwright): ~/tmp/WORKFILES/pw-venv
+# (Python 3.14). Скрипты — ~/tmp/WORKFILES/mapcheck/. Поднять:
+#   python3 -m venv ~/tmp/WORKFILES/pw-venv
+#   ~/tmp/WORKFILES/pw-venv/bin/pip install -r requirements-browser.txt
+#   ~/tmp/WORKFILES/pw-venv/bin/playwright install chromium
+mapbox-vector-tile==2.2.0
+numpy==2.5.2
+playwright==1.62.0
+protobuf==6.33.6
+pyclipper==1.4.0
+requests==2.34.2
+shapely==2.1.2

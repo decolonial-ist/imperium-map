@@ -1,0 +1,8 @@
+# Окружение сборки данных карты: ~/tmp/imperium-map/.venv (Python 3.14).
+# Поднять: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+numpy==2.5.2
+pillow==12.3.0
+pymupdf==1.28.2
+pyshp==3.1.6
+scipy==1.18.0
+shapely==2.1.2
