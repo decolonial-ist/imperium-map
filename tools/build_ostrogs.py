@@ -86,11 +86,49 @@ def read_rows(path=SRC):
     return rows
 
 
-def build(rows):
+# Тип точки. Куратор 01.09.2026: «ну заводи этот тип. но пусть он тоже будет
+# красным. не надо ему другого цвета». Поэтому цвет у всех один - имперское
+# красное, а отличаются точки размером и словом в попапе:
+#   ostrog  - изба с гарнизоном, живёт ясаком;
+#   zavod   - завод и посёлок при нём: земля, лес, вода и приписанные люди;
+#   faktor  - фактория компании, которой государство отдало право занимать
+#             землю (Российско-Американская компания, привилегии 1799 года).
+# Острог и крепость - разные вещи, и куратор 01.09.2026 велел их развести.
+# ОСТРОГ - XVI-XVII век и деревянный тын: вертикально врытые заострённые
+# брёвна (отсюда и слово), внутри изба с гарнизоном, задача - брать ясак.
+# КРЕПОСТЬ - XVIII век и регулярная фортификация: земляной вал, ров, бастионы
+# по инженерному плану, артиллерия. В документах проекта это видно дословно:
+# указ 28.05.1723 велит при заводах на Исети ставить «новую крѣпость» с
+# гарнизоном, инструкция Кирилову 1734 года - «хотя малую земляную крѣпостцу
+# по искуству инженерныхъ офицеровъ». На Кавказе острогов не было вовсе:
+# линия строилась сразу крепостями, укреплениями, фортами и редутами.
+KIND_WORD = {'ostrog': 'острог', 'krepost': 'крепость', 'zavod': 'завод',
+             'faktor': 'фактория компании', 'katorga': 'каторжный пост',
+             'priisk': 'прииск'}
+
+
+def build(rows, skipped=None):
     feats = []
     for r in rows:
         lon, lat = float(r['lon']), float(r['lat'])
         km = float(r['radius_km'] or 15)
+        kind = (r.get('kind') or '').strip() or 'ostrog'
+        if kind not in KIND_WORD:
+            raise SystemExit('неизвестный тип точки «%s» у %s; допустимы: %s'
+                             % (kind, r['slug'], ', '.join(KIND_WORD)))
+        # ТОЧКА НА УЖЕ КРАСНОЙ ЗЕМЛЕ В ПОКАЗ НЕ ИДЁТ (02.09.2026).
+        # Куратор: «мне не надо появление заводов внутри покрасневшей зоны,
+        # можешь скрыть это, включая лишние шаги». Смысл слоя - показать, чем
+        # империя занимала ЧУЖОЕ: острог, крепость, завод ставятся там, где
+        # красного ещё нет. Предприятие, заведённое внутри давно занятой земли,
+        # ничего про захват не говорит и только мельтешит на ползунке -
+        # появилось и тут же погасло
+        red = red_from(lon, lat)
+        if red is not None and str(red) <= str(r['founded']):
+            if skipped is not None:
+                skipped.append((r['name_ru'], KIND_WORD[kind],
+                                r['founded'][:4], str(red)[:4]))
+            continue
         geom = {'type': 'Polygon', 'coordinates': circle(lon, lat, km)}
         feats.append({
             'type': 'Feature',
@@ -98,13 +136,28 @@ def build(rows):
             'properties': {
                 'slug': r['slug'], 'name': r['name_ru'],
                 'from': r['founded'], 'to': (r['gone'] or '').strip() or None,
-                'red_from': red_from(lon, lat),
+                # Правило «точка гаснет, когда земля вокруг покраснела»
+                # придумано 28.08.2026 для ОСТРОЖНОЙ эпохи: острог показывает
+                # присутствие там, где красного ещё нет. Для промышленной
+                # колонизации оно работает наоборот и вырезает её целиком:
+                # Невьянский завод поставлен в 1702 году на земле, покрасневшей
+                # в 1587-м, и не показывался НИ НА ОДНОЙ дате. Куратор
+                # 01.09.2026, посмотрев карту: «семь или больше крепостей разом
+                # возникают... заводы не видны». Поэтому правило снято для
+                # заводов и факторий, а у крепостей - только там, где земля
+                # покраснела ПОЗЖЕ постройки; крепость, поставленная внутри
+                # уже красного, тоже светится всегда, иначе её нет вовсе.
+                'red_from': red_visible(kind, r['founded'], lon, lat),
                 'lon': lon, 'lat': lat, 'radius_km': km,
                 'source': r['source'], 'note': r['note'],
-                'kind': 'ostrog',
+                'kind': kind, 'kind_ru': KIND_WORD[kind],
+                # чья это была земля до точки: ясачные волости и народы,
+                # собрано розыском 01.09.2026 (MAP-MATERIALS/industrial/11_narody.md)
+                'land': (r.get('land') or '').strip(),
                 'geometry_note': (
                     f'геометрия условная: кружок радиусом {km:g} км вокруг '
-                    f'острога, обозначение места, а не линия контроля'),
+                    f'точки ({KIND_WORD[kind]}), обозначение места, а не '
+                    f'линия контроля'),
                 'approximate': True,
             },
         })
@@ -112,6 +165,19 @@ def build(rows):
 
 
 _slices = None
+
+
+def red_visible(kind, founded, lon, lat):
+    """Дата гашения точки - или None, если точку гасить не надо.
+
+    Правило одно для всех типов (02.09.2026): точка светится от постройки до
+    того дня, когда земля вокруг покраснела. Точки, поставленные на уже
+    красной земле, до сюда не доходят - их отсеивает build().
+    """
+    red = red_from(lon, lat)
+    if red is None:
+        return None
+    return red if str(red) > str(founded) else None
 
 
 def red_from(lon, lat):
@@ -154,19 +220,27 @@ def red_from(lon, lat):
 
 def main():
     rows = read_rows()
-    feats = build(rows)
+    skipped = []
+    feats = build(rows, skipped)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, 'w', encoding='utf-8') as f:
         json.dump(gc.sanitize_obj({'type': 'FeatureCollection', 'features': feats}), f,
                   ensure_ascii=False)
     size = os.path.getsize(OUT)
-    gone = [r for r in rows if (r.get('gone') or '').strip()]
+    if skipped:
+        print(f'   СКРЫТО (земля уже была красной): {len(skipped)} — '
+              + ', '.join(f'{n} — {k}, {f}, красное с {rd}'
+                          for n, k, f, rd in skipped))
+    shown = {f['properties']['slug'] for f in feats}
+    gone = [r for r in rows
+            if (r.get('gone') or '').strip() and r['slug'] in shown]
     print(f'OK {os.path.relpath(OUT, ROOT)}: острогов {len(feats)}, '
           f'{size // 1024} КБ')
     print(f'   из них империя бросила: {len(gone)} — '
           + ', '.join(f"{r['name_ru']} ({r['gone'][:4]})" for r in gone))
-    first = min(rows, key=lambda r: r['founded'])
-    last = max(rows, key=lambda r: r['founded'])
+    vis = [r for r in rows if r['slug'] in shown]
+    first = min(vis, key=lambda r: r['founded'])
+    last = max(vis, key=lambda r: r['founded'])
     print(f"   окно: {first['founded']} ({first['name_ru']}) .. "
           f"{last['founded']} ({last['name_ru']})")
     gc.write_stamp('ostrogs')

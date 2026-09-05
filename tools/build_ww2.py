@@ -471,8 +471,7 @@ def build(key, field, verbose=True):
     }
     fc = {'type': 'FeatureCollection', 'features': [{
         'type': 'Feature',
-        'geometry': be._round(mapping(gc.drop_thin_parts(gc.drop_sea_parts(
-            gc.clip_to_land(geom, be.CACHE)[0], be.CACHE)[0])[0])),
+        'geometry': be._round(mapping(gc.finish(geom, be.CACHE))),
         'properties': props}]}
     return fc, len(keep), lost, abroad.area
 

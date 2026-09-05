@@ -289,6 +289,39 @@ def drop_sea_parts(geom, cache_dir, trim_km2=700.0, min_keep_km2=5.0,
     return unary_union(out), fixed
 
 
+def fill_sea_holes(geom, cache_dir, max_km2=500.0, share=0.6):
+    """Залить внутренние кольца не крупнее max_km2, которые больше чем на share
+    - океан по NE 10m (карманы губ и устьев, замкнутые лентой шва: Обская
+    губа, Енисейский залив, Хатанга на срезах 1929+). -> (геометрия, сколько)."""
+    import math
+    from shapely.geometry import Polygon
+    from shapely.ops import unary_union
+    tree, sea = _sea_tree(cache_dir)
+    polys = list(geom.geoms) if geom.geom_type == 'MultiPolygon' else [geom]
+    out, n = [], 0
+    for p in polys:
+        if not p.interiors:
+            out.append(p)
+            continue
+        keep = []
+        for r in p.interiors:
+            hp = Polygon(r)
+            if hp.area <= 0:
+                continue
+            km2 = hp.area * 111.32 ** 2 * math.cos(math.radians(hp.centroid.y))
+            if km2 > max_km2:
+                keep.append(r)
+                continue
+            idx = tree.query(hp)
+            water = unary_union([sea[i] for i in idx]).intersection(hp).area if len(idx) else 0.0
+            if water / hp.area > share:
+                n += 1
+            else:
+                keep.append(r)
+        out.append(Polygon(p.exterior, keep) if len(keep) != len(p.interiors) else p)
+    return (unary_union(out).buffer(0) if n else geom), n
+
+
 def drop_thin_parts(geom, max_compact=0.08, max_area_km2=6000.0):
     """Снять куски-ободки: длинные и тонкие, но не острова.
 
@@ -328,6 +361,173 @@ def drop_thin_parts(geom, max_compact=0.08, max_area_km2=6000.0):
     return unary_union(keep), len(parts) - len(keep)
 
 
+# ---- капли: черви, крапинки, точечные дырки ---------------------------------
+# ЗАЧЕМ (04.09.2026). Куратор, глядя на срезы 1601-1945: «шо за вздроч идёт,
+# капли». Замер по его точкам: отдельные куски по 12-150 км² шириной 1-3 км
+# вдоль рек и границ вычитаний (Купянск 1610, Кузбасс 1634, Абакан 1711, Тикси
+# 1700), крапинки-отростки на краю ядра (Ямал 1601, Магадан 1700) и дырки в
+# доли квадратного километра внутри красного - пунктир швов на срезах Второй
+# мировой (Волынь, Прут 1945). Прежний drop_thin_parts их не брал: компактность
+# червя 0,17-0,36 выше порога 0,12. Здесь одно правило на все сборщики:
+#   1) дырки меньше HOLE_MIN_KM2 закрываются всегда - это не озёра, а швы;
+#   2) отдельный кусок меньше SPECK_KM2 снимается, если он либо сидит внутри
+#      материка (кольцо вокруг него больше чем наполовину суша: обрезок ядра, а
+#      не остров), либо это лента (компактность < 0,35 и средняя ширина < 2 км);
+#      настоящие малые острова у берега окружены водой и компактны - остаются;
+#   3) морфологическое раскрытие радиусом OPEN_DEG снимает отростки тоньше
+#      ~1,3 км с края ядра (крапинки); углы округляются на сотни метров,
+#      что при упрощении 0,005° незаметно.
+HOLE_MIN_KM2 = 2.0
+SPECK_KM2 = 200.0
+OPEN_DEG = 0.006
+SLIT_WIDTH_KM = 2.5      # дырка уже этого и меньше SLIT_MAX_KM2 - щель шва, не озеро
+SLIT_MAX_KM2 = 100.0
+THIN_MIN_DEG2 = 1e-5     # тонкие обрезки мельче ~0,1 км² снимаются без разбора
+NECK_KM2 = 20.0          # тело, ради связи с которым перешеек сохраняется
+
+
+def _hole_is_noise(hp, lim):
+    import math
+    lat = hp.centroid.y
+    k = 111.32 ** 2 * math.cos(math.radians(lat))
+    a = hp.area * k
+    if a < lim:
+        return True
+    perim = hp.length * 111.32 * math.sqrt((1 + math.cos(math.radians(lat)) ** 2) / 2)
+    return a < SLIT_MAX_KM2 and perim > 0 and 2 * a / perim < SLIT_WIDTH_KM
+
+
+def _local_land(tree, sea, bounds, pad=0.05):
+    """Суша в прямоугольнике bounds с запасом pad: коробка минус куски океана."""
+    from shapely.geometry import box
+    from shapely.ops import unary_union
+    b = box(bounds[0] - pad, bounds[1] - pad, bounds[2] + pad, bounds[3] + pad)
+    idx = tree.query(b)
+    if not len(idx):
+        return b
+    return b.difference(unary_union([sea[i] for i in idx]))
+
+
+def despeckle(geom, cache_dir):
+    """-> (геометрия, снято кусков, закрыто дырок).
+
+    04.09.2026. Три вида мусора на срезах: (3) тонкие отростки и перешейки
+    главного полигона (ленты между контуром источника и вычитанием), (1)
+    точечные дырки и щели швов, (2) отдельные крапинки и ленты. Раскрытие
+    buffer(-OPEN).buffer(+OPEN) снимает всё тоньше ~1,3 км, но тонкой бывает и
+    настоящая земля: Арабатская стрелка, Куршская коса, Федотова коса. Поэтому
+    снятые раскрытием куски возвращаются там, где тонка сама суша: если
+    раскрытая маска суши покрывает кусок меньше чем наполовину - это коса,
+    кусок остаётся; если суша вокруг широка - это обрезок, кусок снимается.
+    """
+    import math
+    from shapely.geometry import Polygon
+    from shapely.ops import unary_union
+    if geom.is_empty:
+        return geom, 0, 0
+    tree, sea = _sea_tree(cache_dir)
+    # 3) раскрытие: тонкие отростки, с возвратом кос
+    opened = geom.buffer(-OPEN_DEG).buffer(OPEN_DEG).buffer(0)
+    if not opened.is_empty:
+        thin = geom.difference(opened)
+        back = []
+        oparts = list(opened.geoms) if opened.geom_type == 'MultiPolygon' else [opened]
+        # тела, между которыми тонкий кусок может быть перешейком (>= NECK_KM2)
+        bodies = [(p, p.area * 111.32 ** 2 * math.cos(math.radians(p.centroid.y))) for p in oparts]
+        bodies = [p for p, a in bodies if a >= NECK_KM2]
+        for t in (thin.geoms if thin.geom_type == 'MultiPolygon' else [thin]):
+            if t.is_empty or t.geom_type != 'Polygon' or t.area < THIN_MIN_DEG2:
+                continue
+            # перешеек: тонкий кусок соединяет два тела (Абакан 1704: 463 км²
+            # отрезались от ядра щелью 1,7 км; Арабатская стрелка у основания)
+            tb = t.buffer(1e-4)
+            if sum(1 for b in bodies if tb.intersects(b)) >= 2:
+                back.append(t)
+                continue
+            land = _local_land(tree, sea, t.bounds)
+            land_open = land.buffer(-OPEN_DEG).buffer(OPEN_DEG)
+            cover = t.intersection(land_open).area / t.area if not land_open.is_empty else 0.0
+            if cover < 0.5:
+                back.append(t)
+        geom = unary_union([opened] + back).buffer(0) if back else opened
+    parts = list(geom.geoms) if geom.geom_type == 'MultiPolygon' else [geom]
+    # 1) точечные дырки и щели
+    holes = 0
+    fixed = []
+    for p in parts:
+        if not p.interiors:
+            fixed.append(p)
+            continue
+        keep = []
+        for r in p.interiors:
+            if _hole_is_noise(Polygon(r), HOLE_MIN_KM2):
+                holes += 1
+            else:
+                keep.append(r)
+        fixed.append(Polygon(p.exterior, keep) if len(keep) != len(p.interiors) else p)
+    parts = fixed
+    if len(parts) < 2:
+        return unary_union(parts), 0, holes
+    # 2) крапинки и ленты
+    out, dropped = [], 0
+    biggest = max(parts, key=lambda p: p.area)
+    for p in parts:
+        if p is biggest:
+            out.append(p)
+            continue
+        lat = (p.bounds[1] + p.bounds[3]) / 2
+        k = 111.32 ** 2 * math.cos(math.radians(lat))
+        km2 = p.area * k
+        if km2 >= SPECK_KM2 or p.length <= 0:
+            out.append(p)
+            continue
+        compact = 4 * math.pi * p.area / p.length ** 2
+        width_km = 2 * km2 / (p.length * 111.32)
+        ribbon = compact < 0.35 and width_km < 2.0
+        ring = p.buffer(0.02).difference(p)
+        idx = tree.query(ring)
+        water = unary_union([sea[i] for i in idx]).intersection(ring).area if len(idx) else 0.0
+        mainland = ring.area > 0 and water / ring.area < 0.5
+        if ribbon or mainland:
+            dropped += 1
+            continue
+        out.append(p)
+    return unary_union(out), dropped, holes
+
+
+def close_pinholes(geom, min_km2=None):
+    """Закрыть дырки меньше min_km2 (по умолчанию HOLE_MIN_KM2) во всех частях."""
+    import math
+    from shapely.geometry import Polygon, MultiPolygon
+    lim = HOLE_MIN_KM2 if min_km2 is None else min_km2
+    if geom.is_empty or geom.geom_type not in ('Polygon', 'MultiPolygon'):
+        return geom
+    parts = list(geom.geoms) if geom.geom_type == 'MultiPolygon' else [geom]
+    out, changed = [], False
+    for p in parts:
+        if not p.interiors:
+            out.append(p); continue
+        keep = []
+        for r in p.interiors:
+            if _hole_is_noise(Polygon(r), lim):
+                changed = True
+            else:
+                keep.append(r)
+        out.append(Polygon(p.exterior, keep) if changed else p)
+    if not changed:
+        return geom
+    return out[0] if len(out) == 1 else MultiPolygon(out)
+
+def finish(geom, cache_dir):
+    """Полная чистка готового контура перед записью: обрезка по суше, куски в
+    воде, ободки, капли (04.09.2026 - одна точка входа для всех сборщиков)."""
+    geom, _ = clip_to_land(geom, cache_dir)
+    geom, _ = drop_sea_parts(geom, cache_dir)
+    geom, _ = drop_thin_parts(geom)
+    geom, _, _ = despeckle(geom, cache_dir)
+    return geom
+
+
 # ---- штампы порядка сборки --------------------------------------------------
 # Двадцать сборщиков пишут в общий data/manifest.json, порядок запуска
 # (HANDOFF.md) до 29.08.2026 ничем не проверялся: запустишь не в том порядке -
@@ -364,6 +564,88 @@ _GEOM_TYPES = {'Polygon', 'MultiPolygon', 'LineString', 'MultiLineString',
                'Point', 'MultiPoint', 'GeometryCollection'}
 
 
+# ---- озёра-дырки ------------------------------------------------------------
+# ЗАЧЕМ (03.09.2026, луп по артефактам). У срезов на основе CShapes (1886-2010)
+# Байкал, Ладога, Онега и Балхаш сидели дырками с красной обводкой по берегу -
+# «империя обошла озеро». Для historical-basemaps то же лечили в hb_core
+# (fill_water), а cs_core и поздняя стадия озёра не заливали. Теперь заливка
+# стоит здесь, в общей чистке перед записью, и работает во всех сборщиках.
+# Правило то же: дырку заливаем, только если она вода. Маска - Natural Earth
+# 10m lakes; кэш объединения на диске. Дырки крупнее LAKE_MAX_KM2 не трогаем:
+# Каспий и Арал - море, красить их нельзя (Байкал 31,7 тыс. км², Ладога 17,7,
+# Балхаш 16,4, Онега 9,7; Арал 68 тыс.).
+LAKE_MAX_KM2 = 40000.0
+LAKE_SHARE = 0.6
+_lakes = {}
+
+
+def lakes_mask(cache_dir=None):
+    if 'g' not in _lakes:
+        import json
+        import os
+        from shapely import wkb as _wkb
+        from shapely.geometry import shape
+        from shapely.ops import unary_union
+        from shapely.strtree import STRtree
+        if cache_dir is None:
+            cache_dir = os.path.join(os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__))), 'cache')
+        path = os.path.join(cache_dir, 'ne_10m_lakes_union.wkb')
+        if os.path.exists(path):
+            with open(path, 'rb') as f:
+                g = _wkb.loads(f.read())
+        else:
+            src = os.path.join(cache_dir, 'ne_10m_lakes.geojson')
+            if not os.path.exists(src):
+                _lakes['g'] = None
+                return None
+            with open(src, encoding='utf-8') as f:
+                g = unary_union([shape(ft['geometry']).buffer(0)
+                                 for ft in json.load(f)['features']])
+            with open(path, 'wb') as f:
+                f.write(g.wkb)
+        parts = list(g.geoms) if g.geom_type == 'MultiPolygon' else [g]
+        _lakes['g'] = g
+        _lakes['parts'] = parts
+        _lakes['tree'] = STRtree(parts)
+    return _lakes['g']
+
+
+def fill_lake_holes(g):
+    """Залить внутренние кольца, которые больше чем на LAKE_SHARE - озеро
+    (и не крупнее LAKE_MAX_KM2). -> (геометрия, сколько дырок залито)."""
+    import math
+    from shapely.geometry import Polygon
+    from shapely.ops import unary_union
+    if lakes_mask() is None:
+        return g, 0
+    tree, parts = _lakes['tree'], _lakes['parts']
+    polys = list(g.geoms) if g.geom_type == 'MultiPolygon' else [g]
+    out, n = [], 0
+    for p in polys:
+        if not p.interiors:
+            out.append(p)
+            continue
+        keep = []
+        for r in p.interiors:
+            hp = Polygon(r)
+            if hp.area <= 0:
+                continue
+            lat = hp.centroid.y
+            km2 = hp.area * 111.32 ** 2 * math.cos(math.radians(lat))
+            if km2 > LAKE_MAX_KM2:
+                keep.append(r)
+                continue
+            idx = tree.query(hp)
+            water = unary_union([parts[i] for i in idx]).intersection(hp).area if len(idx) else 0.0
+            if water / hp.area > LAKE_SHARE:
+                n += 1
+            else:
+                keep.append(r)
+        out.append(Polygon(p.exterior, keep) if len(keep) != len(p.interiors) else p)
+    return (unary_union(out).buffer(0) if n else g), n
+
+
 def sanitize_geom(geom):
     """Почистить одну геометрию GeoJSON; при любой беде вернуть как было."""
     try:
@@ -380,9 +662,52 @@ def sanitize_geom(geom):
         parts = [p for p in parts if p.area > 0]
         if not parts:
             return geom
-        return sort_polygons(clean_rings(mapping(unary_union(parts))))
+        g = unary_union(parts)
+        g, _ = fill_lake_holes(g)
+        # 04.09.2026: buffer(0) над округлённым до 3-4 знаков кольцом превращает
+        # петли самопересечения в дырки 0,002-0,5 км² (Карпаты 1944-1945,
+        # пунктир вдоль границы на кадрах куратора). Это последний писатель
+        # перед json.dump, поэтому крапинки закрываются здесь.
+        g = close_pinholes(g)
+        return sort_polygons(clean_rings(mapping(g)))
     except Exception:
         return geom
+
+
+def merge_core_features(fc, roles=('core',)):
+    """Слить соприкасающиеся фичи ядра в одну: внутренние швы обводки.
+
+    ЗАЧЕМ (03.09.2026). Срез 1922 (оцифровка атласа) лежал 51 фичей, из них
+    21 пара соприкасается; поздняя стадия дописывала куски отдельными фичами.
+    Обводка рисовала каждую границу куска как границу империи - красные линии
+    внутри красного (Ненецкий округ 1929, север 1930, Маньчжурия 1945).
+    Все фичи с role из roles объединяются в одну; свойства берутся у самой
+    крупной, имена остальных - в списке merged_from.
+    """
+    try:
+        from shapely.geometry import mapping, shape
+        from shapely.ops import unary_union
+    except Exception:
+        return fc
+    feats = fc.get('features') or []
+    core = [f for f in feats if f.get('geometry') and (f.get('properties') or {}).get('role') in roles]
+    if len(core) < 2:
+        return fc
+    rest = [f for f in feats if f not in core]
+    geoms = [(shape(f['geometry']).buffer(0), f) for f in core]
+    geoms.sort(key=lambda gf: -gf[0].area)
+    # волосяные зазоры после округления закрываем буфером в 1e-4° туда-обратно
+    g = unary_union([x for x, _ in geoms]).buffer(1e-4).buffer(-1e-4).buffer(0)
+    main = dict(geoms[0][1])
+    props = dict(main.get('properties') or {})
+    props['merged_from'] = [((f.get('properties') or {}).get('late_fix')
+                             or (f.get('properties') or {}).get('name') or '?')
+                            for _, f in geoms[1:]]
+    main['properties'] = props
+    main['geometry'] = sort_polygons(clean_rings(mapping(g)))
+    out = dict(fc)
+    out['features'] = [main] + rest
+    return out
 
 
 def sort_polygons(geom):

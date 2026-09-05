@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Equal Earth — прототип (B2)</title>
+<!-- Прототип 05.09.2026: та же подложка OpenFreeMap (тёмный стиль, векторные тайлы),
+     движок OpenLayers 10.10 + proj4 2.22 (Equal Earth, центральный меридиан 90° в. д.).
+     Бандл vendor/ol-bundle.js собран из npm-пакетов, версии и лицензии рядом.
+     Разбор граблей: ~/tmp/MAP-MATERIALS/loop_2026-09-05_ee/B1_podlozhka.md -->
+<link rel="stylesheet" href="vendor/ol.css">
+<style>
+  html, body { margin:0; height:100%; background:#14171c; color:#e6e6e6; font:13px/1.4 system-ui, sans-serif; }
+  #map { position:absolute; inset:0; }
+  #info { position:absolute; left:8px; bottom:8px; background:rgba(20,23,28,.85); padding:6px 10px; border-radius:6px; z-index:5; }
+  #info b { color:#ff7a7a; }
+</style>
+</head><body>
+<div id="map"></div>
+<div id="info">Equal Earth, центр 90° в. д. · <span id="z"></span> · срез <b id="k"></b></div>
+<script src="vendor/ol-bundle.js"></script>
+<script>
+const q = new URLSearchParams(location.search);
+const LON0 = +(q.get('lon0') || 90);
+const MAXLAT = +(q.get('maxlat') || 85);
+const HALF = 20037508.342789244;
+
+// ---- проекции ---------------------------------------------------------------
+proj4.defs('EE', `+proj=eqearth +lon_0=${LON0} +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +type=crs`);
+// Меркатор с центральным меридианом LON0: сетка исходных тайлов со швом на LON0-180
+// (для 90° в. д. - на 90° з. д., в Америке), а не на 180° посреди Чукотки.
+proj4.defs('MERC90', `+proj=merc +lon_0=${LON0} +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +type=crs`);
+ol.proj.register(proj4);
+const EE = ol.proj.get('EE'), M = ol.proj.get('MERC90');
+const P = proj4('EE'), PM = proj4('MERC90');
+const YMAX = P.forward([LON0, MAXLAT])[1];
+EE.setExtent([-17243864, -YMAX, 17243864, YMAX]);
+EE.setWorldExtent([LON0 - 180, -MAXLAT, LON0 + 180, MAXLAT]);
+M.setExtent([-HALF, -HALF, HALF, HALF]);
+M.setWorldExtent([LON0 - 180, -85.0511, LON0 + 180, 85.0511]);
+const _fwd = c => P.forward([c[0], c[1]]);
+// Обратный пересчёт с зажимом: угол тайла за овалом мира иначе даёт NaN, и
+// OpenLayers считает тайл пустым (пусто на обзоре и выше 72° с. ш.).
+function _inv(c) {
+  let x = c[0], y = c[1];
+  if (y > YMAX) y = YMAX; else if (y < -YMAX) y = -YMAX;
+  const lat = P.inverse([0, y])[1];
+  const xe = P.forward([LON0 + 179.999, lat])[0];
+  if (x > xe) x = xe; else if (x < -xe) x = -xe;
+  const r = P.inverse([x, y]);
+  return [r[0], r[1]];
+}
+// Буфер тайла на шве сетки уходит за ±HALF; без зажима такая вершина улетает
+// на другой край мира (полосы через всю карту).
+const clampX = x => x > HALF - 1 ? HALF - 1 : (x < 1 - HALF ? 1 - HALF : x);
+ol.proj.addCoordinateTransforms('EPSG:4326', EE, _fwd, _inv);
+ol.proj.addCoordinateTransforms('EPSG:3857', EE, c => _fwd(ol.proj.toLonLat(c)), c => ol.proj.fromLonLat(_inv(c)));
+ol.proj.addCoordinateTransforms('EPSG:4326', M, c => PM.forward([c[0], c[1]]), c => PM.inverse([c[0], c[1]]));
+ol.proj.addCoordinateTransforms(M, EE, c => _fwd(PM.inverse([clampX(c[0]), c[1]])), c => PM.forward(_inv(c)));
+
+// Исходные тайлы на зум мельче целевых: рёбра тайла Меркатора после переноса
+// вершин в Equal Earth - хорды; чем мельче тайл, тем короче хорда.
+const SRCZ = +(q.get('srcz') ?? 1);
+if (SRCZ) {
+  const orig = ol.VectorTileSource.prototype.getSourceZ_;
+  ol.VectorTileSource.prototype.getSourceZ_ = function (resolution, projection, pixelRatio) {
+    return Math.min(orig.call(this, resolution, projection, pixelRatio) + SRCZ, this.getTileGrid().getMaxZoom());
+  };
+}
+
+// ---- карта ------------------------------------------------------------------
+const view = new ol.View({projection: EE,
+  center: ol.proj.fromLonLat([+(q.get('lon') || 90), +(q.get('lat') || 60)], EE),
+  zoom: +(q.get('z') || 2.5), minZoom: 1.4, maxZoom: 14, constrainOnlyCenter: true});
+const map = new ol.Map({target: 'map', view, controls: ol.control.defaults({attribution: true, zoom: true})});
+
+// ---- подложка: стиль OpenFreeMap двумя слоями, между ними наше красное ----------
+const STYLE = q.get('style') || 'https://tiles.openfreemap.org/styles/dark';
+async function basemap() {
+  const style = await (await fetch(STYLE)).json();
+  const srcDef = style.sources.openmaptiles;
+  const tj = srcDef.url ? await (await fetch(srcDef.url)).json() : srcDef;
+  const tpl = tj.tiles[0];
+  // тайл x нашей сетки = тайл OSM (x + 2^z/4) mod 2^z - целое при z >= 2
+  const grid = ol.tilegrid.createXYZ({minZoom: 2, maxZoom: tj.maxzoom || 14, tileSize: 512});
+  const urlFn = tc => { const z = tc[0], n = 1 << z; return tpl.replace('{z}', z).replace('{x}', (tc[1] + n / 4) % n).replace('{y}', tc[2]); };
+  const source = new ol.VectorTileSource({format: new ol.MVT(), projection: M, tileGrid: grid,
+    attributions: tj.attribution, tileUrlFunction: urlFn});
+  const ids = style.layers.filter(l => l.source === 'openmaptiles').map(l => l.id);
+  const symbol = new Set(style.layers.filter(l => l.type === 'symbol').map(l => l.id));
+  const below = new ol.VectorTileLayer({source, declutter: false, zIndex: 10});   // заливки и линии
+  const labels = new ol.VectorTileLayer({source, declutter: true, zIndex: 200});  // подписи над красным
+  await olms.applyStyle(below, style, ids.filter(i => !symbol.has(i)), {styleUrl: STYLE});
+  await olms.applyStyle(labels, style, ids.filter(i => symbol.has(i)), {styleUrl: STYLE});
+  // applyStyle подменяет tileUrlFunction источника адресами из стиля - возвращаем сдвиг сетки
+  source.setTileUrlFunction(urlFn);
+  // applyStyle ставит слоям maxResolution по minZoom сетки (2): ниже зума ~2.8 подложка исчезала
+  below.setMaxResolution(Infinity); labels.setMaxResolution(Infinity);
+  olms.applyBackground(map, style);
+  map.addLayer(below); map.addLayer(labels);
+}
+
+// ---- красное: заливка и обводка --------------------------------------------------
+const key = q.get('d') || '1914';
+document.getElementById('k').textContent = key;
+const FMT = new ol.GeoJSON({dataProjection: 'EPSG:4326', featureProjection: EE});
+const red = new ol.VectorLayer({source: new ol.VectorSource(), zIndex: 100,
+  style: f => (f.get('role') || 'core') === 'core'
+    ? new ol.Style({fill: new ol.Fill({color: 'rgba(164,31,18,0.55)'})})
+    : new ol.Style({fill: new ol.Fill({color: 'rgba(217,85,61,0.28)'})})});
+const outline = new ol.VectorLayer({source: new ol.VectorSource(), zIndex: 101,
+  style: new ol.Style({stroke: new ol.Stroke({color: '#d43b28', width: 1.2})})});
+const onAM = c => Math.abs(Math.abs(c[0]) - 180) < 0.002;
+// Обводка ядра из колец без рёбер по антимеридиану (как core-outline в index.html)
+function outlineOf(fc) {
+  const rings = [], lines = [];
+  for (const f of (fc.features || [])) {
+    const g = f.geometry; if (!g || (f.properties.role || 'core') !== 'core') continue;
+    if (g.type === 'Polygon') rings.push(...g.coordinates);
+    else if (g.type === 'MultiPolygon') for (const p of g.coordinates) rings.push(...p);
+  }
+  for (const r of rings) {
+    let cur = [];
+    for (let i = 0; i < r.length; i++) {
+      const c = r[i];
+      if (i > 0 && onAM(c) && onAM(r[i - 1])) { if (cur.length > 1) lines.push(cur); cur = [c]; continue; }
+      cur.push(c);
+    }
+    if (cur.length > 1) lines.push(cur);
+  }
+  return {type: 'FeatureCollection', features: lines.map(l => ({type: 'Feature', properties: {}, geometry: {type: 'LineString', coordinates: l}}))};
+}
+window.showSlice = async (k, lite) => {
+  const t0 = performance.now();
+  const r = await fetch(`data/${lite ? 'years_lite' : 'years'}/${k}.geojson`, {cache: 'no-cache'}); const fc = await r.json();
+  const t1 = performance.now();
+  const feats = FMT.readFeatures(fc), lines = FMT.readFeatures(outlineOf(fc));
+  const t2 = performance.now();
+  red.getSource().clear(true); red.getSource().addFeatures(feats);
+  outline.getSource().clear(true); outline.getSource().addFeatures(lines);
+  await new Promise(res => map.once('rendercomplete', res));
+  const t3 = performance.now();
+  document.getElementById('k').textContent = k;
+  return {fetch: Math.round(t1 - t0), parse: Math.round(t2 - t1), render: Math.round(t3 - t2), feats: feats.length, lines: lines.length};
+};
+map.addLayer(red); map.addLayer(outline);
+const ready = basemap().then(() => showSlice(key)).then(r => console.log('ready', JSON.stringify(r)));
+map.on('moveend', () => document.getElementById('z').textContent = 'zoom ' + view.getZoom().toFixed(2));
+window.__ready = () => map.getAllLayers().length >= 4 && !map.getView().getAnimating();
+</script>
+</body></html>

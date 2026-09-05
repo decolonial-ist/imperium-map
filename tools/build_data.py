@@ -331,10 +331,15 @@ def build_atlas_core():
                                  "year": year, "role": "core",
                                  "source": note}}
                  for f in d['features']]
+        # 03.09.2026: 51 фича атласного среза сливается в одну - иначе обводка
+        # рисует границы кусков как границы империи (внутренние швы), а два
+        # пустых полигона файла роняли проверки (см. geoclean.merge_core_features)
+        fc = gc.merge_core_features(gc.sanitize_obj(
+            {"type": "FeatureCollection", "features": feats}))
         with open(os.path.join(OUT, 'years', f'{year}.geojson'), 'w', encoding='utf-8') as fp:
-            json.dump({"type": "FeatureCollection", "features": feats}, fp, ensure_ascii=False)
+            json.dump(fc, fp, ensure_ascii=False)
         years_out.append(str(year))
-        print(f"OK {year} (атлас УІФ): {len(feats)} фич")
+        print(f"OK {year} (атлас УІФ): {len(feats)} фич -> {len(fc['features'])}")
     return years_out
 
 

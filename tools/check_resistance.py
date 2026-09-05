@@ -145,7 +145,7 @@ def main():
     with open(os.path.join(DATA, 'resistance', 'registry.csv'),
               encoding='utf-8') as f:
         up = list(csv.DictReader(f))
-    ok('реестр сопротивления: строк', len(up), 144)
+    ok('реестр сопротивления: строк', len(up), 148)
     ok('реестр сопротивления: имена уникальны',
        len({r['name'] for r in up}), len(up))
     ok('реестр сопротивления: у всех есть источник',
@@ -176,20 +176,24 @@ def main():
        'источник строки - именно раздел атласа, а не ссылка на него в примечании')
     ok('реестр сопротивления: удержавших территорию',
        sorted(r['name'] for r in up if r['hold_from'].strip()),
-       ['bashkir_1704', 'ichkeria_1991', 'imamate_1828', 'kenesary_1837',
+       ['alibek_1877', 'bashkir_1704', 'baysangur_1860', 'ichkeria_1991',
+        'imamate_1828', 'kenesary_1837', 'kholodny_yar_1919', 'makhno_1918',
         'razin_1667', 'tungus_1924'])
 
     # ---- 2. собранные слои --------------------------------------------------
     upg = js('resistance/uprisings.geojson')['features']
-    ok('слой сопротивления: фич', len(upg), 143)
+    ok('слой сопротивления: фич', len(upg), 147)
     ok('слой сопротивления: все геометрии валидны',
        sum(1 for f in upg if not shape(f['geometry']).buffer(0).is_valid), 0)
     ok('слой сопротивления: все помечены approximate',
        sum(1 for f in upg if not f['properties']['approximate']), 0)
     cuts = js('resistance/cuts.geojson')['features']
-    ok('вырезы: сколько', len(cuts), 2)
+    # 02.09.2026: махновский район и Холодный Яр заведены по решению куратора
+    # («махно - це черное, бо он точно был не за империю»)
+    ok('вырезы: сколько', len(cuts), 6)
     ok('вырезы: какие', sorted(f['properties']['name'] for f in cuts),
-       ['kenesary_1837', 'razin_1667'])
+       ['alibek_1877', 'baysangur_1860', 'kenesary_1837', 'kholodny_yar_1919',
+        'makhno_1918', 'razin_1667'])
     ok('вырезы: доля внутри контура империи не ниже 20 %',
        sum(1 for f in cuts if f['properties']['inside_share'] < 0.2), 0)
     # Тунгусская республика 1924-1925 добавлена 28.08.2026: землю она удержала,

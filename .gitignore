@@ -1,4 +1,5 @@
 cache/
+__pycache__/
 .DS_Store
 .claude/
 
@@ -10,6 +11,8 @@ cache/
 /NIGHT_REPORT*.md
 /REVIEW_*.md
 /TASK_*.md
+# локальная страница для проверки встройки в iframe (кухня)
+/_embed_demo_local.html
 
 # data/deepstate/days/ (242 МБ, ~1500 файлов) НУЖНЫ в гите: карта тянет их
 # на лету (index.html, DFETCH 'data/deepstate/days/...'), без них на GitHub

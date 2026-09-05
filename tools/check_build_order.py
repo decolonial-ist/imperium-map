@@ -23,8 +23,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STAMPS = os.path.join(ROOT, 'data', 'build_stamps.json')
 
 # порядок = HANDOFF.md, раздел «Порядок пересборки - ОБЯЗАТЕЛЕН»
+# 'lite' в конце: облегчённые срезы для телефона (tools/build_lite.py)
+# производны от готовых срезов и пересобираются последними
 CANON = ['expansion', 'zones_1917_1921', 'pact_1939', 'ww2',
-         'expansion-late', 'losses', 'ostrogs']
+         'expansion-late', 'losses', 'ostrogs', 'lite']
 
 
 def main():
