@@ -33,6 +33,14 @@ const P = proj4('EE'), PM = proj4('MERC90');
 const YMAX = P.forward([LON0, MAXLAT])[1];
 const XMAX = P.forward([LON0 + 179.999, 0])[0];
 EE.setExtent([-XMAX, -YMAX, XMAX, YMAX]);
+// Вид пускаем на пять процентов выше и ниже кромки мира: иначе север России
+// упирается прямо в край экрана, а в равновеликой проекции над ним и так
+// почти ничего нет (от Земли Кафе-Клуба до 85-й параллели 73 км). Полоса
+// закрашивается цветом воды (слой SEA ниже), так что это не пустота, а
+// Ледовитый океан.
+const VIEW_PAD = 0.055;
+const VIEW_EXTENT = [-XMAX * (1 + VIEW_PAD), -YMAX * (1 + VIEW_PAD),
+                     XMAX * (1 + VIEW_PAD), YMAX * (1 + VIEW_PAD)];
 EE.setWorldExtent([LON0 - 180, -MAXLAT, LON0 + 180, MAXLAT]);
 M.setExtent([-HALF, -HALF, HALF, HALF]);
 M.setWorldExtent([LON0 - 180, -85.0511, LON0 + 180, 85.0511]);
@@ -92,6 +100,27 @@ const zOL = (z, lat) => z + Math.log2(RES0 / (78271.517 * Math.max(0.05, Math.co
 const zML = (z, lat) => z - Math.log2(RES0 / (78271.517 * Math.max(0.05, Math.cos(lat * Math.PI / 180))));
 
 const FMT = new ol.GeoJSON({dataProjection: 'EPSG:4326', featureProjection: EE});
+// Толщина линии по выражению стиля: число или
+// ['interpolate', ['exponential', b] | ['linear'], ['zoom'], z1, w1, z2, w2, ...].
+// Столько от языка стилей, сколько нужно нашим слоям; всё прочее - как есть.
+function widthAt(w, z) {
+  if (typeof w === 'number') return w;
+  if (!Array.isArray(w) || w[0] !== 'interpolate') return 1;
+  const base = (Array.isArray(w[1]) && w[1][0] === 'exponential') ? w[1][1] : 1;
+  const stops = [];
+  for (let i = 3; i + 1 < w.length; i += 2) stops.push([w[i], w[i + 1]]);
+  if (!stops.length) return 1;
+  if (z <= stops[0][0]) return stops[0][1];
+  if (z >= stops[stops.length - 1][0]) return stops[stops.length - 1][1];
+  for (let i = 1; i < stops.length; i++) {
+    const [z0, w0] = stops[i - 1], [z1, w1] = stops[i];
+    if (z > z1) continue;
+    const t = base === 1 ? (z - z0) / (z1 - z0)
+                         : (Math.pow(base, z - z0) - 1) / (Math.pow(base, z1 - z0) - 1);
+    return w0 + (w1 - w0) * t;
+  }
+  return stops[stops.length - 1][1];
+}
 const hex = (c, a) => {
   if (typeof c !== 'string') return c;
   if (c[0] === '#' && c.length === 7)
@@ -159,6 +188,14 @@ class MVTUk extends ol.MVT {
 }
 
 // ---- Map ----------------------------------------------------------------------
+// Полный стиль подложки возвращается адресом ?base=full - для сравнения.
+const BARE = new URLSearchParams(location.search).get('base') !== 'full';
+// Цвета подложки, поправленные под нашу карту (см. блок перекраски ниже).
+const Q0 = new URLSearchParams(location.search);
+const WATER = Q0.get('water') || 'rgb(19,26,38)';        // море: тёмная синева
+const WATER_LINE = Q0.get('water') || 'rgb(24,33,48)';   // реки
+const BORDER = Q0.get('border') || 'rgb(104,104,108)';   // государственные границы
+
 class Map {
   constructor(opt) {
     this._h = {};                              // обработчики событий
@@ -166,7 +203,17 @@ class Map {
     this._styleLoaded = false; this._attribText = '';
     const c = opt.center || [0, 0];
     this.view = new ol.View({projection: EE, center: fwd(c), zoom: zOL(opt.zoom || 1, c[1]),
-      minZoom: 1.2, maxZoom: 16, constrainOnlyCenter: true});
+      minZoom: 1.2, maxZoom: 16,
+      // Вид не выпускается за край мира (06.09.2026). Раньше ограничивался
+      // только ЦЕНТР, и над картой оставалась полоса пустоты в две сотни
+      // пикселей - куратор: «сверху якась рамка странная… только видишь суть
+      // и уже упираешься в какую-то стену». В равновеликой проекции над
+      // Россией и не может быть простора: от северной оконечности суши до
+      // края мира всего 73 км по вертикали, полярные широты здесь сжаты.
+      // Поэтому вместо пустоты держим кромку мира краем экрана.
+      // ?ext=0 - прежнее поведение.
+      extent: new URLSearchParams(location.search).get('ext') === '0' ? undefined : VIEW_EXTENT,
+      constrainOnlyCenter: new URLSearchParams(location.search).get('ext') === '0'});
     const PR = new URLSearchParams(location.search).get('pr');   // ?pr=1 - опыт: рисовать в 1 px на Retina
     this.ol = new ol.Map({target: opt.container, view: this.view, pixelRatio: PR ? +PR : undefined,
       controls: ol.control.defaults({attribution: false, zoom: false}),
@@ -244,7 +291,16 @@ class Map {
     // тайл x нашей сетки = тайл OSM (x + 2^z/4) mod 2^z - целое при z >= 2
     const urlFn = tc => { const z = tc[0], n = 1 << z; return tpl.replace('{z}', z).replace('{x}', (tc[1] + n / 4) % n).replace('{y}', tc[2]); };
     const grid = ol.tilegrid.createXYZ({minZoom: 2, maxZoom: tj.maxzoom || 14, tileSize: 512});
-    const source = new ol.VectorTileSource({format: new MVTUk(), projection: M, tileGrid: grid, tileUrlFunction: urlFn});
+    // Из тайла разбираем ТОЛЬКО то, что показываем (решение куратора 06.09.2026:
+    // «сократи подписи до названия стран, не рисуй дороги и всяку хуйню типа
+    // внутреннего разделения на регионы стран, которые в этом всём не
+    // участвуют»). Слой дорог в тайле самый объёмный: восемнадцать слоёв стиля
+    // и львиная доля вершин. Его больше не декодируем вовсе.
+    const KEEP_SRC = ['water', 'waterway', 'water_name', 'landcover', 'landuse',
+                      'boundary', 'place'];
+    const source = new ol.VectorTileSource({
+      format: new MVTUk({layers: BARE ? KEEP_SRC : undefined}),
+      projection: M, tileGrid: grid, tileUrlFunction: urlFn});
     // Подписи и заливки берут ОДИН источник: два источника на одних адресах
     // разбирали каждый тайл дважды. Тайлы на зум мельче теперь только до зума 5,
     // где подписей мало (страны, области); на 5,8 с/кадр в виде на Украину
@@ -252,9 +308,15 @@ class Map {
     // Границы, которые «хочет видеть» только Россия (claimed_by=RU: линия по
     // Перекопу, Абхазия, Южная Осетия), из подложки убираются - остаются
     // признанные границы. Резолюция ГА ООН 68/262 - в наших же данных.
+    // Убираем ОБЕ спорные версии, а не только российскую. Раньше снималась
+    // одна (claimed_by=RU), и оставшаяся украинская версия рисовала обрывки по
+    // Перекопу, Сивашу и берегам Крыма - куратор 06.09.2026: «убрать вот эти
+    // линии совсем». Теперь это можно: признанная граница Украины идёт своим
+    // слоем (data/borders/ukraine_osm.geojson, tools/fetch_ua_border.py), и
+    // полуостров обведён ею, а не обрывками чужих заявок.
     for (const l of style.layers)
       if (l['source-layer'] === 'boundary' && l.type === 'line') {
-        const claim = ['!=', ['coalesce', ['get', 'claimed_by'], ''], 'RU'];
+        const claim = ['!', ['has', 'claimed_by']];
         l.filter = l.filter ? ['all', l.filter, claim] : claim;
       }
     // Подписи российских единиц на чужой земле: в OSM рядом с «Автономна
@@ -267,6 +329,16 @@ class Map {
     const RENAMES = {
       'Чечня': ['Chechen Republic of Ichkeria', 'Чеченская Республика Ичкерия'],
     };
+    // Слой подписей областей оставлен ТОЛЬКО ради Ичкерии: всё прочее
+    // внутреннее деление с карты снято (куратор 06.09.2026), а эта подпись
+    // обязана остаться.
+    if (BARE) for (const l of style.layers)
+      if (l.id === 'place_state') {
+        const onlyChechnya = ['in', ['coalesce', ['get', 'name'], ''],
+                              ['literal', Object.keys(RENAMES)]];
+        l.filter = l.filter ? ['all', l.filter, onlyChechnya] : onlyChechnya;
+        delete l.maxzoom;
+      }
     for (const l of style.layers)
       if (l['source-layer'] === 'place' && l.type === 'symbol') {
         const notClaim = ['all', ['!', ['in', ['coalesce', ['get', 'name'], ''], ['literal', RU_CLAIM_NAMES]]],
@@ -300,7 +372,61 @@ class Map {
         l.layout['text-size'] = typeof ts === 'number' ? Math.max(6, ts + LBLD) : ['+', ts, LBLD];
       }
     }
-    const ids = style.layers.filter(l => l.source === 'openmaptiles').map(l => l.id);
+    // Что остаётся от подложки: вода, реки, названия морей, ледники, парки,
+    // ГОСУДАРСТВЕННЫЕ границы и названия стран. Внутреннее деление на регионы
+    // (boundary_state) и подписи городов, посёлков и областей сняты - на карте
+    // расползания империи они отвлекают, а рисовать их дороже всего:
+    // при замере 06.09 слой подписей занимал главный поток почти вдвое дольше
+    // всей остальной подложки.
+    // Тёмный стиль рассчитан на карту с дорогами и городами: там глаз цепляется
+    // за детали, и слабого контраста хватает. На нашей карте деталей нет, и
+    // оказалось, что море не отличить от суши (вода rgb(27,27,29) против фона
+    // rgb(12,12,12) - пятнадцать ступеней из двухсот пятидесяти), а границы
+    // стран - серая нить в один пиксель, которая при отдалении пропадает:
+    // «китай расползается, европа рассыпается кашей» (куратор 06.09.2026).
+    // Перекрашиваем: вода уходит в синеву, границы становятся светлее и
+    // толще. Данные и геометрия не трогаются - только цвет и толщина.
+    if (BARE) for (const l of style.layers) {
+      if (l.id === 'water' && l.paint) {
+        l.paint['fill-color'] = WATER;
+        l.paint['fill-antialias'] = true;
+      }
+      if (l.id === 'waterway' && l.paint) l.paint['line-color'] = WATER_LINE;
+      if (l.id === 'boundary_country_z0-4' || l.id === 'boundary_country_z5-') {
+        l.paint = l.paint || {};
+        l.paint['line-color'] = BORDER;
+        l.paint['line-blur'] = 0;
+        // на обзоре линия должна читаться, а не таять: на масштабе 2 почти
+        // пиксель, дальше растёт
+        l.paint['line-width'] = ['interpolate', ['exponential', 1.2], ['zoom'],
+          1, 0.8, 3, 1.1, 5, 1.6, 8, 2.4, 14, 5];
+        l.paint['line-opacity'] = 1;
+      }
+    }
+    const KEEP_STYLE = new Set(['water', 'waterway', 'water_name',
+      'landcover_ice_shelf', 'landcover_glacier', 'landuse_park',
+      'boundary_country_z0-4', 'boundary_country_z5-',
+      'place_country_other', 'place_country_minor', 'place_country_major',
+      // Подписи областей сняты, но одна нужна: на месте Чечни стоит
+      // «Чеченская Республика Ичкерия» (решение куратора 05.09.2026). Слой
+      // возвращён и урезан фильтром до этой единственной точки - см. ниже.
+      'place_state',
+      // Города возвращаются только вблизи: на обзоре они шум, а на
+      // приближении без них не понять, куда смотришь - при первой пробе
+      // 06.09 окно Грозного вышло сплошным красным полем без единого имени.
+      'place_city_large', 'place_city']);
+    const CITY_FROM = 5;               // с какого масштаба показываем города
+    if (BARE) for (const l of style.layers) {
+      if (l.id === 'place_city_large' || l.id === 'place_city')
+        l.minzoom = Math.max(l.minzoom || 0, CITY_FROM);
+      // Названия стран в стиле гаснут на масштабе 6-8: дальше карта рассчитана
+      // на дороги и кварталы, а не на вопрос «чья это земля». У нас вопрос
+      // ровно такой - куратор 06.09 на виде Крыма: «не пойму, чей Крым?».
+      // Снимаем потолок, подпись страны остаётся на любом приближении.
+      if (l.id && l.id.startsWith('place_country')) delete l.maxzoom;
+    }
+    const ids = style.layers.filter(l => l.source === 'openmaptiles')
+      .filter(l => !BARE || KEEP_STYLE.has(l.id)).map(l => l.id);
     const symbol = new Set(style.layers.filter(l => l.type === 'symbol').map(l => l.id));
     // стиль двумя слоями: заливки/линии (10) и подписи (20) - ОБА под нашим
     // красным (100+), как у старой карты на MapLibre: подпись в красной зоне
@@ -315,6 +441,43 @@ class Map {
     source.setTileUrlFunction(urlFn);        // applyStyle подменяет адреса тайлов
     below.setMaxResolution(Infinity); labels.setMaxResolution(Infinity);   // и режет малые зумы
     olms.applyBackground(this.ol, style);
+    // Фон стиля рисуется ТОЛЬКО внутри овала мира: над ним и под ним оставался
+    // цвет контейнера, и на границе выходила чёткая горизонтальная линия -
+    // «сверху якась рамка странная, упираешься в стену» (куратор 06.09.2026).
+    // Красим контейнер тем же цветом, что и фон подложки: край равновеликой
+    // проекции остаётся, но перестаёт читаться как обрыв.
+    // Над кромкой мира (85° с. ш. - выше тайлов Web Mercator не бывает) лежит
+    // Ледовитый океан, и по бокам от овала тоже вода. Кладём под подложку
+    // прямоугольник цвета воды на всю область, куда пускаем вид: иначе там
+    // виден фон стиля, который в тёмной теме совпадает с цветом суши, и край
+    // проекции читается берегом - «сверху якась рамка странная» (куратор
+    // 06.09.2026).
+    {
+      const w = (style.layers || []).find(l => l.id === 'water' || l['source-layer'] === 'water');
+      const c = w && w.paint && w.paint['fill-color'];
+      const m = typeof c === 'string' && c.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+      const col = m ? `rgb(${m[1]},${m[2]},${m[3]})` : '#1b1f26';
+      // Полигона в бандле нет (собран только тем, что нужно карте) - строим
+      // фичу через формат GeoJSON, координаты уже в метрах проекции.
+      // Полигон С ДЫРКОЙ: закрашиваем ТОЛЬКО поле за кромкой мира. Сплошной
+      // прямоугольник на весь вид лёг поверх фона стиля и покрасил сушу в цвет
+      // воды - карта стала одноцветной, моря пропали (куратор 06.09: «где
+      // моря?»). Внутреннее кольцо - сама кромка мира, внутри неё рисует
+      // подложка.
+      const W = EE.getExtent();
+      const raw = new ol.GeoJSON();
+      const feat = raw.readFeature({type: 'Feature', properties: {}, geometry: {
+        type: 'Polygon', coordinates: [
+          [[VIEW_EXTENT[0], VIEW_EXTENT[1]], [VIEW_EXTENT[2], VIEW_EXTENT[1]],
+           [VIEW_EXTENT[2], VIEW_EXTENT[3]], [VIEW_EXTENT[0], VIEW_EXTENT[3]],
+           [VIEW_EXTENT[0], VIEW_EXTENT[1]]],
+          [[W[0], W[1]], [W[0], W[3]], [W[2], W[3]], [W[2], W[1]], [W[0], W[1]]]]}});
+      const sea = new ol.VectorLayer({
+        source: new ol.VectorSource({features: [feat]}),
+        style: new ol.Style({fill: new ol.Fill({color: col})}),
+        zIndex: 1, updateWhileAnimating: true, updateWhileInteracting: true});
+      this.ol.addLayer(sea);
+    }
     // «го» куратора 05.09: подписи приглушены до 0,65 - по яркости ближе всего к
     // старой карте (MapLibre рисует глифы по полю расстояний, штрих тоньше и цвет
     // не доходит до заданного); ?lblo=1 - без приглушения.
@@ -372,9 +535,16 @@ class Map {
     this.view.animate(a); return this;
   }
   fitBounds(b, o) {
+    // padding как у MapLibre: число или [сверху, справа, снизу, слева] -
+    // левое поле нужно, чтобы вид не заезжал под раскрытую панель описания
     const p = (o && o.padding) || 0;
+    const pad = Array.isArray(p) ? p : [p, p, p, p];
     const ext = ol.proj.transformExtent([b[0][0], b[0][1], b[1][0], b[1][1]], 'EPSG:4326', EE);
-    this.view.fit(ext, {padding: [p, p, p, p], duration: (o && o.duration) || 0});
+    const opt = {padding: pad, duration: (o && o.duration) || 0};
+    if (o && o.maxZoom !== undefined) opt.maxZoom = zOL(o.maxZoom, (b[0][1] + b[1][1]) / 2);
+    if (o && o.minZoom !== undefined) opt.minResolution = this.view.getResolutionForZoom(
+      zOL(o.minZoom, (b[0][1] + b[1][1]) / 2));
+    this.view.fit(ext, opt);
     return this;
   }
   getBounds() {
@@ -418,12 +588,25 @@ class Map {
         const pt = rec.paint;
         if (def.type === 'fill')
           rec.style = new ol.Style({fill: new ol.Fill({color: hex(pt['fill-color'] || '#000', pt['fill-opacity'] === undefined ? 1 : pt['fill-opacity'])})});
-        else
-          rec.style = new ol.Style({stroke: new ol.Stroke({color: hex(pt['line-color'] || '#000', pt['line-opacity'] === undefined ? 1 : pt['line-opacity']),
-            width: pt['line-width'] || 1, lineDash: pt['line-dasharray'] ? pt['line-dasharray'].map(v => v * (pt['line-width'] || 1)) : undefined})});
+        else {
+          const w = pt['line-width'];
+          const dash = pt['line-dasharray'];
+          const col = hex(pt['line-color'] || '#000', pt['line-opacity'] === undefined ? 1 : pt['line-opacity']);
+          rec.style = wpx => new ol.Style({stroke: new ol.Stroke({color: col, width: wpx,
+            lineDash: dash ? dash.map(v => v * wpx) : undefined})});
+          rec.width = w;
+        }
       };
       build();
-      layer = new ol.VectorLayer({source: s.src, zIndex: z, style: f => matches(rec.filter, f) ? rec.style : null});
+      const self2 = this;
+      layer = new ol.VectorLayer({source: s.src, zIndex: z, style: f => {
+        if (!matches(rec.filter, f)) return null;
+        if (def.type === 'fill') return rec.style;
+        // Ширина линии считается по тому же выражению, что у подложки, и в той
+        // же шкале масштаба: иначе наша линия на стыке с границей подложки
+        // выглядит другой толщины (куратор 06.09.2026).
+        return rec.style(widthAt(rec.width, self2.getZoom()));
+      }});
       layer._rec = rec; layer._rebuild = build;
     }
     if (layout.visibility === 'none') layer.setVisible(false);
