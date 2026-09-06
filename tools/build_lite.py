@@ -17,6 +17,8 @@
 На выходе:
     data/years_lite/<ключ>.geojson       - облегчённые срезы ядра
     data/deepstate/months_lite/<день>.geojson - облегчённые снимки фронта
+    data/years_lite_bundle.json          - вся облегчённая линия времени одним
+                                           файлом (её карта греет фоном)
     data/lite_manifest.json              - что собрано и с каким упрощением
 
 Запуск:
@@ -128,11 +130,25 @@ def main():
                             'data/deepstate/days/%s.geojson' % day)
             done_m.append(day)
 
+    # Пакет всей облегчённой линии времени одним файлом. Карта греет историю
+    # фоном; двести тридцать отдельных запросов - это двести тридцать обменов
+    # с сервером, и на мобильной сети одни только задержки складываются в
+    # секунды. Пакет отдаётся одним обращением, а срезы в нём лежат по ключу.
+    bundle = {'tol': a.tol, 'keys': done_y, 'slices': {}}
+    for k in done_y:
+        with open(os.path.join(out_y, k + '.geojson'), encoding='utf-8') as f:
+            bundle['slices'][k] = json.load(f)
+    bpath = os.path.join(DATA, 'years_lite_bundle.json')
+    with open(bpath, 'w', encoding='utf-8') as f:
+        json.dump(bundle, f, ensure_ascii=False, separators=(',', ':'))
+    bsize = os.path.getsize(bpath)
+
     man = {
         'note': ('облегчённые срезы для телефона: упрощение %.3f°, координаты '
                  'до %d знаков; сборка tools/build_lite.py' % (a.tol, ND)),
         'tol': a.tol, 'years': done_y, 'months': done_m,
         'skipped': skipped,
+        'bundle': 'data/years_lite_bundle.json',
     }
     with open(os.path.join(DATA, 'lite_manifest.json'), 'w', encoding='utf-8') as f:
         json.dump(man, f, ensure_ascii=False, separators=(',', ':'))
@@ -140,9 +156,10 @@ def main():
     # обязаны пересобираться ПОСЛЕ всей цепочки, иначе телефон покажет
     # вчерашнюю карту
     gc.write_stamp('lite')
-    print('срезов %d (%.1f МБ), снимков фронта %d (%.1f МБ), пропущено %d'
+    print('срезов %d (%.1f МБ), снимков фронта %d (%.1f МБ), пропущено %d, '
+          'пакет линии времени %.1f МБ'
           % (len(done_y), size_y / 1048576, len(done_m), size_m / 1048576,
-             len(skipped)))
+             len(skipped), bsize / 1048576))
     if skipped:
         print('пустые после упрощения:', ', '.join(skipped[:8]))
 

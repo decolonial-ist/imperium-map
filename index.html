@@ -353,7 +353,14 @@ const GJ = {type: 'geojson', tolerance: 0};
 // куратор дважды видел уже исправленные дефекты (прорезь под Шепетовкой,
 // круг Байконура) - браузер отдавал закешированный geojson, и приходилось
 // жать Cmd+Shift+R. Пересборка данных теперь видна сразу после F5.
-const DFETCH = url => fetch(url, {cache: 'no-cache'});
+// Данные карты берутся ОБЫЧНЫМ порядком кэширования браузера. Раньше здесь
+// стоял {cache: 'no-cache'}: он заставлял браузер спрашивать сервер о каждом
+// файле заново, даже если тот лежал в кэше нетронутым. На двух с половиной
+// сотнях срезов это выходило столько же обращений к серверу, сколько файлов,
+// и повторный заход на карту стоил ровно как первый. Сервер отдаёт срезы с
+// разрешением держать их десять минут и с меткой версии, так что подмена
+// данных после пересборки доезжает сама.
+const DFETCH = url => fetch(url);
 
 // ---- чистка колец от отрезков нулевой длины -------------------------------
 // Две соседние вершины могут совпасть - после округления координат у нас или
@@ -1151,6 +1158,43 @@ const sphereOn = (f, t) => {
 //   Шебекино, Тёткино и Петропавловский порт взяты не были, и приписывать им
 //   взятие незачем. То же множество NO_CUT - в tools/build_losses.py.
 let LOSS = [];
+let LOSS_EPI = [];                        // опись окон потерь контроля
+const LOSS_EAGER_PARTS = 20;              // до скольких частей эпизод грузим сразу
+const lossLoaded = new Set(), lossLoading = new Set();
+// Втягиваем геометрию тех эпизодов, чьё окно накрывает дату. Возвращает
+// обещание, если что-то поехало, и null, если всё нужное уже на месте.
+function lossEnsure(t) {
+  const need = LOSS_EPI.filter(e => t >= e.t0 && t <= e.t1
+    && !lossLoaded.has(e.slug) && !lossLoading.has(e.slug));
+  if (!need.length) return null;
+  for (const e of need) lossLoading.add(e.slug);
+  return Promise.all(need.map(e => grab('data/losses/' + e.slug + '.geojson')
+    .then(fc => {
+      lossLoading.delete(e.slug); lossLoaded.add(e.slug);
+      for (const f of (fc.features || [])) LOSS.push({
+        t0: dayMs(f.properties.from), t1: dayMs(f.properties.to, true),
+        kind: f.properties.kind, p: f.properties, geometry: f.geometry,
+        type: 'Feature', properties: f.properties,
+      });
+    }).catch(() => { lossLoading.delete(e.slug); })))
+    .then(() => { LOSS.sort((a, b) => a.t0 - b.t0); });
+}
+// Вся геометрия потерь разом - нужна истории точки, она идёт по всей линии.
+let lossAllPromise = null;
+function lossLoadAll() {
+  if (!lossAllPromise) lossAllPromise = Promise.all(LOSS_EPI.map(e =>
+    lossLoaded.has(e.slug) ? null : grab('data/losses/' + e.slug + '.geojson')
+      .then(fc => {
+        lossLoaded.add(e.slug);
+        for (const f of (fc.features || [])) LOSS.push({
+          t0: dayMs(f.properties.from), t1: dayMs(f.properties.to, true),
+          kind: f.properties.kind, p: f.properties, geometry: f.geometry,
+          type: 'Feature', properties: f.properties,
+        });
+      }).catch(() => {})))
+    .then(() => { LOSS.sort((a, b) => a.t0 - b.t0); });
+  return lossAllPromise;
+}
 const NO_CUT = {contested: 1};   // рейд вырезает: решение куратора 28.08.2026
 const dayMs = (k, end) => {              // «2024-08-12» -> мс UTC (конец дня)
   const p = String(k).split('-').map(Number);
@@ -1418,58 +1462,168 @@ function fmt(l, t) {
   return String(yearOf(t));
 }
 
-async function dayData(key) {
-  if (dayCache.has(key)) { const v = dayCache.get(key); dayCache.delete(key); dayCache.set(key, v); return v; }
-  const d = cleanFC(await DFETCH((LITE ? 'data/deepstate/months_lite/'
-                                       : 'data/deepstate/days/') + key + '.geojson')
+// Снимок фронта тоже двухуровневый (06.09.2026), по той же причине, что и
+// годовой срез: полный весит 160 КБ, облегчённый - меньше пяти. На обзорном
+// масштабе линия фронта в них одинаковая.
+async function dayData(key, full) {
+  const dir = full ? 'days' : 'months_lite';
+  const ck = dir + '|' + key;
+  if (dayCache.has(ck)) { const v = dayCache.get(ck); dayCache.delete(ck); dayCache.set(ck, v); return v; }
+  let d = cleanFC(await DFETCH('data/deepstate/' + dir + '/' + key + '.geojson')
     .then(r => r.ok ? r.json() : EMPTY));
-  dayCache.set(key, d);
+  // Сборщик облегчённых снимков (tools/build_lite.py) отбирает занятое ещё на
+  // диске и признак «s» не пишет. А по нему фильтруют и стиль слоя фронта, и
+  // подрезка, и история точки - проставляем его на входе.
+  if (!full) for (const f of (d.features || [])) {
+    if (f.properties && f.properties.s === undefined) f.properties.s = 'occupied';
+  }
+  // облегчённых снимков может не быть на все даты - тогда берём полный
+  if (!full && (!d.features || !d.features.length)) {
+    d = cleanFC(await DFETCH('data/deepstate/days/' + key + '.geojson')
+      .then(r => r.ok ? r.json() : EMPTY));
+  }
+  dayCache.set(ck, d);
   if (dayCache.size > 200) dayCache.delete(dayCache.keys().next().value);
   return d;
 }
+// Что из фронта уже лежит в памяти на эту дату, с оглядкой на масштаб.
+function dayBest(key) {
+  const want = detailWanted() ? 'days' : 'months_lite';
+  return dayCache.get(want + '|' + key)
+      || dayCache.get('days|' + key) || dayCache.get('months_lite|' + key) || null;
+}
 
-// ---- ленивая загрузка годовых срезов (29.08.2026) -------------------------
+// ---- загрузка годовых срезов: два уровня подробности (06.09.2026) --------
 // Раньше старт качал все 192 среза разом (~35-40 МБ, 250 запросов) до
 // появления карты: с localhost терпимо, с удалённого сервера - минуты белого
-// экрана. Теперь при старте грузится ТОЛЬКО срез стартовой даты, остальные
-// догреваются фоном от текущей даты в стороны; render() и история точки
-// дожидаются недостающего сами.
+// экрана. Потом сделали ленивую загрузку с фоновым догревом - и упёрлись в
+// следующую стену: догрев тянул ВСЕ полные срезы (72 МБ в сжатом виде), а
+// каждый шаг ползунка по непрогретой дате стоил 300 КБ по сети плюс разбор
+// ста семидесяти тысяч вершин. Замер 06.09.2026 на боевом сайте: шаг
+// ползунка - 894 мс по медиане и до 4,7 с в худшем случае.
+//
+// Теперь у среза ДВА уровня. Облегчённый (data/years_lite, упрощение 0,02° -
+// около двух километров, 25 КБ сжатыми) грузится всегда и для всей истории:
+// вся линия времени весит 5,8 МБ вместо 72. Точный (data/years) берётся
+// только для показанной даты и только когда масштаб настолько крупный, что
+// разница видна. Пока точный едет, на экране стоит облегчённый: карта
+// отвечает сразу, а через мгновение сама уточняется.
 let CORE_KEYS = [];                       // порядок манифеста = хронология
-const corePending = new Map();
-function coreLoad(key) {
-  if (core[key]) return Promise.resolve(core[key]);
-  if (corePending.has(key)) return corePending.get(key);
-  const p = DFETCH(LITE ? `data/years_lite/${key}.geojson`
-                        : `data/years/${key}.geojson`).then(r => r.json())
-    .then(d => { core[key] = cleanFC(d); corePending.delete(key); return core[key]; })
-    .catch(e => { corePending.delete(key); throw e; });
-  corePending.set(key, p);
+const coreLite = {};                      // облегчённые срезы (25 КБ)
+const corePending = new Map();            // что уже качается: ключ -> обещание
+// Крупнее этого масштаба упрощение в 0,02° начинает быть видно: пиксель
+// экрана становится мельче двух километров. До него облегчённый срез и точный
+// на экране неразличимы, и точный не запрашивается вовсе.
+// Замер 06.09.2026 (кадры loop_2026-09-06_speed/detail_cmp): на масштабе 4
+// облегчённый и точный контуры расходятся на 0,03% пикселей - невидимо; на
+// масштабе 5 уже 0,2%, и это видно глазом на косах и лиманах Азовского моря.
+// Порог ставим между ними.
+const DETAIL_Z = 4.5;
+// Масштаб в единицах MapLibre при любом показе: шим Equal Earth приводит зум
+// OpenLayers к нему сам (zML), у Leaflet шкала та же.
+function zoomNow() {
+  try {
+    if (LMAP) return LMAP.getZoom();
+    return (map && map.getZoom) ? map.getZoom() : 0;
+  } catch (e) { return 0; }
+}
+function detailWanted() {
+  if (LITE) return false;                 // телефон живёт на облегчённых
+  return zoomNow() >= DETAIL_Z;
+}
+function fetchSlice(dir, key, store) {
+  const pk = dir + '|' + key;
+  if (corePending.has(pk)) return corePending.get(pk);
+  const p = DFETCH(`data/${dir}/${key}.geojson`).then(r => {
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
+  }).then(d => { store[key] = cleanFC(d); corePending.delete(pk); return store[key]; })
+    .catch(e => { corePending.delete(pk); throw e; });
+  corePending.set(pk, p);
   return p;
 }
-// Телефон всю историю НЕ догревает. 31.08.2026, втык куратора «основная карта
-// на телефоне не открывается»: догрев тянул все 193 среза - двадцать мегабайт
-// трафика, двести пятьдесят запросов и под двести мегабайт памяти вкладки.
-// Настольному браузеру это ничего, вкладке телефона - смерть. На узком экране
-// (и когда система просит экономить трафик) греем окно вокруг текущей даты, а
-// остальное подтягивается по мере листания: render() ждёт недостающий срез сам.
+// Облегчённый срез: то, чем карта рисует всегда и немедленно.
+function coreLoadLite(key) {
+  if (coreLite[key]) return Promise.resolve(coreLite[key]);
+  return fetchSlice('years_lite', key, coreLite)
+    .catch(() => fetchSlice('years', key, core));   // нет облегчённого - берём точный
+}
+// Точный срез: только для показанной даты на крупном масштабе.
+function coreLoadFull(key) {
+  if (core[key]) return Promise.resolve(core[key]);
+  return fetchSlice('years', key, core);
+}
+// Лучшее, что уже лежит в памяти на эту дату.
+function bestCore(key) { return core[key] || coreLite[key] || null; }
+// Совместимость: прежнее имя зовут история точки и встроенная карта.
+function coreLoad(key) {
+  return LITE ? coreLoadLite(key) : (bestCore(key)
+    ? Promise.resolve(bestCore(key)) : coreLoadLite(key));
+}
+// Догрев линии времени. Греем ТОЛЬКО облегчёнными: вся история - 5,8 МБ,
+// столько же, сколько раньше стоили двадцать полных срезов. Телефон греет
+// окно вокруг текущей даты (31.08.2026, втык куратора «основная карта на
+// телефоне не открывается»), настольный браузер - всю линию.
 const SMALL_SCREEN = window.matchMedia('(max-width: 640px)').matches
   || !!(navigator.connection && navigator.connection.saveData);
-const WARM_SPAN = SMALL_SCREEN ? 6 : Infinity;
+const WARM_SPAN = SMALL_SCREEN ? 24 : Infinity;
+let WARM_START = null;                    // отложенный запуск догрева
+// Вся облегчённая линия времени одним файлом (tools/build_lite.py собирает её
+// в data/years_lite_bundle.json). Двести тридцать три отдельных запроса - это
+// двести тридцать три обмена с сервером: на мобильной сети одни только
+// задержки складываются в секунды, и всё это время листание упирается в сеть.
+// Пакет весит 5,6 МБ сжатыми - столько же, сколько те же срезы поштучно.
+// Телефон пакет не берёт: ему хватает окна вокруг текущей даты.
+let bundlePromise = null;
+function warmBundle() {
+  if (bundlePromise) return bundlePromise;
+  bundlePromise = DFETCH('data/years_lite_bundle.json').then(r => {
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
+  }).then(async d => {
+    const keys = d.keys || Object.keys(d.slices || {});
+    let i = 0;
+    // раскладываем порциями, уступая поток: разбор двух с лишним сотен срезов
+    // подряд задержал бы ответ ползунка на секунды
+    while (i < keys.length) {
+      for (let n = 0; n < 12 && i < keys.length; n++, i++) {
+        const k = keys[i];
+        if (!coreLite[k] && d.slices[k]) coreLite[k] = cleanFC(d.slices[k]);
+      }
+      await new Promise(res => (window.requestIdleCallback
+        ? requestIdleCallback(() => res(), {timeout: 120}) : setTimeout(res, 0)));
+    }
+    return true;
+  }).catch(() => { bundlePromise = null; return false; });
+  return bundlePromise;
+}
 async function warmCore(fromKey, span = WARM_SPAN) {
+  // настольный браузер греет всю линию времени - берём её пакетом
+  if (span === Infinity && await warmBundle()) return;
   const i0 = Math.max(0, CORE_KEYS.indexOf(String(fromKey)));
   const order = [];
   for (let d = 1; d < CORE_KEYS.length && d <= span; d++) {
     if (i0 + d < CORE_KEYS.length) order.push(CORE_KEYS[i0 + d]);
     if (i0 - d >= 0) order.push(CORE_KEYS[i0 - d]);
   }
-  const queue = order.filter(k => !core[k]);
+  const queue = order.filter(k => !coreLite[k] && !core[k]);
+  // Между срезами уступаем поток. Двести тридцать разборов подряд, пусть даже
+  // по пять миллисекунд каждый, склеиваются в паузы по две-пять секунд: карта
+  // в это время не отвечает на ползунок, хотя все данные для ответа у неё уже
+  // есть. Уступка после каждого файла растягивает ту же работу так, что между
+  // ней успевают пройти кадры.
+  const yield_ = () => new Promise(res => {
+    if (window.requestIdleCallback) requestIdleCallback(() => res(), {timeout: 120});
+    else setTimeout(res, 0);
+  });
   const worker = async () => {
     while (queue.length) {
       const k = queue.shift();
-      try { await coreLoad(k); } catch (e) { /* дырку дотянет render */ }
+      try { await coreLoadLite(k); } catch (e) { /* дырку дотянет render */ }
+      await yield_();
     }
   };
-  await Promise.all([worker(), worker(), worker(), worker(), worker()]);
+  await Promise.all([worker(), worker(), worker()]);
 }
 
 // ---- вырез из красного ----------------------------------------------------
@@ -1628,7 +1782,17 @@ function coreNear(coreFC, coreKey, box) {
 const FRONTCACHE = new Map();
 function trimFront(fc, coreFC, coreKey, dayKey) {
   if (typeof polygonClipping === 'undefined' || !fc || !fc.features) return fc;
-  const ck = coreKey + '|' + dayKey;
+  // В ключ обязан входить УРОВЕНЬ ПОДРОБНОСТИ обеих геометрий: и снимка
+  // фронта, и среза ядра. Иначе подрезка, посчитанная на облегчённой паре,
+  // выдаётся и после того, как приехали точные, - на экране остаётся грубый
+  // контур, сколько ни уточняй (найдено 06.09.2026 при переводе фронта на два
+  // уровня).
+  const lvl = ((fc.features[0] && fc.features[0].properties
+                && fc.features[0].properties.lite) ? 'l' : 'f')
+            + ((coreFC && coreFC.features && coreFC.features[0]
+                && coreFC.features[0].properties
+                && coreFC.features[0].properties.lite) ? 'l' : 'f');
+  const ck = coreKey + '|' + dayKey + '|' + lvl;
   if (FRONTCACHE.has(ck)) return FRONTCACHE.get(ck);
   // прямоугольник театра: охват занятых кусков этого снимка, до целых
   // градусов - чтобы соседние месяцы попадали в один закэшированный ключ
@@ -1677,6 +1841,39 @@ const frontKeyAt = t => {
 };
 
 let renderSeq = 0;
+// ---- уточнение показанного среза (06.09.2026) -----------------------------
+// Ползунок отвечает облегчённой геометрией, а точная приезжает следом. Когда
+// она пришла, перерисовываем ТУ ЖЕ дату - но только если человек с неё не
+// ушёл: иначе на экране окажется чужой год. Порядковый номер рендера
+// (renderSeq) для этого уже есть.
+const refining = new Set();
+let refineTimer = null, refineFrontTimer = null;
+// Точный снимок фронта - тем же порядком, что и точный срез ядра.
+function refineFront(key, seq) {
+  clearTimeout(refineFrontTimer);
+  refineFrontTimer = setTimeout(() => {
+    if (seq !== renderSeq) return;
+    dayData(key, true).then(() => {
+      if (seq === renderSeq && curT != null) render(curT, true);
+    }).catch(() => {});
+  }, 260);
+}
+// Уточняем только на ОСТАНОВКЕ. Пока ползунок тащат, каждая промежуточная
+// дата запрашивала бы свой точный срез в три сотни килобайт - двадцать дат
+// протяжки означали бы шесть мегабайт впустую, и все они сели бы на канал
+// впереди того среза, на котором человек в итоге остановится.
+function refineCore(key, seq) {
+  clearTimeout(refineTimer);
+  refineTimer = setTimeout(() => {
+    if (seq !== renderSeq || refining.has(key)) return;
+    refining.add(key);
+    coreLoadFull(key).then(() => {
+      refining.delete(key);
+      if (seq === renderSeq && curT != null) render(curT, true);
+    }).catch(() => { refining.delete(key); });
+  }, 260);
+}
+
 async function render(t, fromPicker) {
   if (EMB) return renderEmbed(t, fromPicker);   // встроенная карта: один пакет
   const i = layerAt(t);
@@ -1689,7 +1886,15 @@ async function render(t, fromPicker) {
   let coreKey = null;
   for (const l2 of LAYERS) if (l2.kind === 'year' && l2.t <= t) coreKey = l2.key;
   // потери контроля на своей территории: вырезаем их из ядра, а сами полигоны
-  // отдаём отдельному слою на обводку (см. блок «потери имперского контроля»)
+  // отдаём отдельному слою на обводку (см. блок «потери имперского контроля»).
+  // Геометрия эпизода приезжает при входе в его окно - её ждём: без выреза
+  // карта соврала бы, показав землю имперской в дни, когда империя её не
+  // держала.
+  const lp = lossEnsure(t);
+  if (lp) {
+    await lp;
+    if (seq !== renderSeq) return;
+  }
   const cuts = lossActive(t);
   // постсоветские вырезы: Ичкерия 1996-1999 и обе чеченские войны. Точка
   // внутри контура империи, а контроля империя там не имела - значит, дырка
@@ -1698,12 +1903,16 @@ async function render(t, fromPicker) {
   // Пока слой выключен (EXTRA_LAYERS), вырезов нет вовсе
   const rcut = EXTRA_LAYERS ? rcAt(t) : [];
   const allCuts = cuts.filter(f => !NO_CUT[f.kind]).concat(pscut).concat(rcut);
-  let base = core[coreKey];
+  // Показанная геометрия: что уже лежит в памяти, иначе ждём облегчённый -
+  // он приходит за 25 КБ. Точный срез (300 КБ) догружается фоном и подменяет
+  // облегчённый на месте, если к тому времени дата не сменилась.
+  let base = bestCore(coreKey);
   if (!base && coreKey !== null) {
-    base = await coreLoad(coreKey).catch(() => EMPTY);
+    base = await coreLoadLite(coreKey).catch(() => EMPTY);
     if (seq !== renderSeq) return;       // пока качали срез, уехали на другую дату
   }
   base = base || EMPTY;
+  if (coreKey !== null && !core[coreKey] && detailWanted()) refineCore(coreKey, seq);
   // В ключе кэша обязаны быть ДАТЫ ОКНА каждого выреза, а не только имя.
   // 29.08.2026: имени хватало для Ичкерии (один вырез - одно окно), но у
   // Курской операции 89 дневных фич под одним именем, и ключ у всех выходил
@@ -1711,7 +1920,12 @@ async function render(t, fromPicker) {
   // замороженную геометрию того дня, сколько ни води ползунком. Куратор
   // видел это как «полосочки за спинами украинцев, которые прорвались,
   // заняли Суджу» - на экране стоял клин другого дня.
-  const ck = coreKey + '|' + allCuts.map(f => ((f.p && (f.p.name || f.p.slug))
+  // Уровень подробности среза - часть ключа: та же ловушка, что у подрезки
+  // фронта (06.09.2026). Иначе вычитание, посчитанное на облегчённом ядре,
+  // возвращается и после приезда точного.
+  const lvlC = (base.features && base.features[0] && base.features[0].properties
+                && base.features[0].properties.lite) ? '|l' : '|f';
+  const ck = coreKey + lvlC + '|' + allCuts.map(f => ((f.p && (f.p.name || f.p.slug))
     || (f.properties && f.properties.name) || '?')
     + '@' + (f.t0 ?? '') + '..' + (f.t1 ?? '')).join(',');
   const coreData = cutCoreReal(base, allCuts, ck) || cutCore(base, allCuts);
@@ -1735,9 +1949,14 @@ async function render(t, fromPicker) {
   // занятая часть Украины.
   const fkey = frontKeyAt(t);
   if (fkey) {
-    const d = await dayData(fkey);
-    if (seq !== renderSeq) return;       // пока качали, уехали на другую дату
+    // как и с ядром: показываем то, что есть, а точный снимок доезжает следом
+    let d = dayBest(fkey);
+    if (!d) {
+      d = await dayData(fkey, LITE ? false : detailWanted());
+      if (seq !== renderSeq) return;     // пока качали, уехали на другую дату
+    }
     setLayer('front', trimFront(d, base, coreKey, fkey));
+    if (!LITE && detailWanted() && !dayCache.has('days|' + fkey)) refineFront(fkey, seq);
   } else {
     setLayer('front', EMPTY);
   }
@@ -1971,9 +2190,12 @@ async function timelineAt(x, y, onStep) {
   const months = LAYERS.filter(l => l.kind === 'day');
   const coreIn = new Map();
   if (!LITE) {
-  // история точки идёт по ВСЕМ годовым срезам - дотянуть недогретые
-    await Promise.all(yl.map(l => coreLoad(l.key).catch(() => null)));
-    for (const l of yl) coreIn.set(l.key, !!hitNear(x, y, core[l.key] || EMPTY));
+  // история точки идёт по ВСЕМ годовым срезам - дотянуть недогретые.
+  // Годится облегчённая геометрия: вопрос «была ли тут империя» решается на
+  // масштабе страны, а два километра упрощения этого не меняют. Точную
+  // качать ради ответа незачем - это была бы вся линия времени в 72 МБ.
+    await Promise.all(yl.map(l => coreLoadLite(l.key).catch(() => null)));
+    for (const l of yl) coreIn.set(l.key, !!hitNear(x, y, bestCore(l.key) || EMPTY));
   } else {
     // На телефоне сплошная загрузка означала бы четырнадцать мегабайт по
     // одному клику. Поэтому сначала редкая выборка (каждый восьмой срез),
@@ -1986,8 +2208,8 @@ async function timelineAt(x, y, onStep) {
     const at = async i => {
       const k = yl[i].key;
       if (known.has(k)) return known.get(k);
-      if (budget-- > 0) await coreLoad(k).catch(() => null);
-      const v = !!hitNear(x, y, core[k] || EMPTY);
+      if (budget-- > 0) await coreLoadLite(k).catch(() => null);
+      const v = !!hitNear(x, y, bestCore(k) || EMPTY);
       known.set(k, v);
       return v;
     };
@@ -2021,6 +2243,10 @@ async function timelineAt(x, y, onStep) {
   const psCutAt = t => psCutH.find(f => t >= f.t0 && t <= f.t1) || null;
 
   const frontIn = new Map();
+  // Признак «занято» есть только у полных снимков фронта; облегчённые целиком
+  // состоят из занятого.
+  const occPred = d => ((d.features || []).some(f => f.properties && f.properties.lite)
+    ? null : (p => p.s === 'occupied'));
   let war = false;
   if (months.length) {
     const last = await dayData(months[months.length - 1].key);
@@ -2029,7 +2255,9 @@ async function timelineAt(x, y, onStep) {
     if (war) for (let i = 0; i < months.length; i++) {
       if (onStep) onStep(i + 1, months.length);
       const d = await dayData(months[i].key);
-      frontIn.set(months[i].key, !!hitNear(x, y, d, p => p.s === 'occupied'));
+      // В облегчённом снимке оккупированное уже отобрано сборщиком и слито в
+      // одну фичу без признака «s»: фильтровать по нему там нечего.
+      frontIn.set(months[i].key, !!hitNear(x, y, d, occPred(d)));
     }
   }
 
@@ -2686,7 +2914,7 @@ function loadKabinet() {
 async function showHistory(ll) {
   if (!LAYERS.length) return;
   const seq = ++histSeq;
-  if (LITE && !SUBS_EXPL.length) {          // на телефоне - по первому клику
+  if (!SUBS_EXPL.length) {                  // по первому клику: попапу и только ему
     const fc = await loadSubs();
     SUBS_EXPL = ((fc && fc.features) || []).map(f => ({
       t1: f.properties.to ? dayMs(f.properties.to) : 8.64e15,
@@ -2752,15 +2980,23 @@ else Promise.all([
     .catch(() => ({years: []})),
   // потери контроля империи на своей территории: файлы мелкие, грузим сразу -
   // они нужны и показу, и истории точки
+  // Потери имперского контроля: при старте берём ТОЛЬКО опись окон. Геометрия
+  // (Курская операция одна весит 548 КБ) качается, когда ползунок входит в
+  // окно эпизода, - см. lossEnsure. До 06.09.2026 все двадцать четыре эпизода
+  // ехали до первого кадра, хотя на дате 1914 года не нужен ни один.
   DFETCH('data/losses/manifest.json').then(r => r.ok ? r.json() : {episodes: []})
     .catch(() => ({episodes: []}))
-    .then(m => Promise.all((m.episodes || []).map(e =>
-      grab('data/losses/' + e.slug + '.geojson'))))
-    .then(fcs => fcs.flatMap(fc => (fc.features || []).map(f => ({
-      t0: dayMs(f.properties.from), t1: dayMs(f.properties.to, true),
-      kind: f.properties.kind, p: f.properties, geometry: f.geometry,
-      type: 'Feature', properties: f.properties,
-    })))).catch(() => []),
+    // Мелкие эпизоды (все, кроме Курской операции) едут сразу: без них не
+    // построить остановки ползунка, а весят они вместе полторы сотни
+    // килобайт. Курская - 494 КБ и 89 частей - грузится следом за первым
+    // кадром, и остановки по ней досчитываются тогда же.
+    .then(async m => {
+      const eps = m.episodes || [];
+      const small = eps.filter(e => (e.features || 0) <= LOSS_EAGER_PARTS);
+      const fcs = await Promise.all(small.map(e =>
+        grab('data/losses/' + e.slug + '.geojson').then(fc => [e.slug, fc])));
+      return {episodes: eps, loaded: fcs};
+    }).catch(() => ({episodes: [], loaded: []})),
   // удержания сопротивления, депортации и ликвидированные автономии
   // (tools/build_uprisings.py, build_deportations.py, build_autonomies.py).
   // Файлы мелкие, нужны и показу, и истории точки - грузим сразу. Крупный
@@ -2769,7 +3005,10 @@ else Promise.all([
   EXTRA_LAYERS ? grab('data/deportations/deportations.geojson') : Promise.resolve(EMPTY),
   EXTRA_LAYERS ? grab('data/peoples/abolished.geojson') : Promise.resolve(EMPTY),
   grab('data/ostrogs/ostrogs.geojson'),
-  LITE ? Promise.resolve(EMPTY) : grab('data/subs.geojson'),
+  // Вычитания с обоснованиями нужны ТОЛЬКО попапу истории точки, а весят 772 КБ.
+  // При старте их больше не ждём ни на телефоне, ни на настольном браузере:
+  // грузятся по первому клику (loadSubs), см. showHistory.
+  Promise.resolve(EMPTY),
   new Promise(res => {
     map.once('load', res);
     (function probe() {
@@ -2814,7 +3053,20 @@ else Promise.all([
     type: 'Feature', properties: f.properties,
   })).sort((a, b) => a.t0 - b.t0);
   ATTR.years = (amf && amf.years) || [];
-  LOSS = (loss || []).sort((a, b) => a.t0 - b.t0);
+  // Опись эпизодов: окна известны сразу, геометрия тяжёлых приезжает следом.
+  LOSS_EPI = ((loss && loss.episodes) || []).map(e => ({
+    slug: e.slug, t0: dayMs(e.from), t1: dayMs(e.to, true),
+  })).sort((a, b) => a.t0 - b.t0);
+  LOSS = [];
+  for (const [slug, fc] of ((loss && loss.loaded) || [])) {
+    lossLoaded.add(slug);
+    for (const f of (fc.features || [])) LOSS.push({
+      t0: dayMs(f.properties.from), t1: dayMs(f.properties.to, true),
+      kind: f.properties.kind, p: f.properties, geometry: f.geometry,
+      type: 'Feature', properties: f.properties,
+    });
+  }
+  LOSS.sort((a, b) => a.t0 - b.t0);
   PS = ((psfc && psfc.features) || []).map(f => ({
     t0: dayMs(f.properties.from),
     t1: f.properties.to ? dayMs(f.properties.to, true) : 8.64e15,
@@ -2854,7 +3106,10 @@ else Promise.all([
   // фич сводится к пяти вехам: вход, разгон, наибольшее продвижение, отход,
   // выход - по площади занятого. Короткие эпизоды идут как были: у Наполеона
   // ровно пять фич (Вильна, Смоленск, Москва...), у Грайворона две.
-  {
+// Остановки ползунка на эпизодах потерь контроля. Вынесено в функцию
+// 06.09.2026: геометрия Курской операции (494 КБ) грузится не при старте,
+// а следом за первым кадром, и остановки по ней надо досчитать.
+function addLossStops() {
     const EP_STOPS = 5;
     // 02.09.2026. Порог в пять фич был рассчитан на Наполеона, у которого их
     // тогда было ровно пять. Потом добавился Малоярославец - фич стало шесть,
@@ -2931,7 +3186,8 @@ else Promise.all([
       added++;
     }
     if (added) console.log('остановок по датам потерь добавлено:', added);
-  }
+}
+addLossStops();
 
   LAYERS.sort((a, b) => a.t - b.t);
   buildStops();
@@ -2982,7 +3238,11 @@ else Promise.all([
   let startKey = null;
   for (const l of LAYERS) if (l.kind === 'year' && l.t <= startT) startKey = l.key;
   if (startKey !== null) await coreLoad(startKey).catch(() => null);
-  warmCore(startKey);
+  // Догрев линии времени запускается НЕ здесь: сначала должен появиться
+  // первый кадр карты. Двести тридцать запросов, начатые до него, отбирают
+  // соединения у подложки - замер 06.09.2026 на боевом сайте показал ожидание
+  // тайлов до 5,4 с. Запуск отложен до конца первой отрисовки (см. ниже).
+  WARM_START = () => warmCore(startKey);
 
   map.addSource('core', {...GJ, data: EMPTY});
   map.addSource('core-outline', {...GJ, data: EMPTY});   // обводка ядра без шва 180°
@@ -3097,6 +3357,14 @@ else Promise.all([
 
   // ---- клик по карте: история точки (см. блок «история точки» выше) -------
   map.on('click', e => showHistory(e.lngLat));
+  // Приблизились - подменяем облегчённую геометрию точной. Пока масштаб
+  // обзорный, точную не качаем вовсе: разницы на экране нет (см. DETAIL_Z).
+  map.on('zoomend', () => {
+    if (!detailWanted() || curT == null) return;
+    let k = null;
+    for (const l of LAYERS) if (l.kind === 'year' && l.t <= curT) k = l.key;
+    if (k !== null && !core[k]) refineCore(k, renderSeq);
+  });
   map.getCanvas().style.cursor = 'crosshair';
 
   // Контрол атрибуции переезжает из карты в самый низ панели: внутри карты он
@@ -3160,7 +3428,26 @@ else Promise.all([
   // Ссылка на дату: ?d=1571-05-24 (день можно опустить: ?d=1930-12 или ?d=1783).
   // Заведено 28.08.2026 по вопросу куратора «это можно посмотреть на карте?» -
   // чтобы конкретный день открывался ссылкой, а не набором в трёх полях.
-  render(dateFromUrl() ?? T0);
+  await render(dateFromUrl() ?? T0);
+  // Первый кадр показан - можно греть линию времени. Ждём ещё и простоя
+  // потока, чтобы не отбирать его у подложки и первых тайлов.
+  if (WARM_START) {
+    const go = WARM_START; WARM_START = null;
+    if (window.requestIdleCallback) requestIdleCallback(go, {timeout: 2500});
+    else setTimeout(go, 1200);
+  }
+  // Тяжёлые эпизоды потерь - следом за первым кадром; когда приедут, на
+  // ползунке появятся их остановки.
+  setTimeout(() => {
+    lossLoadAll().then(() => {
+      addLossStops();
+      LAYERS.sort((a, b) => a.t - b.t);
+      buildStops();
+      // Слой под текущей датой мог смениться (появились остановки эпизодов) -
+      // перерисовываем, иначе подпись слоя и пикер останутся от прежнего.
+      if (curT != null) render(curT);
+    }).catch(() => {});
+  }, 1500);
 
   // ---- камера --------------------------------------------------------------
   // Полная карта умеет открываться на месте: ?ll=долгота,широта&z=зум. Этим
