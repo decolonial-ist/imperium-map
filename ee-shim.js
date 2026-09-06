@@ -586,6 +586,27 @@ class Map {
       const rec = {paint: {...paint}, filter: def.filter, type: def.type, style: null};
       const build = () => {
         const pt = rec.paint;
+        // Кружок острога и прочих точечных отметок. Раньше это был полигон,
+        // построенный в градусах: в равновеликой проекции он выходил эллипсом
+        // (куратор 06.09.2026). Теперь рисуем ЗНАЧКОМ по центру, а радиус
+        // считаем в пикселях из радиуса в километрах - на экране всегда круг,
+        // а размер по-прежнему привязан к местности.
+        if (def.type === 'circle') {
+          const fill = hex(pt['circle-color'] || '#000',
+                           pt['circle-opacity'] === undefined ? 1 : pt['circle-opacity']);
+          const line = hex(pt['circle-stroke-color'] || fill,
+                           pt['circle-stroke-opacity'] === undefined ? 1 : pt['circle-stroke-opacity']);
+          const lw = pt['circle-stroke-width'] === undefined ? 1 : pt['circle-stroke-width'];
+          const minpx = pt['circle-min-radius'] === undefined ? 2.5 : pt['circle-min-radius'];
+          rec.style = (f, res) => {
+            const km = f.get('radius_km');
+            const r = km ? Math.max(minpx, (km * 1000) / res) : minpx;
+            return new ol.Style({image: new ol.Circle({radius: r,
+              fill: new ol.Fill({color: fill}),
+              stroke: lw ? new ol.Stroke({color: line, width: lw}) : undefined})});
+          };
+          return;
+        }
         if (def.type === 'fill')
           rec.style = new ol.Style({fill: new ol.Fill({color: hex(pt['fill-color'] || '#000', pt['fill-opacity'] === undefined ? 1 : pt['fill-opacity'])})});
         else {
@@ -599,8 +620,9 @@ class Map {
       };
       build();
       const self2 = this;
-      layer = new ol.VectorLayer({source: s.src, zIndex: z, style: f => {
+      layer = new ol.VectorLayer({source: s.src, zIndex: z, style: (f, res) => {
         if (!matches(rec.filter, f)) return null;
+        if (def.type === 'circle') return rec.style(f, res);
         if (def.type === 'fill') return rec.style;
         // Ширина линии считается по тому же выражению, что у подложки, и в той
         // же шкале масштаба: иначе наша линия на стыке с границей подложки

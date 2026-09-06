@@ -263,7 +263,7 @@
            одинаково (решение куратора 01.09.2026 - «пусть он тоже будет
            красным, не надо ему другого цвета»). Отличаются они размером
            кружка и словом в попапе. -->
-      <span><span class="sw" style="background:#a41f12;opacity:.85;width:9px;height:9px;border-radius:50%"></span>острог, крепость, завод, каторга, прииск</span>
+      <span><span class="sw" style="background:#d43b28;opacity:.85;width:9px;height:9px;border-radius:50%"></span>острог, крепость, завод, каторга, прииск</span>
       <!-- Убраны 19.08.2026 по решению куратора «никаких штриховок»: жёлтые
            линии советского контроля 1918/1919 из атласа УІФ и пунктирная
            пометка «реконструкция (черновик)». Показ бинарный: красное -
@@ -751,8 +751,8 @@ async function bootEmbed() {
       ['sphere-line', 'line', 'sphere', {'line-color': '#c9584a', 'line-width': 1}],
       ['core-fill', 'fill', 'core', {'fill-color': '#a41f12', 'fill-opacity': 0.55}],
       ['core-line', 'line', 'core-outline', {'line-color': '#d43b28', 'line-width': 1.2}],
-      ['ostrog-fill', 'fill', 'ostrog', {'fill-color': '#a41f12', 'fill-opacity': 0.75}],
-      ['ostrog-line', 'line', 'ostrog', {'line-color': '#d43b28', 'line-width': 1.2}],
+      ['ostrog-dot', 'circle', 'ostrog', {'circle-color': '#d43b28', 'circle-opacity': 0.85,
+        'circle-stroke-color': '#d43b28', 'circle-stroke-width': 1, 'circle-min-radius': 2.5}],
     ];
     for (const [id, type, source, paint] of L)
       if (!map.getLayer(id)) map.addLayer({id, type, source, paint});
@@ -923,7 +923,8 @@ function loadLeaflet() {
 
 const LSTYLE = {
   red: {color: '#d43b28', weight: 1.1, fillColor: '#a41f12', fillOpacity: 0.62},
-  ostrog: {color: '#3d0e07', weight: 1.8, fillColor: '#a41f12', fillOpacity: 0.85},
+  // Острог: значок цвета красной обводки империи (куратор 06.09.2026).
+  ostrog: {color: '#d43b28', weight: 1, fillColor: '#d43b28', fillOpacity: 0.85},
   sphere: {color: '#c9584a', weight: 1, fillColor: '#d9553d', fillOpacity: 0.3},
   by: {color: '#f08a76', weight: 1.3, dashArray: '4 2', fillColor: '#c0392b',
        fillOpacity: 0.45},
@@ -1028,7 +1029,9 @@ async function bootLeaflet(bundle) {
   }
   LLAYERS = {};
   for (const k of ['by', 'sphere', 'red', 'ostrog'])
-    LLAYERS[k] = L.geoJSON(null, {pane: 'fills', style: LSTYLE[k]}).addTo(LMAP);
+    LLAYERS[k] = L.geoJSON(null, {pane: 'fills', style: LSTYLE[k],
+      // точки острогов - кружком постоянного размера, а не иконкой-булавкой
+      pointToLayer: (ft, ll) => L.circleMarker(ll, {...LSTYLE[k], radius: 4})}).addTo(LMAP);
   // клик уводит в полную карту на это же место и дату
   LMAP.on('click', e => window.open(FULL_MAP_URL + '?d='
     + new Date(curT || T0).toISOString().slice(0, 10)
@@ -1063,7 +1066,8 @@ async function bootLeafletFull() {
     terr: LSTYLE.red, front: LSTYLE.red, ostrog: LSTYLE.ostrog,
   };
   for (const k of ['belarus', 'sphere', 'core', 'terr', 'front', 'ostrog'])
-    LLAYERS[k] = L.geoJSON(null, {pane: 'fills', style: style[k]}).addTo(LMAP);
+    LLAYERS[k] = L.geoJSON(null, {pane: 'fills', style: style[k],
+      pointToLayer: (ft, ll) => L.circleMarker(ll, {...style[k], radius: 4})}).addTo(LMAP);
   LMAP.on('click', e => showHistory(e.latlng));
   const ll = (new URLSearchParams(location.search).get('ll') || '')
     .split(',').map(Number);
@@ -1254,6 +1258,10 @@ const subsAt = (t, x, y) => SUBS_EXPL.filter(
 // живым правилом «пока земля не красная», и на срезе 15.08.1918, где Сибирь
 // снова чёрная (окно самостоятельности областников), остроги XVI-XVII веков
 // зажигались заново - брак, пойманный куратором 28.08.2026.
+// Фича-точка для показа: центр из свойств, радиус в километрах оттуда же.
+const ostrogDot = f => ({type: 'Feature',
+  properties: {radius_km: (f.p && f.p.radius_km) || 15, name: (f.p && f.p.name) || ''},
+  geometry: {type: 'Point', coordinates: [(f.p && f.p.lon), (f.p && f.p.lat)]}});
 const ostrogAt = t => OSTROG.filter(f => t >= f.t0 && t <= f.t1
                                         && t < f.tRed);
 
@@ -1993,7 +2001,10 @@ async function render(t, fromPicker) {
   // ровно затем, чтобы показать избу с гарнизоном посреди чужой земли.
   // Куратор 28.08.2026: «у меня там твои остроги висят уже когда все красным
   // закрашено».
-  setLayer('ostrog', {type: 'FeatureCollection', features: ostrogAt(t)});
+  // В показ идут ТОЧКИ: значок рисуется по центру места (слой ostrog-dot).
+  // Полигоны кружков остаются в OSTROG - по ним история точки определяет,
+  // попал ли клик в острог.
+  setLayer('ostrog', {type: 'FeatureCollection', features: ostrogAt(t).map(ostrogDot)});
   setLayer('pscut', {type: 'FeatureCollection', features: pscut});
 
   // Фронт берём не по типу активного слоя, а по ДАТЕ: внутри окна помесячных
@@ -3374,15 +3385,15 @@ addLossStops();
                 'line-dasharray': [3, 2]}});
     });
   map.addSource('ostrog', {...GJ, data: EMPTY});
-  map.addLayer({id: 'ostrog-fill', type: 'fill', source: 'ostrog',
-    paint: {'fill-color': '#a41f12', 'fill-opacity': 0.75}});
-  // Ободок тёмный, а не красный: с 01.09.2026 заводы и крепости, поставленные
-  // внутри уже красного, светятся всегда (см. red_visible в
-  // tools/build_ostrogs.py), и красный кружок на красной заливке ядра
-  // сливался с ней. Тёмный ободок очерчивает точку и на красном, и на
-  // подложке, не добавляя на карту нового цвета.
-  map.addLayer({id: 'ostrog-line', type: 'line', source: 'ostrog',
-    paint: {'line-color': '#3d0e07', 'line-width': 1.8}});
+  // Остроги, крепости, заводы: значок-круг по центру места. Цвет - тот, каким
+  // очерчена красная граница империи: он чуть ярче заливки, и точка читается
+  // и на красном, и на подложке (куратор 06.09.2026). Тёмный ободок,
+  // заведённый 01.09 ради точек внутри красного, больше не нужен: ярким
+  // кружок отличается от заливки сам.
+  map.addLayer({id: 'ostrog-dot', type: 'circle', source: 'ostrog',
+    paint: {'circle-color': '#d43b28', 'circle-opacity': 0.85,
+            'circle-stroke-color': '#d43b28', 'circle-stroke-width': 1,
+            'circle-min-radius': 2.5}});
   map.addLayer({id: 'core-line', type: 'line', source: 'core-outline',
     paint: {'line-color': '#d43b28', 'line-width': 1.2}});
   map.addLayer({id: 'terr-fill', type: 'fill', source: 'terr',
