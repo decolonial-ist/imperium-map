@@ -668,15 +668,33 @@ class Popup {
     this._el = el; this._html = ''; this._map = null;
     this._ov = new ol.Overlay({element: el, positioning: 'bottom-center', offset: [0, -6], stopEvent: true, insertFirst: false});
   }
-  setLngLat(ll) { this._ll = ll; this._ov.setPosition(fwd([ll.lng, ll.lat])); return this; }
+  setLngLat(ll) {
+    this._ll = ll;
+    if (!this._opt.centered) this._ov.setPosition(fwd([ll.lng, ll.lat]));
+    return this;
+  }
   setHTML(h) {
     const c = this._el.querySelector('.maplibregl-popup-content');
     const btn = c.querySelector('.maplibregl-popup-close-button');
     c.innerHTML = h; c.appendChild(btn);
     return this;
   }
-  addTo(map) { this._map = map; map.ol.addOverlay(this._ov); return this; }
-  remove() { if (this._map) { this._map.ol.removeOverlay(this._ov); this._map = null; } return this; }
+  // centered: попап не привязан к точке, а стоит по центру карты. Оверлей для
+  // этого не годится - его контейнер едет вместе с картой, и «середина» уезжает
+  // вместе с ним (найдено 07.09.2026). Кладём элемент прямо в контейнер карты.
+  addTo(map) {
+    this._map = map;
+    if (this._opt.centered) map.getContainer().appendChild(this._el);
+    else map.ol.addOverlay(this._ov);
+    return this;
+  }
+  remove() {
+    if (!this._map) return this;
+    if (this._opt.centered) { if (this._el.parentNode) this._el.parentNode.removeChild(this._el); }
+    else this._map.ol.removeOverlay(this._ov);
+    this._map = null;
+    return this;
+  }
   isOpen() { return !!this._map; }
   getElement() { return this._el; }
 }

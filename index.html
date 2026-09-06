@@ -209,6 +209,21 @@
     margin-top:7px; padding-top:6px; }
   .hist .wait { color:#9aa4ad; font-size:11px; }
   .hist.maplibregl-popup { max-width:calc(100vw - 20px) !important; }
+  /* Попап истории точки стоит ПО ЦЕНТРУ КАРТЫ, а не у места клика: у нижнего
+     края он наполовину уезжал под панель с ползунком и не читался (куратор
+     07.09.2026). Правила с !important перебивают позицию, которую ставит
+     оверлей карты; хвостик-указатель при этом не нужен. Предельная высота
+     считается в clampPopup от высоты самой карты - панель начинается сразу
+     под ней, значит и длинный попап на неё не заедет. */
+  .hist.hist-center { position:absolute !important; left:50% !important; top:50% !important;
+    right:auto !important; bottom:auto !important;
+    transform:translate(-50%,-50%) !important; margin:0 !important; z-index:9; }
+  /* Попап лежит прямо в контейнере карты (см. centered в ee-shim.js), поэтому
+     проценты считаются от неё. Над панелью описания (z-index 5) он должен быть
+     сверху, иначе она накрывает левый край. */
+  .leaflet-popup-pane { z-index:9 !important; }
+  .hist.hist-center .maplibregl-popup-tip,
+  .hist.hist-center .leaflet-popup-tip-container { display:none !important; }
   @media (max-width:560px) { .hist .maplibregl-popup-content { font-size:12px;
     padding:9px 10px 10px; } }
 </style>
@@ -835,6 +850,7 @@ function leafletPopup(maxW) {
     setHTML(h) { p.setContent(h); return this; },
     addTo() { p.openOn(LMAP); return this; },
     remove() { LMAP.closePopup(p); return this; },
+    _pan() { try { p._adjustPan(); } catch (e) {} },
     isOpen() { return !!LMAP.hasLayer(p); },
     getElement() { return p.getElement(); },
   };
@@ -2621,11 +2637,25 @@ function clampPopup() {
   const cont = LMAP ? $('map') : map.getContainer();
   if (!cont || !cont.getBoundingClientRect) return;
   const mc = cont.getBoundingClientRect();
-  const rc = el.getBoundingClientRect();
-  let dx = 0;
-  if (rc.right > mc.right - 6) dx = mc.right - 6 - rc.right;
-  if (rc.left + dx < mc.left + 6) dx = mc.left + 6 - rc.left;
-  if (dx) el.style.marginLeft = Math.round(dx) + 'px';
+  // Попап ставим по центру карты и не даём ему быть выше неё: панель с
+  // ползунком начинается сразу под картой, и длинный попап иначе уезжал под
+  // неё. Что не влезло - прокручивается внутри самого попапа.
+  // По центру ставим только в полной карте: в Leaflet-режиме попап лежит в
+  // слое, который сам едет вместе с картой, и «середина» там уезжает вместе с
+  // ним. Там попап и так почти во весь экран, а карту под него подвигает
+  // autoPan; нам остаётся ограничить высоту.
+  if (!LMAP) el.classList.add('hist-center');
+  const box = el.querySelector('.maplibregl-popup-content')
+           || el.querySelector('.leaflet-popup-content-wrapper');
+  if (!box) return;
+  const cap = h => { box.style.maxHeight = Math.max(120, Math.round(h)) + 'px'; };
+  cap(mc.height - 28);
+  // У попапа есть свои рамки и отступы поверх содержимого, и на длинной
+  // истории (Грозный) он всё равно вылезал за карту на десяток пикселей.
+  // Мерим, что вышло, и добираем разницу.
+  const over = el.getBoundingClientRect().height - (mc.height - 28);
+  if (over > 0) cap(mc.height - 28 - over - 4);
+  if (LMAP && histPopup._pan) histPopup._pan();      // подвинуть карту под попап
 }
 
 function rowHTML(cls, lab, body, dur, prec) {
@@ -3007,7 +3037,8 @@ async function showHistory(ll) {
   const maxW = Math.min(340, ($('map').clientWidth || 360) - 28);
   histPopup = LMAP ? leafletPopup(maxW)
     : new maplibregl.Popup({className: 'hist', closeOnMove: false,
-        closeOnClick: false, focusAfterOpen: false, maxWidth: maxW + 'px'});
+        closeOnClick: false, focusAfterOpen: false, maxWidth: maxW + 'px',
+        centered: true});
   histPopup.setLngLat(ll).setHTML(histHead()
     + '<div class="wait">считаю историю точки…</div>').addTo(map);
   clampPopup();
