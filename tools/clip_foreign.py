@@ -52,6 +52,21 @@ FOREIGN = ['China', 'Mongolia', 'North Korea', 'South Korea', 'Japan',
            'Afghanistan', 'Iran', 'Turkey', 'Sweden', 'Norway',
            'India', 'Pakistan', 'Nepal', 'Bhutan']
 
+# Бывшие республики: чужие НЕ всегда, а с даты, когда империя перестала их
+# держать. Даты - те же, что в REPUBLICS сборщика расползания. До этой даты
+# они часть империи и режущий список их не касается. Куратор 09.09.2026 увидел
+# на 1992 годе красную кромку вдоль грузинской границы у юга Чечни («что тут
+# остался за имперский перешеек?») - это ядро из CShapes заходило за линию
+# Natural Earth. Крым, Донбасс, Абхазия и Цхинвали идут отдельными слоями
+# постсоветских эпизодов, в ядре их нет - обрезка их не трогает.
+FOREIGN_SINCE = {
+    'Georgia': '1991-04-09', 'Lithuania': '1991-08-21', 'Estonia': '1991-08-21',
+    'Latvia': '1991-08-21', 'Ukraine': '1991-08-24', 'Belarus': '1991-08-25',
+    'Moldova': '1991-08-27', 'Azerbaijan': '1991-08-30', 'Uzbekistan': '1991-08-31',
+    'Kyrgyzstan': '1991-08-31', 'Tajikistan': '1991-09-09', 'Armenia': '1991-09-21',
+    'Turkmenistan': '1991-10-27', 'Kazakhstan': '1991-12-16',
+}
+
 # Что обязано уцелеть после обрезки: точка, дата, чем держалась.
 KEEP = [((42.9, 40.6), '1900', 'Карсская область, Берлинский трактат 01.07.1878'),
         ((42.9, 40.6), '1914', 'Карсская область, до Брестского мира')]
@@ -65,6 +80,17 @@ def key_date(key):
     if len(k) == 7:
         return k + '-01'
     return k
+
+
+def foreign_since_geom(date):
+    """Бывшие республики, которые на эту дату уже не империя."""
+    names = [k for k, since in FOREIGN_SINCE.items() if date >= since]
+    if not names:
+        return None
+    ne = json.load(open(os.path.join(CACHE, 'ne_admin1.geojson'), encoding='utf-8'))
+    parts = [shape(f['geometry']).buffer(0) for f in ne['features']
+             if str(f['properties'].get('admin', '')) in names]
+    return unary_union(parts) if parts else None
 
 
 def foreign_geom():
@@ -140,7 +166,11 @@ def main():
             continue
         g = unary_union([shape(x['geometry']).buffer(0)
                          for x in fc['features'] if x.get('geometry')])
-        bleed = g.intersection(foreign)
+        cut_zone = foreign
+        ex = foreign_since_geom(key_date(key))
+        if ex is not None:
+            cut_zone = unary_union([foreign, ex])
+        bleed = g.intersection(cut_zone)
         if bleed.is_empty or bleed.area < 1e-6:
             continue
         allowed = allowed_at(key_date(key), foreign)

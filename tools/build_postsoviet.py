@@ -76,7 +76,7 @@ import sys
 from datetime import date
 
 from shapely.geometry import box, mapping, shape
-from shapely.ops import unary_union
+from shapely.ops import polygonize, unary_union
 
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
@@ -244,6 +244,29 @@ def donbas():
 
 # ---- каталог геометрий: ключ territory -> контур ----------------------------
 # Ключ таблицы `territory` - это И имя эпизодной территории, И ключ геометрии.
+def chechnya_outline():
+    """Полигон Чечни из линии государственной границы (OpenStreetMap).
+
+    data/borders/ichkeria_osm.geojson - замкнутая линия, из неё собираем
+    площадь. Нет файла или линия не замкнулась - откат на Natural Earth с
+    предупреждением.
+    """
+    path = os.path.join(DATA, 'borders', 'ichkeria_osm.geojson')
+    if os.path.exists(path):
+        with open(path, encoding='utf-8') as f:
+            fc = json.load(f)
+        lines = [shape(x['geometry']) for x in fc['features'] if x.get('geometry')]
+        polys = list(polygonize(unary_union(lines)))
+        if polys:
+            g = unary_union(polys)
+            if not g.is_empty:
+                return g
+        print('!! Чечня: линия границы не замкнулась, беру Natural Earth')
+    else:
+        print('!! Чечня: нет %s, беру Natural Earth' % path)
+    return ne('Russia', ['Chechnya'])
+
+
 def geometries():
     pmr = terr("Придністров'я")
     so = terr('Окупований Цхінвальський район')
@@ -252,7 +275,20 @@ def geometries():
     ordlo = terr('ОРДЛО')
     akhalgori = so.intersection(box(*AKHALGORI_BOX))
     kodori = ab.intersection(box(*KODORI_BOX))
-    chechnya = ne('Russia', ['Chechnya']).intersection(core())
+    # Контур Чечни берём из OpenStreetMap (data/borders/ichkeria_osm.geojson -
+    # тот же, которым рисуется линия границы Ичкерии), а не из Natural Earth.
+    # У них не совпадают южные линии, и между вырезом по Natural Earth и краем
+    # ядра оставалась красная кромка вдоль грузинской границы - куратор
+    # 09.09.2026: «что тут остался за имперский перешеек на юге чечни?».
+    # Южный край: контуры Чечни у Natural Earth и OpenStreetMap расходятся на
+    # пару километров, и между вырезом и грузинской границей оставалась
+    # красная полоска - куратор 09.09.2026 показал её дважды. Замыкаем вырез
+    # до границы: расширяем контур на 4 км и берём эту прибавку ТОЛЬКО южнее
+    # 42,8 градуса, где за Чечнёй лежит Грузия. По остальному периметру
+    # прибавки нет: там Ингушетия и Дагестан, они остаются красными.
+    _ch = chechnya_outline()
+    _south = box(44.5, 41.9, 47.0, 42.8)
+    chechnya = unary_union([_ch, _ch.buffer(0.04).intersection(_south)]).intersection(core())
     g = {
         'transnistria': (pmr, 'DeepStateMAP, статичный контур '
                               'data/deepstate/territories.geojson', False),

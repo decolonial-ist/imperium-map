@@ -759,9 +759,8 @@ async function bootEmbed() {
     for (const id of ['by', 'sphere', 'core', 'core-outline', 'ostrog'])
       if (!map.getSource(id)) map.addSource(id, {...GJ, data: EMPTY});
     const L = [
-      ['by-fill', 'fill', 'by', {'fill-color': '#c0392b', 'fill-opacity': 0.45}],
-      ['by-line', 'line', 'by', {'line-color': '#f08a76', 'line-width': 1.4,
-                                 'line-dasharray': [4, 2]}],
+      ['by-fill', 'fill', 'by', {'fill-color': '#d9553d', 'fill-opacity': 0.28}],
+      ['by-line', 'line', 'by', {'line-color': '#c9584a', 'line-width': 1}],
       ['sphere-fill', 'fill', 'sphere', {'fill-color': '#d9553d', 'fill-opacity': 0.28}],
       ['sphere-line', 'line', 'sphere', {'line-color': '#c9584a', 'line-width': 1}],
       ['core-fill', 'fill', 'core', {'fill-color': '#a41f12', 'fill-opacity': 0.55}],
@@ -942,8 +941,7 @@ const LSTYLE = {
   // Острог: значок цвета красной обводки империи (куратор 06.09.2026).
   ostrog: {color: '#d43b28', weight: 1, fillColor: '#d43b28', fillOpacity: 0.85},
   sphere: {color: '#c9584a', weight: 1, fillColor: '#d9553d', fillOpacity: 0.3},
-  by: {color: '#f08a76', weight: 1.3, dashArray: '4 2', fillColor: '#c0392b',
-       fillOpacity: 0.45},
+  by: {color: '#c9584a', weight: 1, fillColor: '#d9553d', fillOpacity: 0.3},
 };
 
 async function bootLeaflet(bundle) {
@@ -1266,6 +1264,12 @@ const psReds = t => psAt(t).filter(f => f.p.paint === 'red');
 // Остроги, которые империя БРОСИЛА, гаснут по своей дате: Мангазея 1672,
 // Анадырский острог 1771 (указ о ликвидации 04.05.1764).
 let OSTROG = [];
+// Сателлиты: земля, где на месте распоряжается не империя сама, а свои люди на
+// её деньгах и оружии. Чечня 1993-1994 - Временный совет Автурханова; красится
+// как Беларусь (решение куратора 08.09.2026: «крась как современную беларусь,
+// зона влияния»). Сборка - tools/build_satellites.py по заявке домена Нохчи.
+let SAT = [];
+const satAt = t => SAT.filter(f => t >= f.t0 && t <= f.t1).map(f => f.f);
 let SUBS_EXPL = [];               // вычитания с обоснованиями, для попапа
 const subsAt = (t, x, y) => SUBS_EXPL.filter(
   f => t >= f.t0 && t < f.t1 && inGeom(x, y, f.geometry));
@@ -1424,6 +1428,9 @@ function buildStops() {
   // между срезами ядра просто не поймать - ближайшие срезы стоят в 1654 и 1686
   // годах, а вырез живёт полтора года.
   for (const f of RCUT) s.add(f.t0).add(f.t1 + 1);
+  // Сателлиты: остановка на дате, когда земля переходит под своих людей
+  // империи, и на дате, когда перестаёт.
+  for (const f of SAT) s.add(f.t0).add(f.t1 + 1);
   // Остроги: остановка на дате постановки и на дате, когда точка гаснет.
   // Без них на срезе 1632 года вываливались разом Тюмень 1586, Тобольск 1587,
   // Сургут 1594, Мангазея 1601, Томск 1604, Кузнецк 1618, Енисейск 1619,
@@ -1648,6 +1655,48 @@ async function warmCore(fromKey, span = WARM_SPAN) {
     }
   };
   await Promise.all([worker(), worker(), worker()]);
+}
+
+// ---- нити после вычитания (09.09.2026) ------------------------------------
+// Вычитание режет ядро по чужой нарезке, и на шве остаются полоски шириной в
+// сотни метров. Заливки у них не видно, а обводка ядра рисует их красной
+// нитью: куратор увидел такую вдоль грузинской границы у юга Чечни и спросил,
+// «что тут остался за имперский перешеек». Выбрасываем кольца, которые и узкие,
+// и маленькие: настоящие косы и острова заметно больше.
+const HAIR_KM = 1.2;                 // тоньше этого - нить, а не земля
+const HAIR_AREA = 0.01;              // и площадью меньше ста двадцати км²
+function ringWidthKm(r) {
+  let a = 0, per = 0;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    a += r[j][0] * r[i][1] - r[i][0] * r[j][1];
+    if (i) per += Math.hypot(r[i][0] - r[i - 1][0], r[i][1] - r[i - 1][1]);
+  }
+  a = Math.abs(a) / 2;
+  return {area: a, width: per > 0 ? 2 * a / per * 111 : 0};
+}
+function dropHairs(fc) {
+  if (!fc || !fc.features) return fc;
+  let cut = 0;
+  const keep = f => {
+    const g = f.geometry;
+    if (!g) return true;
+    const polys = g.type === 'Polygon' ? [g.coordinates]
+                : g.type === 'MultiPolygon' ? g.coordinates : null;
+    if (!polys) return true;
+    const left = polys.filter(p => {
+      const m = ringWidthKm(p[0]);
+      const hair = m.width < HAIR_KM && m.area < HAIR_AREA;
+      if (hair) cut++;
+      return !hair;
+    });
+    if (!left.length) return false;
+    f.geometry = left.length === 1 && g.type === 'Polygon'
+      ? {type: 'Polygon', coordinates: left[0]}
+      : {type: 'MultiPolygon', coordinates: left};
+    return true;
+  };
+  const feats = fc.features.map(f => ({...f, geometry: f.geometry})).filter(keep);
+  return cut ? {type: 'FeatureCollection', features: feats} : fc;
 }
 
 // ---- вырез из красного ----------------------------------------------------
@@ -2006,12 +2055,13 @@ async function render(t, fromPicker) {
   const ck = coreKey + lvlC + '|' + allCuts.map(f => ((f.p && (f.p.name || f.p.slug))
     || (f.properties && f.properties.name) || '?')
     + '@' + (f.t0 ?? '') + '..' + (f.t1 ?? '')).join(',');
-  const coreData = cutCoreReal(base, allCuts, ck) || cutCore(base, allCuts);
+  const coreData = dropHairs(cutCoreReal(base, allCuts, ck) || cutCore(base, allCuts));
   setLayer('core', coreData);
   setLayer('loss', {type: 'FeatureCollection', features: cuts});
   setLayer('sphere', {type: 'FeatureCollection',
     features: sphere.features.filter(f => sphereOn(f, t))});
   setLayer('terr', {type: 'FeatureCollection', features: psReds(t)});
+  setLayer('satellite', {type: 'FeatureCollection', features: satAt(t)});
   // Острог показываем ТОЛЬКО пока земля вокруг него не покраснела. Как только
   // край перешёл под контроль империи, точка теряет смысл: она была нужна
   // ровно затем, чтобы показать избу с гарнизоном посреди чужой земли.
@@ -3137,6 +3187,14 @@ else Promise.all([
     p: f.properties, geometry: f.geometry,
     type: 'Feature', properties: f.properties,
   })).sort((a, b) => a.t0 - b.t0);
+  // Сателлиты грузятся отдельным файлом: он мелкий и нужен только на своём окне
+  grab('data/satellite/chechnya_1993_1994.geojson').then(fc => {
+    SAT = (((fc && fc.features) || [])).map(f => ({
+      t0: dayMs(f.properties.from), t1: dayMs(f.properties.to, true),
+      p: f.properties, f,
+    })).sort((a, b) => a.t0 - b.t0);
+    if (SAT.length) { buildStops(); render(curT); }
+  }).catch(() => {});
   DEP = ((depfc && depfc.features) || []).map(f => ({
     t0: dayMs(f.properties.date),
     p: f.properties, geometry: f.geometry,
@@ -3413,7 +3471,7 @@ addLossStops();
       map.addSource('kabinet', {...GJ, data: fc});
       map.addLayer({id: 'kabinet-line', type: 'line', source: 'kabinet',
         paint: {'line-color': '#f0c05a', 'line-width': 1.4,
-                'line-dasharray': [3, 2]}});
+                }});
     });
   map.addSource('ostrog', {...GJ, data: EMPTY});
   // Остроги, крепости, заводы: значок-круг по центру места. Цвет - тот, каким
@@ -3427,6 +3485,14 @@ addLossStops();
             'circle-min-radius': 2.5}});
   map.addLayer({id: 'core-line', type: 'line', source: 'core-outline',
     paint: {'line-color': '#d43b28', 'line-width': 1.2}});
+  // Сателлит: та же красная гамма, что у Беларуси, и пунктир - чтобы было
+  // видно, что распоряжаются свои люди империи, а не она сама.
+  // имя 'sat' занято растровой подложкой-спутником, поэтому 'satellite'
+  map.addSource('satellite', {...GJ, data: EMPTY});
+  map.addLayer({id: 'satellite-fill', type: 'fill', source: 'satellite',
+    paint: {'fill-color': '#d9553d', 'fill-opacity': 0.28}});
+  map.addLayer({id: 'satellite-line', type: 'line', source: 'satellite',
+    paint: {'line-color': '#c9584a', 'line-width': 1}});
   map.addLayer({id: 'terr-fill', type: 'fill', source: 'terr',
     paint: {'fill-color': '#a41f12', 'fill-opacity': 0.55}});
   map.addLayer({id: 'terr-line', type: 'line', source: 'terr',
@@ -3445,10 +3511,10 @@ addLossStops();
   map.addSource('belarus', {...GJ, data: bel});
   map.addLayer({id: 'by-fill', type: 'fill', source: 'belarus',
     layout: {visibility: 'none'},
-    paint: {'fill-color': '#c0392b', 'fill-opacity': 0.45}});
+    paint: {'fill-color': '#d9553d', 'fill-opacity': 0.28}});
   map.addLayer({id: 'by-line', type: 'line', source: 'belarus',
     layout: {visibility: 'none'},
-    paint: {'line-color': '#f08a76', 'line-width': 1.4, 'line-dasharray': [4, 2]}});
+    paint: {'line-color': '#c9584a', 'line-width': 1}});
   // Решение куратора 26.08.2026: показ только красное / не-красное.
   // Слои 'liberated' (зелёный) и 'unknown' (серый) из показа убраны:
   // отвоёванное - это просто «не империя», отдельного статуса ему не надо.
