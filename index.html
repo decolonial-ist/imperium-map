@@ -3493,6 +3493,10 @@ addLossStops();
     paint: {'fill-color': '#d9553d', 'fill-opacity': 0.28}});
   map.addLayer({id: 'satellite-line', type: 'line', source: 'satellite',
     paint: {'line-color': '#c9584a', 'line-width': 1}});
+  // Слой точек тут был и снят 09.09.2026: место, где стоял отряд, но площади за
+  // ним нет, на карте контроля читается как место власти и сливается с точками
+  // острогов (куратор: «что за точки возникают?»). Эпизоды по Ищёрской,
+  // Толстой-Юрту и Аргуну остались в базе домена Нохчи и в tools/build_satellites.py.
   map.addLayer({id: 'terr-fill', type: 'fill', source: 'terr',
     paint: {'fill-color': '#a41f12', 'fill-opacity': 0.55}});
   map.addLayer({id: 'terr-line', type: 'line', source: 'terr',
