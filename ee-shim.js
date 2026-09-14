@@ -141,7 +141,10 @@ function matches(filter, f) {
 // латиница - транслитерация по постановлению КМУ № 55 от 27.01.2010.
 const RU_CLAIM_NAMES = ['Республика Крым', 'Republic of Crimea', 'Республіка Крим', 'Respublika Krym'];
 let CRIMEA = null;
-fetch('data/crimea_outline.geojson').then(r => r.json()).then(fc => { CRIMEA = fc.features[0].geometry.coordinates[0]; }).catch(() => {});
+// контур Крыма - из пакета старта, если index.html его завёл (15.09.2026)
+(window.startFile ? startFile('data/crimea_outline.geojson', () => fetch('data/crimea_outline.geojson').then(r => r.json()))
+                  : fetch('data/crimea_outline.geojson').then(r => r.json()))
+  .then(fc => { CRIMEA = fc.features[0].geometry.coordinates[0]; }).catch(() => {});
 function inCrimea(lon, lat) {
   if (!CRIMEA || lon < 32.4 || lon > 36.7 || lat < 44.3 || lat > 46.3) return false;
   let inside = false;
@@ -170,6 +173,17 @@ function translitUk(str) {
 // Формат MVT с подменой имён у объектов внутри Крыма
 class MVTUk extends ol.MVT {
   readFeatures(source, options) {
+    // Свои тайлы подложки (data/basetiles, 15.09.2026) лежат сжатыми gzip:
+    // GitHub Pages двоичные файлы не сжимает, а урезанный тайл без сжатия
+    // весит в полтора раза больше. Узнаём gzip по первым двум байтам и
+    // распаковываем fflate-ом; тайлы OpenFreeMap приходят уже распакованными.
+    if (source instanceof ArrayBuffer && source.byteLength > 2 && window.fflate) {
+      const u = new Uint8Array(source);
+      if (u[0] === 0x1f && u[1] === 0x8b) {
+        const out = fflate.gunzipSync(u);
+        source = out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength);
+      }
+    }
     const feats = super.readFeatures(source, options);
     if (!CRIMEA) return feats;
     for (const f of feats) {
@@ -277,6 +291,20 @@ class Map {
       this._emit('load', {}); this._emit('styledata', {}); this._emit('sourcedata', {});
       return;
     }
+    // Свои урезанные тайлы для обзорных зумов (15.09.2026, «го» куратора;
+    // сборка tools/build_basetiles.py, опись data/basetiles/manifest.json).
+    // Стартовый вид тянул 125 тайлов OpenFreeMap на 4,9 МБ, из них 90% -
+    // названия стран, областей и городов на 80 языках, а показ берёт два;
+    // на 3G подписи стран появлялись на 47-й секунде. В своих тайлах остаётся
+    // ровно то, что рисует урезанный стиль: вода, реки, названия морей,
+    // границы стран, ледники, парки, подписи стран, областей и городов с
+    // нужными атрибутами - тот же вид весит 0,56 МБ. Опись задаёт зумы и
+    // охват (в номерах тайлов OpenStreetMap); вне охвата, глубже maxzoom, без
+    // описи или без распаковщика (vendor/fflate) тайлы едут с OpenFreeMap,
+    // как раньше. ?basetiles=0 - прежний путь целиком, для сравнения.
+    const btFetch = () => fetch('data/basetiles/manifest.json').then(r => r.ok ? r.json() : null);
+    const btP = new URLSearchParams(location.search).get('basetiles') === '0' ? Promise.resolve(null)
+      : (window.startFile ? startFile('data/basetiles/manifest.json', btFetch) : btFetch()).catch(() => null);
     const style = await (await fetch(this._styleUrl)).json();
     if (!CRIMEA) { try { CRIMEA = (await (await fetch('data/crimea_outline.geojson')).json()).features[0].geometry.coordinates[0]; } catch (e) {} }
     const srcDef = style.sources && style.sources.openmaptiles;
@@ -288,8 +316,23 @@ class Map {
     }
     const tj = srcDef.url ? await (await fetch(srcDef.url)).json() : srcDef;
     const tpl = tj.tiles[0];
+    let BT = await btP;
+    if (BT && !(window.fflate && fflate.gunzipSync)) BT = null;
+    if (BT && !(BT.ranges && BT.maxzoom !== undefined)) BT = null;
+    this._basetiles = BT;                    // для отладки и проверок кадров
+    const localTile = (z, x, y) => {
+      if (!BT || z > BT.maxzoom) return false;
+      const rs = BT.ranges[String(z)];
+      if (!rs) return false;
+      for (const r of rs) if (x >= r[0] && x <= r[1] && y >= r[2] && y <= r[3]) return true;
+      return false;
+    };
     // тайл x нашей сетки = тайл OSM (x + 2^z/4) mod 2^z - целое при z >= 2
-    const urlFn = tc => { const z = tc[0], n = 1 << z; return tpl.replace('{z}', z).replace('{x}', (tc[1] + n / 4) % n).replace('{y}', tc[2]); };
+    const urlFn = tc => {
+      const z = tc[0], n = 1 << z, x = (tc[1] + n / 4) % n, y = tc[2];
+      if (localTile(z, x, y)) return `data/basetiles/${z}/${x}/${y}.mvt`;
+      return tpl.replace('{z}', z).replace('{x}', x).replace('{y}', y);
+    };
     const grid = ol.tilegrid.createXYZ({minZoom: 2, maxZoom: tj.maxzoom || 14, tileSize: 512});
     // Из тайла разбираем ТОЛЬКО то, что показываем (решение куратора 06.09.2026:
     // «сократи подписи до названия стран, не рисуй дороги и всяку хуйню типа
@@ -301,6 +344,11 @@ class Map {
     const source = new ol.VectorTileSource({
       format: new MVTUk({layers: BARE ? KEEP_SRC : undefined}),
       projection: M, tileGrid: grid, tileUrlFunction: urlFn});
+    // Ход загрузки тайлов - экрану загрузки index.html (15.09.2026, этап 3)
+    const tp = this._tiles = {started: 0, done: 0, errors: 0};
+    source.on('tileloadstart', () => { tp.started++; this._emit('tileprogress', tp); });
+    source.on('tileloadend', () => { tp.done++; this._emit('tileprogress', tp); });
+    source.on('tileloaderror', () => { tp.done++; tp.errors++; this._emit('tileprogress', tp); });
     // Подписи и заливки берут ОДИН источник: два источника на одних адресах
     // разбирали каждый тайл дважды. Тайлы на зум мельче теперь только до зума 5,
     // где подписей мало (страны, области); на 5,8 с/кадр в виде на Украину
@@ -492,6 +540,10 @@ class Map {
       const r = below.getRenderer(); const origRF = r.renderFrame;
       r.renderFrame = function (frameState, target) { return origRF.call(this, Object.assign({}, frameState, {pixelRatio: FILLPR}), target); };
     }
+    // Стартовый вид ставит index.html из пакета старта (VIEW_READY, 15.09.2026):
+    // ждём его, но не дольше 2,5 с, чтобы не запрашивать тайлы обзорного вида впустую
+    if (window.VIEW_READY) await Promise.race([window.VIEW_READY, new Promise(r => setTimeout(r, 2500))]);
+    this._layersAdded = {t: Math.round(performance.now()), zOL: this.view.getZoom(), viewReady: !!window.VIEW_READY};
     this.ol.addLayer(below); this.ol.addLayer(labels);
     this._baseAttrib = tj.attribution || '';
     this._renderAttrib();

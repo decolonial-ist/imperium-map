@@ -1,0 +1,9 @@
+{
+  "name": "imperium-map-tools",
+  "private": true,
+  "description": "Инструменты сборки на node: geo2topo (topojson-server) собирает облегчённую линию времени в одну топологию, data/years_lite.topo.json (этап 2 плана 15.09.2026). Поднять: npm ci. В браузер идёт vendor/topojson-client.min.js из той же поставки.",
+  "devDependencies": {
+    "topojson-client": "3.1.0",
+    "topojson-server": "3.0.1"
+  }
+}

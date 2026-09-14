@@ -23,10 +23,13 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STAMPS = os.path.join(ROOT, 'data', 'build_stamps.json')
 
 # порядок = HANDOFF.md, раздел «Порядок пересборки - ОБЯЗАТЕЛЕН»
-# 'lite' в конце: облегчённые срезы для телефона (tools/build_lite.py)
-# производны от готовых срезов и пересобираются последними
+# 'lite' почти в конце: облегчённые срезы для телефона (tools/build_lite.py)
+# производны от готовых срезов и пересобираются после них. 'start' - самый
+# последний (tools/build_start_bundle.py, 15.09.2026): пакет старта склеивает
+# манифесты и мелкие файлы, а метка версии данных сбрасывает кэш в браузере
+# читателя - оба обязаны собираться после всего остального
 CANON = ['expansion', 'zones_1917_1921', 'pact_1939', 'ww2',
-         'expansion-late', 'losses', 'ostrogs', 'lite']
+         'expansion-late', 'losses', 'ostrogs', 'lite', 'start']
 
 
 def main():

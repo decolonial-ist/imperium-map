@@ -31,9 +31,24 @@
   // вместо MapLibre - WebGL не нужен. Адаптер ee-shim.js подставляет объект
   // maplibregl с теми же вызовами, остальной код карты не знает о подмене.
   window.EE_MODE = q.get('ee') !== '0';   // ?ee=0 - прежний показ на MapLibre/Leaflet в Меркаторе
+  // Пакет старта (15.09.2026, tools/build_start_bundle.py): манифесты, сфера,
+  // постсоветские эпизоды, остроги, границы, контур Крыма, мелкие эпизоды
+  // потерь - всё, что до первого кадра ехало сорока запросами, одним файлом
+  // (0,3 МБ сжатыми). Запрос уходит первым, ещё до библиотек. Кто бы ни
+  // спросил файл из пакета - index.html или шим - получит его отсюда, а без
+  // пакета возьмёт поштучно, как раньше. Встроенной карте пакет не нужен.
+  window.START_P = q.get('embed') ? Promise.resolve(null)
+    : fetch('data/start.json').then(r => r.ok ? r.json() : null).catch(() => null);
+  window.startFile = (rel, fallback) => window.START_P.then(b =>
+    (b && b.files && b.files[rel] !== undefined) ? b.files[rel] : fallback());
   if (window.EE_MODE) {                    // и на телефоне: движок один, WebGL не нужен
     document.write('<link rel="stylesheet" href="vendor/ol.css">');
     document.write('<script src="vendor/ol-bundle.js"><\/script>');
+    // fflate (12 КБ сжатыми): распаковка своих тайлов подложки в браузере -
+    // data/basetiles лежат gzip-ом, GitHub Pages двоичные файлы не сжимает
+    // (15.09.2026, tools/build_basetiles.py). Без него шим берёт все тайлы
+    // с OpenFreeMap, как раньше.
+    document.write('<script src="vendor/fflate.umd.js"><\/script>');
     document.write('<script src="ee-shim.js"><\/script>');
   } else if (gl && !narrow && q.get('nogl') !== '1')
     document.write('<script src="vendor/maplibre-gl.js"><\/script>');
@@ -46,9 +61,20 @@
      снесли, и на карте её в этом месте быть не должно. С настоящим вычитанием
      внешнее кольцо обходит прорыв выемкой, и поперечной линии нет. -->
 <script src="vendor/polygon-clipping.umd.js"></script>
+<!-- Линия времени одной топологией (15.09.2026): data/years_lite.topo.json -
+     все облегчённые срезы с общими дугами, 0,6 МБ вместо пакета в 5,6 МБ.
+     topojson-client (7 КБ) собирает срез из дуг при первом обращении. -->
+<script src="vendor/topojson-client.min.js"></script>
 <style>
   html, body { margin:0; height:100%; background:#14171c; color:#e6e6e6;
     font:14px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  #splash { position:fixed; inset:0; z-index:1000; background:#14171c; display:flex;
+    align-items:center; justify-content:center; transition:opacity .35s; }
+  #splash.off { opacity:0; pointer-events:none; }
+  #splash .box { width:min(320px, 80vw); text-align:center; color:#b7c1ca; font-size:13px; }
+  #splash .ttl { color:#e6e6e6; font-size:15px; font-weight:600; margin-bottom:14px; }
+  #splash .bar { height:4px; background:#2c333d; border-radius:2px; overflow:hidden; margin-bottom:10px; }
+  #splash .bar i { display:block; height:100%; width:0; background:#ff6a52; transition:width .25s; }
   #map { position:absolute; inset:0 0 126px 0; }
   #bar { position:absolute; left:0; right:0; bottom:0; height:126px; background:#1b1f26;
     border-top:1px solid #2c333d; display:flex; flex-direction:column; justify-content:center;
@@ -229,6 +255,13 @@
 </style>
 </head>
 <body>
+<!-- Экран загрузки (15.09.2026, этап 3 плана): держится до ПЕРВОГО ПОЛНОГО
+     кадра - библиотеки, пакет старта, срез даты, тайлы подложки в кадре.
+     Раньше красное ложилось на чёрный экран за 2 с, а вода, границы и подписи
+     подъезжали ещё минуту (замер на 3G). Линию времени экран не ждёт - она
+     греется за кадром. Предохранитель: через 25 с экран уходит в любом случае. -->
+<div id="splash"><div class="box"><div class="ttl">Расползание российской империи</div>
+  <div class="bar"><i></i></div><div class="msg">загрузка…</div></div></div>
 <div id="hdr">
   <button id="hdrToggle" title="Свернуть пояснение">–</button>
   <h1>Расползание российской империи, 1450–2026</h1>
@@ -451,12 +484,39 @@ const $ = id => document.getElementById(id);
 // в карту (втык куратора 31.08.2026: «вижу обрамление служебное и чёрный
 // экран, ничего не грузится»).
 const seenFatal = new Set();
+// ---- экран загрузки (15.09.2026, этап 3) ----------------------------------
+// Полоса хода: 15% - библиотеки на месте (этот скрипт уже идёт), 25% - пакет
+// старта приехал, 30-95% - тайлы подложки в кадре (события шима
+// tileprogress), 100% - первый полный кадр (все начатые тайлы приехали).
+const SPLASH_T0 = performance.now();
+let splashPct = 0, splashOff = false;
+function splashSet(pct, msg) {
+  if (splashOff) return;
+  const s = $('splash'); if (!s) return;
+  splashPct = Math.max(splashPct, Math.min(100, pct));
+  s.querySelector('.bar i').style.width = splashPct + '%';
+  if (msg) s.querySelector('.msg').textContent = msg;
+}
+function splashDone(why) {
+  if (splashOff) return;
+  splashOff = true;
+  const s = $('splash'); if (!s) return;
+  splashSet(100);
+  s.classList.add('off');
+  setTimeout(() => s.remove(), 400);
+  window.SPLASH_MS = Math.round(performance.now() - SPLASH_T0); window.SPLASH_WHY = why;
+}
+setTimeout(() => splashDone('timeout'), 25000);
+splashSet(15, 'библиотеки на месте, подложка…');
+if (EMBED) splashDone('embed');           // встройка открывается одним пакетом мгновенно, экран ей не нужен
+if (window.START_P) window.START_P.then(b => splashSet(25, b ? 'данные старта приехали' : 'данные старта поштучно'));
 function fatal(msg) {
   msg = String(msg).slice(0, 300);
   if (seenFatal.has(msg) || seenFatal.size > 4) return;
   seenFatal.add(msg);
   const b = $('fatal');
   if (!b) return;
+  splashDone('fatal');
   b.classList.add('on');
   b.textContent += (b.textContent ? '\n' : '') + msg;
 }
@@ -564,6 +624,31 @@ const map = (HAS_GL && !LEAFLET) ? new maplibregl.Map({
   zoom: 1.7,
   attributionControl: {compact: false}
 }) : mapStub();
+// Стартовый вид ДО первого тайла (15.09.2026, этап 3). Камера подгонялась
+// под срез даты после первого рендера (fitToCore), а подложка к тому времени
+// уже запрашивала полсотни тайлов обзорного вида, которые тут же
+// выбрасывались. Теперь охват среза берётся из описи облегчённых срезов в
+// пакете старта (lite_manifest.bounds), и вид ставится, как только пакет
+// приехал; шим ждёт этого (не дольше 2,5 с), прежде чем добавить слои
+// подложки. Без пакета, с адресом места или на узком экране - как раньше.
+window.VIEW_READY = (async () => {
+  try {
+    if (EMBED || LEAFLET || window.innerWidth <= 900) return;
+    if (START_Q.get('ll') || START_Q.get('z')) return;
+    const b = await window.START_P;
+    const lm = b && b.files && b.files['data/lite_manifest.json'];
+    const mf = b && b.files && b.files['data/manifest.json'];
+    if (!lm || !lm.bounds || !mf || !mf.years) return;
+    const t = dateFromUrl() ?? T0;
+    let key = null;
+    for (const k of mf.years) {
+      const p = String(k).split('-').map(Number);
+      if (utc(p[0], p[1] || 1, p[2] || 1) <= t) key = String(k);
+    }
+    if (key && lm.bounds[key]) fitToCore(lm.bounds[key]);
+    window.VIEW_FIT = {t: Math.round(performance.now()), key, zoom: map.getZoom(), center: map.getCenter()};
+  } catch (e) { window.VIEW_FIT = {error: String(e)}; }
+})();
 let LMAP = null, LLAYERS = null;          // карта и слои мобильной версии
 let BELARUS = EMPTY;                      // контур Беларуси (показ по периоду)
 // В Leaflet-режиме библиотеки MapLibre на странице нет вовсе (она не
@@ -573,6 +658,8 @@ map.on('error', e => {
   const m = e && e.error && e.error.message;
   if (m) fatal('MapLibre: ' + m);
 });
+map.on('tileprogress', s => splashSet(30 + 65 * s.done / Math.max(1, s.started),
+  'подложка: тайлов ' + s.done + ' из ' + s.started));
 // Подложка живёт на чужом сервере (tiles.openfreemap.org). Если её нет,
 // красное всё равно рисуется - но экран выглядит пустым, и человек должен
 // знать, что дело не в его телефоне.
@@ -1573,9 +1660,40 @@ function fetchSlice(dir, key, store) {
   corePending.set(pk, p);
   return p;
 }
+// ---- линия времени одной топологией (15.09.2026, этап 2 плана) -----------
+// Пакет из 233 копий облегчённых срезов весил 5,6 МБ сжатыми, хотя соседние
+// срезы делят одни и те же границы. В data/years_lite.topo.json (сборка
+// tools/build_lite.py через geo2topo) каждая дуга лежит один раз, а срез -
+// список ссылок на дуги: 30 868 дуг, 0,61 МБ сжатыми на всю историю. Файл
+// берётся одним запросом, срез собирается из дуг при первом обращении
+// (topojson.feature, 1-3 мс) и дальше живёт в coreLite как раньше. Пакет
+// years_lite_bundle.json и поштучные срезы остаются запасным путём: нет
+// топологии - карта греется, как до 15.09.
+let TOPO = null, topoPromise = null;
+function liteFromTopo(key) {
+  if (!TOPO || !TOPO.objects || !TOPO.objects[key] || !window.topojson) return null;
+  try {
+    const fc = topojson.feature(TOPO, TOPO.objects[key]);
+    const out = fc.type === 'FeatureCollection' ? fc : {type: 'FeatureCollection', features: [fc]};
+    for (const f of out.features) { f.properties = f.properties || {}; f.properties.lite = true; }
+    coreLite[key] = cleanFC(out);
+    return coreLite[key];
+  } catch (e) { return null; }
+}
+function warmTopo() {
+  if (topoPromise) return topoPromise;
+  topoPromise = DFETCH('data/years_lite.topo.json').then(r => {
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
+  }).then(t => { TOPO = t; return true; })
+    .catch(() => { topoPromise = null; return false; });
+  return topoPromise;
+}
 // Облегчённый срез: то, чем карта рисует всегда и немедленно.
 function coreLoadLite(key) {
   if (coreLite[key]) return Promise.resolve(coreLite[key]);
+  const t = liteFromTopo(key);
+  if (t) return Promise.resolve(t);
   return fetchSlice('years_lite', key, coreLite)
     .catch(() => fetchSlice('years', key, core));   // нет облегчённого - берём точный
 }
@@ -1584,8 +1702,8 @@ function coreLoadFull(key) {
   if (core[key]) return Promise.resolve(core[key]);
   return fetchSlice('years', key, core);
 }
-// Лучшее, что уже лежит в памяти на эту дату.
-function bestCore(key) { return core[key] || coreLite[key] || null; }
+// Лучшее, что уже лежит в памяти на эту дату (срез из топологии собирается тут же).
+function bestCore(key) { return core[key] || coreLite[key] || liteFromTopo(key) || null; }
 // Совместимость: прежнее имя зовут история точки и встроенная карта.
 function coreLoad(key) {
   return LITE ? coreLoadLite(key) : (bestCore(key)
@@ -1629,6 +1747,9 @@ function warmBundle() {
   return bundlePromise;
 }
 async function warmCore(fromKey, span = WARM_SPAN) {
+  // Вся линия времени одной топологией - 0,6 МБ, и телефону это дешевле,
+  // чем окно в ±24 среза поштучно (48 запросов, 1,2 МБ).
+  if (await warmTopo()) return;
   // настольный браузер греет всю линию времени - берём её пакетом
   if (span === Infinity && await warmBundle()) return;
   const i0 = Math.max(0, CORE_KEYS.indexOf(String(fromKey)));
@@ -1944,12 +2065,13 @@ function coreBounds() {
   }
   return n ? [x0, y0, x1, y1] : null;
 }
-function fitToCore() {
+function fitToCore(bounds) {
   // Только на широком экране. На телефоне окно высокое и узкое: подгонка под
   // охват империи уводила показ в глобус, и полэкрана занимал Индийский
   // океан. Там остаётся прежний обзорный вид.
   if (window.innerWidth <= 900) return;
-  const b = coreBounds();
+  // охват можно передать снаружи - стартовый вид из описи, до первого тайла
+  const b = bounds ? bounds.slice() : coreBounds();
   if (!b) return;
   // Русская Америка тянет охват до Аляски, а показать надо прежде всего
   // Северную Евразию: правый край держим Чукоткой.
@@ -2002,6 +2124,7 @@ function refineCore(key, seq) {
 }
 
 async function render(t, fromPicker) {
+  if (t == null) return;                        // даты нет - рисовать нечего (не 1970 год)
   if (EMB) return renderEmbed(t, fromPicker);   // встроенная карта: один пакет
   const i = layerAt(t);
   const l = LAYERS[i];
@@ -2202,7 +2325,8 @@ $('play').onclick = () => {
 };
 
 // ---- загрузка -------------------------------------------------------------
-const grab = url => DFETCH(url).then(r => r.ok ? r.json() : EMPTY)
+// Сперва пакет старта (data/start.json), без него - файл поштучно.
+const grab = url => startFile(url, () => DFETCH(url).then(r => r.ok ? r.json() : EMPTY))
   .then(cleanFC).catch(() => EMPTY);
 
 // ===== история точки: клик по карте ========================================
@@ -3112,26 +3236,28 @@ function histRefresh() {                    // ползунок поехал - �
 // вместо манифеста, срезов, снимков фронта, потерь, острогов и сферы.
 if (EMBED) bootEmbed();
 else Promise.all([
-  DFETCH('data/manifest.json').then(r => r.json()),
-  DFETCH('data/sphere.geojson').then(r => r.json()).then(cleanFC),
-  DFETCH('data/deepstate/manifest.json').then(r => r.ok ? r.json() : {days: []}).catch(() => ({days: []})),
+  // Файлы старта берутся из пакета data/start.json (один запрос, см. голову
+  // документа), без пакета - поштучно, как до 15.09.2026.
+  startFile('data/manifest.json', () => DFETCH('data/manifest.json').then(r => r.json())),
+  startFile('data/sphere.geojson', () => DFETCH('data/sphere.geojson').then(r => r.json())).then(cleanFC),
+  startFile('data/deepstate/manifest.json', () => DFETCH('data/deepstate/manifest.json')
+    .then(r => r.ok ? r.json() : {days: []})).catch(() => ({days: []})),
   // постсоветские эпизоды 1990-2022 (tools/build_postsoviet.py). Статичный
   // data/deepstate/territories.geojson в показ больше не идёт - он остался
   // источником геометрии для билдера
-  DFETCH('data/postsoviet.geojson').then(r => r.ok ? r.json() : EMPTY)
-    .then(cleanFC).catch(() => EMPTY),
+  grab('data/postsoviet.geojson'),
   grab('data/belarus.geojson'),
   // список срезов атрибуции «кто держал точку» (сами срезы качаются по клику)
-  DFETCH('data/attribution/manifest.json').then(r => r.ok ? r.json() : {years: []})
-    .catch(() => ({years: []})),
+  startFile('data/attribution/manifest.json', () => DFETCH('data/attribution/manifest.json')
+    .then(r => r.ok ? r.json() : {years: []})).catch(() => ({years: []})),
   // потери контроля империи на своей территории: файлы мелкие, грузим сразу -
   // они нужны и показу, и истории точки
   // Потери имперского контроля: при старте берём ТОЛЬКО опись окон. Геометрия
   // (Курская операция одна весит 548 КБ) качается, когда ползунок входит в
   // окно эпизода, - см. lossEnsure. До 06.09.2026 все двадцать четыре эпизода
   // ехали до первого кадра, хотя на дате 1914 года не нужен ни один.
-  DFETCH('data/losses/manifest.json').then(r => r.ok ? r.json() : {episodes: []})
-    .catch(() => ({episodes: []}))
+  startFile('data/losses/manifest.json', () => DFETCH('data/losses/manifest.json')
+    .then(r => r.ok ? r.json() : {episodes: []})).catch(() => ({episodes: []}))
     // Мелкие эпизоды (все, кроме Курской операции) едут сразу: без них не
     // построить остановки ползунка, а весят они вместе полторы сотни
     // килобайт. Курская - 494 КБ и 89 частей - грузится следом за первым
@@ -3193,7 +3319,10 @@ else Promise.all([
       t0: dayMs(f.properties.from), t1: dayMs(f.properties.to, true),
       p: f.properties, f,
     })).sort((a, b) => a.t0 - b.t0);
-    if (SAT.length) { buildStops(); render(curT); }
+    // Перерисовка только если первый кадр уже был: из пакета старта файл
+    // приходит мгновенно, и render(null) рисовал 1970 год поверх даты из
+    // адреса (15.09.2026; раньше та же гонка ловилась из кэша браузера)
+    if (SAT.length) { buildStops(); if (curT != null) render(curT); }
   }).catch(() => {});
   DEP = ((depfc && depfc.features) || []).map(f => ({
     t0: dayMs(f.properties.date),
@@ -3627,12 +3756,50 @@ addLossStops();
   // Заведено 28.08.2026 по вопросу куратора «это можно посмотреть на карте?» -
   // чтобы конкретный день открывался ссылкой, а не набором в трёх полях.
   await render(dateFromUrl() ?? T0);
-  // Первый кадр показан - можно греть линию времени. Ждём ещё и простоя
-  // потока, чтобы не отбирать его у подложки и первых тайлов.
+  // Экран загрузки уходит на первом ПОЛНОМ кадре: после первого рендера ждём
+  // 'idle' шима (OpenLayers rendercomplete - все тайлы кадра дорисованы).
+  // Если тайлы кадра уже все на месте, не ждём ничего. Leaflet-режим событий
+  // не шлёт - там экран уходит сразу. Предохранитель - 20 с.
+  splashSet(0, 'первый кадр…');           // полосу ведут тайлы (30-95%), тут только слово
+  if (LEAFLET) splashDone('leaflet');
+  else {
+    // Полный кадр = все запрошенные тайлы подложки приехали. Ждать одного
+    // 'idle' мало: OpenLayers успевает отрисовать пустой кадр и объявить
+    // rendercomplete до того, как источник поставит первый тайл в очередь
+    // (замер 15.09: idle через 6 мс после добавления слоёв, тайлы - через 50).
+    // Поэтому ждём, пока тайлы начнут грузиться и все начатые закончатся;
+    // если за 3 с не начался ни один (подложка не отвечает) - по idle.
+    const firstFull = new Promise(res => {
+      let done = false;
+      const fin = why => { if (done) return; done = true; map.off('tileprogress', check); map.off('idle', check); res(why); };
+      const check = () => { const tp = map._tiles; if (tp && tp.started > 0 && tp.done >= tp.started) fin('tiles'); };
+      map.on('tileprogress', check); map.on('idle', check); check();
+      setTimeout(() => { const tp = map._tiles; if (!tp || tp.started === 0) map.once('idle', () => fin('idle-no-tiles')); }, 3000);
+    });
+    const why = await Promise.race([firstFull, new Promise(res => setTimeout(() => res('timeout20'), 20000))]);
+    splashDone(why);
+  }
+  // Догрев линии времени - после полного кадра и простоя потока, а не по
+  // таймеру: на слабой сети он отбирал канал у подложки. На 2G и при
+  // экономии трафика (navigator.connection) топология едет по первому
+  // касанию ползунка.
   if (WARM_START) {
     const go = WARM_START; WARM_START = null;
-    if (window.requestIdleCallback) requestIdleCallback(go, {timeout: 2500});
-    else setTimeout(go, 1200);
+    const nc = navigator.connection || {};
+    const slow = !!nc.saveData || /(^|-)2g$/.test(nc.effectiveType || '');
+    const later = () => { if (window.requestIdleCallback) requestIdleCallback(go, {timeout: 4000}); else setTimeout(go, 1500); };
+    if (slow) {
+      const once = () => { $('bar').removeEventListener('pointerdown', once); later(); };
+      $('bar').addEventListener('pointerdown', once);
+    } else later();
+  }
+  // Свой кэш (sw.js, 15.09.2026): второй заход без сети и без сотен
+  // переспросов сервера (GitHub Pages разрешает держать файлы десять минут).
+  // Регистрируем после первого кадра, чтобы не мешать ему; ?sw=0 снимает.
+  if ('serviceWorker' in navigator && !EMBED) {
+    if (START_Q.get('sw') === '0')
+      navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(() => {});
+    else navigator.serviceWorker.register('sw.js').catch(() => {});
   }
   // Тяжёлые эпизоды потерь - следом за первым кадром; когда приедут, на
   // ползунке появятся их остановки.

@@ -1,0 +1,136 @@
+{
+ "planet": "20260906_080001_pt",
+ "tiles_template": "https://tiles.openfreemap.org/planet/20260906_080001_pt/{z}/{x}/{y}.pbf",
+ "built": "2026-09-15",
+ "world_maxzoom": 4,
+ "maxzoom": 6,
+ "bbox": {
+  "west": -30.0,
+  "east": 190.0,
+  "south": 25.0,
+  "north": 85.0
+ },
+ "ranges": {
+  "0": [
+   [
+    0,
+    0,
+    0,
+    0
+   ]
+  ],
+  "1": [
+   [
+    0,
+    1,
+    0,
+    1
+   ]
+  ],
+  "2": [
+   [
+    0,
+    3,
+    0,
+    3
+   ]
+  ],
+  "3": [
+   [
+    0,
+    7,
+    0,
+    7
+   ]
+  ],
+  "4": [
+   [
+    0,
+    15,
+    0,
+    15
+   ]
+  ],
+  "5": [
+   [
+    13,
+    31,
+    0,
+    13
+   ],
+   [
+    0,
+    0,
+    0,
+    13
+   ]
+  ],
+  "6": [
+   [
+    26,
+    63,
+    0,
+    27
+   ],
+   [
+    0,
+    1,
+    0,
+    27
+   ]
+  ]
+ },
+ "layers": {
+  "water": [
+   "class",
+   "brunnel",
+   "intermittent"
+  ],
+  "waterway": [
+   "class",
+   "brunnel"
+  ],
+  "water_name": [
+   "name",
+   "name:en",
+   "name_en",
+   "name:latin",
+   "name:nonlatin",
+   "name:uk",
+   "class"
+  ],
+  "landcover": [
+   "class",
+   "subclass"
+  ],
+  "landuse": [
+   "class"
+  ],
+  "boundary": [
+   "admin_level",
+   "maritime",
+   "disputed",
+   "disputed_name"
+  ],
+  "place": [
+   "name",
+   "name:en",
+   "name_en",
+   "name:latin",
+   "name:nonlatin",
+   "name:uk",
+   "class",
+   "rank",
+   "capital",
+   "iso_a2"
+  ]
+ },
+ "place_classes": [
+  "country",
+  "state",
+  "city"
+ ],
+ "tiles": 1741,
+ "bytes": 9062660,
+ "note": "нумерация тайлов как у OpenStreetMap (z/x/y), файлы сжаты gzip; вне охвата и глубже maxzoom карта берёт тайлы OpenFreeMap"
+}
