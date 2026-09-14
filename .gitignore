@@ -29,3 +29,7 @@ data/sources/**/*.gif
 data/sources/**/*.djvu
 data/sources/**/*.tif
 data/sources/**/*.tiff
+
+# Заявки доменов в корне (NOTICE и таблицы) - кухня, в публичный репо не идут (14.09.2026)
+/NOTICE_*.md
+/*_from_*.csv
