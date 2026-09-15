@@ -40,6 +40,9 @@ LOSS_EAGER_PARTS = 20      # как в index.html: эпизоды до стол�
 FILES = [
     'data/manifest.json',
     'data/lite_manifest.json',
+    # опись среднего уровня (этап 4, 15.09.2026): карте она нужна до первого
+    # приближения, без неё срезы на масштабе 4,5-8 берутся полными
+    'data/mid_manifest.json',
     'data/sphere.geojson',
     'data/deepstate/manifest.json',
     'data/postsoviet.geojson',

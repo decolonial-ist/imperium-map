@@ -17,17 +17,27 @@
 На выходе:
     data/years_lite/<ключ>.geojson       - облегчённые срезы ядра
     data/deepstate/months_lite/<день>.geojson - облегчённые снимки фронта
-    data/years_lite_bundle.json          - вся облегчённая линия времени одним
-                                           файлом (запасной путь карты)
-    data/years_lite.topo.json            - та же линия времени одной топологией
-                                           с общими дугами (0,6 МБ вместо 5,6;
-                                           карта берёт её с 15.09.2026)
+    data/years_lite.topo.json            - вся облегчённая линия времени одной
+                                           топологией с общими дугами (0,6 МБ;
+                                           карта берёт её с 15.09.2026, пакет
+                                           years_lite_bundle.json снят в тот же
+                                           день - этап 4, хвост T1)
     data/lite_manifest.json              - что собрано и с каким упрощением
+
+С `--level mid` (этап 4 плана 15.09.2026) - средний уровень точных срезов:
+    data/years_mid/<ключ>.geojson        - упрощение 0,002° (около 200 м),
+                                           координаты до 5 знаков; карта берёт
+                                           его вместо полного до масштаба 8
+    data/mid_manifest.json               - опись: срезы, упрощение, байты
+Пакет, топологию, снимки фронта, охваты и lite_manifest.json средний уровень
+не пишет и не трогает.
 
 Запуск:
 
     cd ~/tmp/imperium-map && .venv/bin/python3 tools/build_lite.py
     ... --tol 0.02 --only 1783   (для проверки одного среза)
+    ... --level mid              (средний уровень, после облегчённого)
+    ... --level mid --only 1991-04-09   (проба: опись и штамп не пишутся)
 """
 import argparse
 import json
@@ -53,6 +63,13 @@ ND = 3
 # не видно. При 1e4 (около 2 км) файл 0,34 МБ вместо 0,61, но это уже грубее
 # самих срезов.
 TOPO_Q = '1e5'
+# Средний уровень точных срезов (этап 4 плана 15.09.2026). Полный срез 1991
+# года - 17 МБ сырыми, 6,6 МБ сжатыми и 440 тысяч вершин, и карта брала его на
+# каждой остановке ползунка с масштаба 4,5; облегчённый 0,02° на масштабе 5 и
+# выше уже виден (косы и лиманы Азова). Средний - 0,002° (около 200 м) и пять
+# знаков: замер на срезе 1991 года - около 148 КБ сжатыми и 20 тысяч вершин.
+TOL_MID = 0.002
+ND_MID = 5
 
 
 def lighten(fc, tol, nd):
@@ -84,20 +101,77 @@ def lighten(fc, tol, nd):
     return gc.sort_polygons(gc.sanitize_geom(mapping(g)))
 
 
-def write(path, geom, src):
+def write(path, geom, src, level='lite'):
+    # level - признак уровня в свойствах фичи ('lite' или 'mid'): по нему
+    # index.html различает уровни в ключах кэшей подрезки фронта и вычитаний
     fc = {'type': 'FeatureCollection', 'features': [
-        {'type': 'Feature', 'properties': {'lite': True, 'src': src},
+        {'type': 'Feature', 'properties': {level: True, 'src': src},
          'geometry': geom}]}
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(fc, f, ensure_ascii=False, separators=(',', ':'))
     return os.path.getsize(path)
 
 
+def main_mid(a):
+    """Средний уровень: только срезы data/years_mid и их опись.
+
+    Правила чистки те же (lighten), меняются упрощение и сетка точности.
+    Пакет линии времени, топология, снимки фронта, охваты и
+    lite_manifest.json - дело облегчённого уровня, здесь не пишутся.
+    """
+    tol = TOL_MID if a.tol is None else a.tol
+    out = os.path.join(DATA, 'years_mid')
+    os.makedirs(out, exist_ok=True)
+    mf = json.load(open(os.path.join(DATA, 'manifest.json'), encoding='utf-8'))
+    keys = [str(k) for k in mf['years']]
+    if a.only:
+        keys = [k for k in keys if k == a.only]
+    done, skipped, sizes = [], [], {}
+    for k in keys:
+        src = os.path.join(DATA, 'years', k + '.geojson')
+        if not os.path.exists(src):
+            continue
+        g = lighten(json.load(open(src, encoding='utf-8')), tol, ND_MID)
+        if g is None:
+            skipped.append(k)
+            continue
+        sizes[k] = write(os.path.join(out, k + '.geojson'), g,
+                         'data/years/%s.geojson' % k, level='mid')
+        done.append(k)
+    total = sum(sizes.values())
+    if a.only:
+        # проба на одном срезе: опись с одним ключом отправила бы карту за
+        # полными срезами на всех остальных датах - опись и штамп не трогаем
+        print('средний уровень, проба: срезов %d (%.2f МБ), пропущено %d; '
+              'опись и штамп не тронуты' % (len(done), total / 1048576, len(skipped)))
+        return
+    man = {
+        'note': ('средний уровень точных срезов: упрощение %.3f°, координаты '
+                 'до %d знаков; сборка tools/build_lite.py --level mid'
+                 % (tol, ND_MID)),
+        'tol': tol, 'nd': ND_MID, 'years': done, 'skipped': skipped,
+        'bytes': sizes,
+    }
+    with open(os.path.join(DATA, 'mid_manifest.json'), 'w', encoding='utf-8') as f:
+        json.dump(man, f, ensure_ascii=False, separators=(',', ':'))
+    # штамп для check_build_order: после 'lite', перед 'start'
+    gc.write_stamp('mid')
+    print('средний уровень: срезов %d (%.1f МБ), пропущено %d'
+          % (len(done), total / 1048576, len(skipped)))
+    if skipped:
+        print('пустые после упрощения:', ', '.join(skipped[:8]))
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--tol', type=float, default=TOL)
+    ap.add_argument('--level', choices=('lite', 'mid'), default='lite')
+    ap.add_argument('--tol', type=float, default=None)
     ap.add_argument('--only')
     a = ap.parse_args()
+    if a.level == 'mid':
+        return main_mid(a)
+    if a.tol is None:
+        a.tol = TOL
 
     out_y = os.path.join(DATA, 'years_lite')
     out_m = os.path.join(DATA, 'deepstate', 'months_lite')
@@ -141,18 +215,10 @@ def main():
                             'data/deepstate/days/%s.geojson' % day)
             done_m.append(day)
 
-    # Пакет всей облегчённой линии времени одним файлом. Карта греет историю
-    # фоном; двести тридцать отдельных запросов - это двести тридцать обменов
-    # с сервером, и на мобильной сети одни только задержки складываются в
-    # секунды. Пакет отдаётся одним обращением, а срезы в нём лежат по ключу.
-    bundle = {'tol': a.tol, 'keys': done_y, 'slices': {}}
-    for k in done_y:
-        with open(os.path.join(out_y, k + '.geojson'), encoding='utf-8') as f:
-            bundle['slices'][k] = json.load(f)
-    bpath = os.path.join(DATA, 'years_lite_bundle.json')
-    with open(bpath, 'w', encoding='utf-8') as f:
-        json.dump(bundle, f, ensure_ascii=False, separators=(',', ':'))
-    bsize = os.path.getsize(bpath)
+    # Пакет всей облегчённой линии времени одним файлом (years_lite_bundle.json,
+    # 06.09.2026) снят 15.09.2026 - этап 4 плана загрузки, хвост T1: 17 МБ
+    # сырыми и 5,6 МБ сжатыми, а карта берёт ту же линию времени топологией
+    # (ниже, 0,65 МБ), запасной путь - срезы поштучно. Поле bundle в описи - null.
 
     # Вся облегчённая линия времени ОДНОЙ ТОПОЛОГИЕЙ (этап 2 плана 15.09.2026,
     # «го» куратора). Пакет из 233 копий срезов весил 5,6 МБ сжатыми, хотя
@@ -162,7 +228,7 @@ def main():
     # одним запросом и собирает срез из дуг при первом обращении
     # (vendor/topojson-client.min.js). Сборка - geo2topo из topojson-server
     # (package.json, `npm ci`); без него топология не собирается, карта
-    # остаётся на пакете, и об этом говорится в конце вывода.
+    # греется срезами поштучно, и об этом говорится в конце вывода.
     tpath = os.path.join(DATA, 'years_lite.topo.json')
     tsize = 0
     geo2topo = os.path.join(ROOT, 'node_modules', '.bin', 'geo2topo')
@@ -186,7 +252,7 @@ def main():
                  'до %d знаков; сборка tools/build_lite.py' % (a.tol, ND)),
         'tol': a.tol, 'years': done_y, 'months': done_m,
         'skipped': skipped,
-        'bundle': 'data/years_lite_bundle.json',
+        'bundle': None,                        # пакет снят 15.09.2026 (T1)
         'topology': 'data/years_lite.topo.json' if tsize else None,
         'topology_q': TOPO_Q,
         # Охват каждого среза (15.09.2026, этап 3): index.html подгоняет
@@ -202,9 +268,9 @@ def main():
     # вчерашнюю карту
     gc.write_stamp('lite')
     print('срезов %d (%.1f МБ), снимков фронта %d (%.1f МБ), пропущено %d, '
-          'пакет линии времени %.1f МБ, топология %.1f МБ'
+          'топология %.1f МБ'
           % (len(done_y), size_y / 1048576, len(done_m), size_m / 1048576,
-             len(skipped), bsize / 1048576, tsize / 1048576))
+             len(skipped), tsize / 1048576))
     if skipped:
         print('пустые после упрощения:', ', '.join(skipped[:8]))
 

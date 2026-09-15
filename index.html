@@ -1628,6 +1628,13 @@ function dayBest(key) {
 // отвечает сразу, а через мгновение сама уточняется.
 let CORE_KEYS = [];                       // порядок манифеста = хронология
 const coreLite = {};                      // облегчённые срезы (25 КБ)
+// Средний уровень (15.09.2026, этап 4 плана загрузки): data/years_mid,
+// упрощение 0,002° - около 200 м. Полный срез 1991 года весит 6,6 МБ сжатыми
+// и на 3G ехал дольше 30 с на каждую остановку ползунка, средний - около
+// 150 КБ. Опись data/mid_manifest.json приезжает в пакете старта; ключа в
+// ней нет - срез берётся полным, как до этапа 4.
+const coreMid = {};
+let MID_KEYS = new Set();
 const corePending = new Map();            // что уже качается: ключ -> обещание
 // Крупнее этого масштаба упрощение в 0,02° начинает быть видно: пиксель
 // экрана становится мельче двух километров. До него облегчённый срез и точный
@@ -1637,6 +1644,8 @@ const corePending = new Map();            // что уже качается: к�
 // масштабе 5 уже 0,2%, и это видно глазом на косах и лиманах Азовского моря.
 // Порог ставим между ними.
 const DETAIL_Z = 4.5;
+// С этого масштаба (окно Грозного) средний срез меняется на полный.
+const FULL_Z = 8;
 // Масштаб в единицах MapLibre при любом показе: шим Equal Earth приводит зум
 // OpenLayers к нему сам (zML), у Leaflet шкала та же.
 function zoomNow() {
@@ -1645,9 +1654,30 @@ function zoomNow() {
     return (map && map.getZoom) ? map.getZoom() : 0;
   } catch (e) { return 0; }
 }
-function detailWanted() {
-  if (LITE) return false;                 // телефон живёт на облегчённых
-  return zoomNow() >= DETAIL_Z;
+// Какой уровень среза нужен при текущем масштабе: 'l' облегчённый, 'm'
+// средний, 'f' полный. Телефон полного не берёт никогда: выше DETAIL_Z ему
+// хватает среднего.
+function levelWanted() {
+  const z = zoomNow();
+  if (z < DETAIL_Z) return 'l';
+  // +1e-9: шим отдаёт масштаб с шумом плавающей точки - z=8 из адреса на
+  // широте 43° читается как 7.999999999999999, и полный срез не запрашивался
+  // (замер 15.09.2026). Сравнение с DETAIL_Z оставлено прежним.
+  if (LITE || z + 1e-9 < FULL_Z) return 'm';
+  return 'f';
+}
+function detailWanted() { return levelWanted() !== 'l'; }
+// Лежит ли в памяти срез нужного уровня (или подробнее).
+function hasLevel(key, lv) {
+  if (lv === 'f') return !!core[key];
+  if (lv === 'm') return !!(core[key] || coreMid[key]);
+  return true;
+}
+// Уровень геометрии по признаку в свойствах: облегчённые срезы и снимки
+// фронта несут lite, средние срезы - mid, у полных признака нет.
+function lvlOf(fc) {
+  const p = fc && fc.features && fc.features[0] && fc.features[0].properties;
+  return (p && p.lite) ? 'l' : (p && p.mid) ? 'm' : 'f';
 }
 function fetchSlice(dir, key, store) {
   const pk = dir + '|' + key;
@@ -1666,9 +1696,9 @@ function fetchSlice(dir, key, store) {
 // tools/build_lite.py через geo2topo) каждая дуга лежит один раз, а срез -
 // список ссылок на дуги: 30 868 дуг, 0,61 МБ сжатыми на всю историю. Файл
 // берётся одним запросом, срез собирается из дуг при первом обращении
-// (topojson.feature, 1-3 мс) и дальше живёт в coreLite как раньше. Пакет
-// years_lite_bundle.json и поштучные срезы остаются запасным путём: нет
-// топологии - карта греется, как до 15.09.
+// (topojson.feature, 1-3 мс) и дальше живёт в coreLite как раньше. Запасной
+// путь - поштучные срезы: нет топологии - карта греется, как до 15.09 (пакет
+// years_lite_bundle.json снят 15.09.2026, этап 4, хвост T1).
 let TOPO = null, topoPromise = null;
 function liteFromTopo(key) {
   if (!TOPO || !TOPO.objects || !TOPO.objects[key] || !window.topojson) return null;
@@ -1702,8 +1732,15 @@ function coreLoadFull(key) {
   if (core[key]) return Promise.resolve(core[key]);
   return fetchSlice('years', key, core);
 }
+// Средний срез: показанная дата на масштабе от DETAIL_Z до FULL_Z. Нет ключа
+// в описи или запрос упал - берём полный.
+function coreLoadMid(key) {
+  if (coreMid[key]) return Promise.resolve(coreMid[key]);
+  if (!MID_KEYS.has(String(key))) return coreLoadFull(key);
+  return fetchSlice('years_mid', key, coreMid).catch(() => coreLoadFull(key));
+}
 // Лучшее, что уже лежит в памяти на эту дату (срез из топологии собирается тут же).
-function bestCore(key) { return core[key] || coreLite[key] || liteFromTopo(key) || null; }
+function bestCore(key) { return core[key] || coreMid[key] || coreLite[key] || liteFromTopo(key) || null; }
 // Совместимость: прежнее имя зовут история точки и встроенная карта.
 function coreLoad(key) {
   return LITE ? coreLoadLite(key) : (bestCore(key)
@@ -1717,41 +1754,13 @@ const SMALL_SCREEN = window.matchMedia('(max-width: 640px)').matches
   || !!(navigator.connection && navigator.connection.saveData);
 const WARM_SPAN = SMALL_SCREEN ? 24 : Infinity;
 let WARM_START = null;                    // отложенный запуск догрева
-// Вся облегчённая линия времени одним файлом (tools/build_lite.py собирает её
-// в data/years_lite_bundle.json). Двести тридцать три отдельных запроса - это
-// двести тридцать три обмена с сервером: на мобильной сети одни только
-// задержки складываются в секунды, и всё это время листание упирается в сеть.
-// Пакет весит 5,6 МБ сжатыми - столько же, сколько те же срезы поштучно.
-// Телефон пакет не берёт: ему хватает окна вокруг текущей даты.
-let bundlePromise = null;
-function warmBundle() {
-  if (bundlePromise) return bundlePromise;
-  bundlePromise = DFETCH('data/years_lite_bundle.json').then(r => {
-    if (!r.ok) throw new Error(r.status);
-    return r.json();
-  }).then(async d => {
-    const keys = d.keys || Object.keys(d.slices || {});
-    let i = 0;
-    // раскладываем порциями, уступая поток: разбор двух с лишним сотен срезов
-    // подряд задержал бы ответ ползунка на секунды
-    while (i < keys.length) {
-      for (let n = 0; n < 12 && i < keys.length; n++, i++) {
-        const k = keys[i];
-        if (!coreLite[k] && d.slices[k]) coreLite[k] = cleanFC(d.slices[k]);
-      }
-      await new Promise(res => (window.requestIdleCallback
-        ? requestIdleCallback(() => res(), {timeout: 120}) : setTimeout(res, 0)));
-    }
-    return true;
-  }).catch(() => { bundlePromise = null; return false; });
-  return bundlePromise;
-}
+// Пакет всей облегчённой линии времени одним файлом (data/years_lite_bundle.json,
+// 5,6 МБ сжатыми) снят 15.09.2026 - этап 4 плана загрузки, хвост T1: линию
+// времени карта берёт топологией (0,65 МБ), без неё греется срезами поштучно.
 async function warmCore(fromKey, span = WARM_SPAN) {
   // Вся линия времени одной топологией - 0,6 МБ, и телефону это дешевле,
   // чем окно в ±24 среза поштучно (48 запросов, 1,2 МБ).
   if (await warmTopo()) return;
-  // настольный браузер греет всю линию времени - берём её пакетом
-  if (span === Infinity && await warmBundle()) return;
   const i0 = Math.max(0, CORE_KEYS.indexOf(String(fromKey)));
   const order = [];
   for (let d = 1; d < CORE_KEYS.length && d <= span; d++) {
@@ -1980,12 +1989,8 @@ function trimFront(fc, coreFC, coreKey, dayKey) {
   // фронта, и среза ядра. Иначе подрезка, посчитанная на облегчённой паре,
   // выдаётся и после того, как приехали точные, - на экране остаётся грубый
   // контур, сколько ни уточняй (найдено 06.09.2026 при переводе фронта на два
-  // уровня).
-  const lvl = ((fc.features[0] && fc.features[0].properties
-                && fc.features[0].properties.lite) ? 'l' : 'f')
-            + ((coreFC && coreFC.features && coreFC.features[0]
-                && coreFC.features[0].properties
-                && coreFC.features[0].properties.lite) ? 'l' : 'f');
+  // уровня). С 15.09.2026 у ядра три уровня (l, m, f), у фронта по-прежнему два.
+  const lvl = lvlOf(fc) + lvlOf(coreFC);
   const ck = coreKey + '|' + dayKey + '|' + lvl;
   if (FRONTCACHE.has(ck)) return FRONTCACHE.get(ck);
   // прямоугольник театра: охват занятых кусков этого снимка, до целых
@@ -2115,8 +2120,11 @@ function refineCore(key, seq) {
   clearTimeout(refineTimer);
   refineTimer = setTimeout(() => {
     if (seq !== renderSeq || refining.has(key)) return;
+    // уровень - по масштабу на момент остановки: средний до FULL_Z, полный с него
+    const lv = levelWanted();
+    if (lv === 'l') return;
     refining.add(key);
-    coreLoadFull(key).then(() => {
+    (lv === 'm' ? coreLoadMid(key) : coreLoadFull(key)).then(() => {
       refining.delete(key);
       if (seq === renderSeq && curT != null) render(curT, true);
     }).catch(() => { refining.delete(key); });
@@ -2162,7 +2170,7 @@ async function render(t, fromPicker) {
     if (seq !== renderSeq) return;       // пока качали срез, уехали на другую дату
   }
   base = base || EMPTY;
-  if (coreKey !== null && !core[coreKey] && detailWanted()) refineCore(coreKey, seq);
+  if (coreKey !== null && !hasLevel(coreKey, levelWanted())) refineCore(coreKey, seq);
   // В ключе кэша обязаны быть ДАТЫ ОКНА каждого выреза, а не только имя.
   // 29.08.2026: имени хватало для Ичкерии (один вырез - одно окно), но у
   // Курской операции 89 дневных фич под одним именем, и ключ у всех выходил
@@ -2172,9 +2180,8 @@ async function render(t, fromPicker) {
   // заняли Суджу» - на экране стоял клин другого дня.
   // Уровень подробности среза - часть ключа: та же ловушка, что у подрезки
   // фронта (06.09.2026). Иначе вычитание, посчитанное на облегчённом ядре,
-  // возвращается и после приезда точного.
-  const lvlC = (base.features && base.features[0] && base.features[0].properties
-                && base.features[0].properties.lite) ? '|l' : '|f';
+  // возвращается и после приезда точного. С 15.09.2026 уровней три (l, m, f).
+  const lvlC = '|' + lvlOf(base);
   const ck = coreKey + lvlC + '|' + allCuts.map(f => ((f.p && (f.p.name || f.p.slug))
     || (f.properties && f.properties.name) || '?')
     + '@' + (f.t0 ?? '') + '..' + (f.t1 ?? '')).join(',');
@@ -3281,6 +3288,12 @@ else Promise.all([
   // При старте их больше не ждём ни на телефоне, ни на настольном браузере:
   // грузятся по первому клику (loadSubs), см. showHistory.
   Promise.resolve(EMPTY),
+  // Опись среднего уровня (этап 4, 15.09.2026): из пакета старта, без него
+  // поштучно. Описи нет - множество пустое, и срезы на масштабе 4,5-8 берутся
+  // полными, как до этапа 4. В разбор результатов ниже не входит.
+  startFile('data/mid_manifest.json', () => DFETCH('data/mid_manifest.json')
+    .then(r => r.ok ? r.json() : {years: []})).catch(() => ({years: []}))
+    .then(m => { MID_KEYS = new Set(((m && m.years) || []).map(String)); }),
   new Promise(res => {
     map.once('load', res);
     (function probe() {
@@ -3684,13 +3697,14 @@ addLossStops();
 
   // ---- клик по карте: история точки (см. блок «история точки» выше) -------
   map.on('click', e => showHistory(e.lngLat));
-  // Приблизились - подменяем облегчённую геометрию точной. Пока масштаб
-  // обзорный, точную не качаем вовсе: разницы на экране нет (см. DETAIL_Z).
+  // Приблизились - подменяем облегчённую геометрию точной: средней до FULL_Z,
+  // полной с него. Пока масштаб обзорный, точную не качаем вовсе: разницы на
+  // экране нет (см. DETAIL_Z).
   map.on('zoomend', () => {
     if (!detailWanted() || curT == null) return;
     let k = null;
     for (const l of LAYERS) if (l.kind === 'year' && l.t <= curT) k = l.key;
-    if (k !== null && !core[k]) refineCore(k, renderSeq);
+    if (k !== null && !hasLevel(k, levelWanted())) refineCore(k, renderSeq);
   });
   map.getCanvas().style.cursor = 'crosshair';
 
