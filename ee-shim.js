@@ -204,7 +204,14 @@ class MVTUk extends ol.MVT {
 // ---- Map ----------------------------------------------------------------------
 // Полный стиль подложки возвращается адресом ?base=full - для сравнения.
 const BARE = new URLSearchParams(location.search).get('base') !== 'full';
-// Цвета подложки, поправленные под нашу карту (см. блок перекраски ниже).
+// Опытные ключи адреса читаем ОДИН РАЗ при загрузке шима. Страница при первой
+// отрисовке переписывает адрес и оставляет в нём только d, ll и z, поэтому всё,
+// что читается ПОСЛЕ первого ожидания в _basemap (стиль едет по сети), видит уже
+// чистый адрес: так молча не работали ключи подписей (?lblw, ?lbld, ?lblmw) и
+// новый ?sprite=1 - проверено 17.09.2026. Ключи, которые читались до ожидания
+// (?base=esri, ?basetiles=0), работали, но и их держим здесь - чтобы правка
+// порядка строк снова их не убила.
+// Цвета подложки правятся тем же набором (см. блок перекраски ниже).
 const Q0 = new URLSearchParams(location.search);
 const WATER = Q0.get('water') || 'rgb(19,26,38)';        // море: тёмная синева
 const WATER_LINE = Q0.get('water') || 'rgb(24,33,48)';   // реки
@@ -280,12 +287,12 @@ class Map {
     // Опыт 05.09 (?base=esri): растровая подложка Esri Dark Gray (та же, что в
     // Leaflet-режиме старой карты) + отдельный растровый слой подписей;
     // OpenLayers перепроецирует растр триангуляцией без пересчёта вершин.
-    if (new URLSearchParams(location.search).get('base') === 'esri') {
+    if (Q0.get('base') === 'esri') {
       const mk = (name, z) => new ol.TileLayer({zIndex: z, source: new ol.XYZ({
         url: `https://server.arcgisonline.com/ArcGis/rest/services/Canvas/${name}/MapServer/tile/{z}/{y}/{x}`,
         maxZoom: 16, crossOrigin: 'anonymous', attributions: 'Подложка: Esri, HERE, Garmin, OpenStreetMap contributors'})});
       const base = mk('World_Dark_Gray_Base', 10), ref = mk('World_Dark_Gray_Reference', 200);
-      const Q = new URLSearchParams(location.search); if (Q.get('lblo')) ref.setOpacity(+Q.get('lblo'));
+      if (Q0.get('lblo')) ref.setOpacity(+Q0.get('lblo'));
       this.ol.addLayer(base); this.ol.addLayer(ref);
       this._baseAttrib = 'Подложка: Esri'; this._renderAttrib(); this._styleLoaded = true;
       this._emit('load', {}); this._emit('styledata', {}); this._emit('sourcedata', {});
@@ -303,7 +310,7 @@ class Map {
     // описи или без распаковщика (vendor/fflate) тайлы едут с OpenFreeMap,
     // как раньше. ?basetiles=0 - прежний путь целиком, для сравнения.
     const btFetch = () => fetch('data/basetiles/manifest.json').then(r => r.ok ? r.json() : null);
-    const btP = new URLSearchParams(location.search).get('basetiles') === '0' ? Promise.resolve(null)
+    const btP = Q0.get('basetiles') === '0' ? Promise.resolve(null)
       : (window.startFile ? startFile('data/basetiles/manifest.json', btFetch) : btFetch()).catch(() => null);
     const style = await (await fetch(this._styleUrl)).json();
     if (!CRIMEA) { try { CRIMEA = (await (await fetch('data/crimea_outline.geojson')).json()).features[0].geometry.coordinates[0]; } catch (e) {} }
@@ -401,13 +408,31 @@ class Map {
           l.layout['text-field'] = cases;
         }
       }
+    // Спрайт стиля снят (куратор 17.09.2026: «Р1 снимай»). Значки у стиля
+    // OpenFreeMap всего в пяти слоях: кружки у городов и посёлков (place_town,
+    // place_city, place_city_large) и стрелки односторонних дорог, которых на
+    // подложке нет вовсе. Ради них каждый холодный заход тянул с чужого домена
+    // три запроса и 53 КБ, а на ретине 121 КБ (2,6 и 5,8 % захода; замеры -
+    // MAP-MATERIALS/loop_2026-09-15_load/etap4/T2_sprite.md). Убираем поле
+    // sprite и свойства icon-image: названия городов остаются, уходят кружки
+    // перед ними, и запросов к /sprites/ больше нет.
+    // ?sprite=1 - прежнее поведение со значками, для сличения кадров.
+    if (Q0.get('sprite') !== '1') {
+      delete style.sprite;
+      for (const l of style.layers) {
+        if (!l.layout) continue;
+        for (const k of ['icon-image', 'icon-size', 'icon-anchor', 'icon-offset',
+                         'icon-allow-overlap', 'icon-optional', 'icon-padding'])
+          delete l.layout[k];
+      }
+    }
     // Зум для стиля - меркаторский (тайлы 512, широта центра карты 55°):
     // иначе стиль считает зум Equal Earth на ~1,6 больше и включает подписи и
     // границы z5+ уже на обзоре.
     const RES = []; for (let z = 0; z <= 24; z++) RES.push(78271.517 * Math.cos(55 * Math.PI / 180) / Math.pow(2, z));
     // Опыты с подписями (обсуждение 05.09): ?lblw=300 - тоньше шрифт (Noto Sans Light),
     // ?lbld=-1 - подписи на 1 px мельче, ?lblo=0.6 - прозрачность слоя подписей.
-    const Q = new URLSearchParams(location.search);
+    const Q = Q0;
     // Куратор 05.09: буквы у OpenLayers жирнее и ярче, чем у MapLibre (SDF на GPU);
     // ближе всего по весу - Noto Sans Light (vendor/fonts/noto-sans/300.css),
     // а строку названия ломать не раньше 14 em (у MapLibre перенос мягкий, и
