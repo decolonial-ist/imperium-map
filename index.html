@@ -7,30 +7,20 @@
 <!-- Показ с 05.09.2026 - OpenLayers в проекции Equal Earth: vendor/ol-bundle.js
      (ol 10.10.0 + ol-mapbox-style 13.4.3 + proj4 2.22.0, собран esbuild из npm,
      лицензии в vendor/ol-bundle.LICENSES.txt) плюс адаптер ee-shim.js, который
-     подставляет объект maplibregl с теми же вызовами. MapLibre и Leaflet ниже
-     остаются запасным показом в Меркаторе по адресу ?ee=0.
+     подставляет объект maplibregl с теми же вызовами. Прежний показ на
+     MapLibre в Меркаторе (?ee=0) и телефонный на Leaflet сняты 16.09.2026.
      Библиотеки лежат в репозитории (vendor/, скачаны с unpkg 29.08.2026):
      показ не должен зависеть от доступности CDN. Внешними остаются только
      тайлы подложки (tiles.openfreemap.org). -->
 <link rel="stylesheet" href="vendor/maplibre-gl.css">
-<!-- MapLibre тянется, ТОЛЬКО если он будет использован: на телефоне и в
-     браузере без WebGL карта рисуется Leaflet-ом, а библиотека весит 784 КБ -
-     это шестая часть всего, что уезжало на телефон. Решение о том, каким
-     движком рисовать, принимается здесь же, до загрузки, и повторяется ниже
-     в скрипте (константы HAS_GL, NARROW, LEAFLET). -->
+<!-- Стили MapLibre остались нарочно: шим ee-shim.js строит панель выходных
+     данных и попапы теми же классами (.maplibregl-*) и вид берёт отсюда.
+     Самой библиотеки MapLibre на странице больше нет: прежний показ ?ee=0 в
+     Меркаторе и телефонный показ на Leaflet сняты 16.09.2026 по слову
+     куратора («снимай, он не нужен»). -->
 <script>
 (function () {
   var q = new URLSearchParams(location.search);
-  var narrow = window.matchMedia('(max-width: 640px)').matches;
-  var gl = false;
-  try {
-    var c = document.createElement('canvas');
-    gl = !!(c.getContext('webgl2') || c.getContext('webgl'));
-  } catch (e) {}
-  // Equal Earth (05.09.2026, ?ee=1 на время переезда): OpenLayers на Canvas 2D
-  // вместо MapLibre - WebGL не нужен. Адаптер ee-shim.js подставляет объект
-  // maplibregl с теми же вызовами, остальной код карты не знает о подмене.
-  window.EE_MODE = q.get('ee') !== '0';   // ?ee=0 - прежний показ на MapLibre/Leaflet в Меркаторе
   // Пакет старта (15.09.2026, tools/build_start_bundle.py): манифесты, сфера,
   // постсоветские эпизоды, остроги, границы, контур Крыма, мелкие эпизоды
   // потерь - всё, что до первого кадра ехало сорока запросами, одним файлом
@@ -41,17 +31,16 @@
     : fetch('data/start.json').then(r => r.ok ? r.json() : null).catch(() => null);
   window.startFile = (rel, fallback) => window.START_P.then(b =>
     (b && b.files && b.files[rel] !== undefined) ? b.files[rel] : fallback());
-  if (window.EE_MODE) {                    // и на телефоне: движок один, WebGL не нужен
-    document.write('<link rel="stylesheet" href="vendor/ol.css">');
-    document.write('<script src="vendor/ol-bundle.js"><\/script>');
-    // fflate (12 КБ сжатыми): распаковка своих тайлов подложки в браузере -
-    // data/basetiles лежат gzip-ом, GitHub Pages двоичные файлы не сжимает
-    // (15.09.2026, tools/build_basetiles.py). Без него шим берёт все тайлы
-    // с OpenFreeMap, как раньше.
-    document.write('<script src="vendor/fflate.umd.js"><\/script>');
-    document.write('<script src="ee-shim.js"><\/script>');
-  } else if (gl && !narrow && q.get('nogl') !== '1')
-    document.write('<script src="vendor/maplibre-gl.js"><\/script>');
+  // Показ один на всех: OpenLayers в проекции Equal Earth на Canvas 2D.
+  // WebGL не нужен нигде, телефон рисует то же, что настольный браузер.
+  document.write('<link rel="stylesheet" href="vendor/ol.css">');
+  document.write('<script src="vendor/ol-bundle.js"><\/script>');
+  // fflate (12 КБ сжатыми): распаковка своих тайлов подложки в браузере -
+  // data/basetiles лежат gzip-ом, GitHub Pages двоичные файлы не сжимает
+  // (15.09.2026, tools/build_basetiles.py). Без него шим берёт все тайлы
+  // с OpenFreeMap, как раньше.
+  document.write('<script src="vendor/fflate.umd.js"><\/script>');
+  document.write('<script src="ee-shim.js"><\/script>');
 })();
 </script>
 <!-- Настоящее вычитание полигонов. До 28.08.2026 вырезы вставлялись в ядро
@@ -144,7 +133,6 @@
   /* Спутниковая подложка живёт в общем заходе карты; встроенная его не
      запускает, поэтому кнопку прячем, чтобы не давать мёртвый орган. */
   body.embed #satCtl { display:none; }
-  .leaflet-container { background:#0d1117; font:inherit; }
   /* подложка гасится, подписи гасятся слабее - иначе имена городов уходят */
   .basemap-dim { filter: brightness(var(--dim, .55)) contrast(1.06) saturate(.75); }
   .labels-dim { filter: brightness(var(--dim-lab, .8)); }
@@ -155,8 +143,6 @@
   .lbl-adm1 { font-size:9.5px; color:#9aa4ad; }
   .lbl-adm0 { font-size:12.5px; color:#c3ccd5; letter-spacing:.14em;
     text-transform:uppercase; }
-  .leaflet-control-attribution { background:rgba(20,23,28,.75); color:#8e99a4; }
-  .leaflet-control-attribution a { color:#9aa4ad; }
   body.embed #date { font-size:20px; min-width:104px; }
   body.embed #entity { display:none; }
   #fullMap { margin-left:auto; font-size:11.5px; color:#b7c1ca; text-decoration:none;
@@ -247,9 +233,7 @@
   /* Попап лежит прямо в контейнере карты (см. centered в ee-shim.js), поэтому
      проценты считаются от неё. Над панелью описания (z-index 5) он должен быть
      сверху, иначе она накрывает левый край. */
-  .leaflet-popup-pane { z-index:9 !important; }
-  .hist.hist-center .maplibregl-popup-tip,
-  .hist.hist-center .leaflet-popup-tip-container { display:none !important; }
+  .hist.hist-center .maplibregl-popup-tip { display:none !important; }
   @media (max-width:560px) { .hist .maplibregl-popup-content { font-size:12px;
     padding:9px 10px 10px; } }
 </style>
@@ -523,20 +507,20 @@ function fatal(msg) {
 window.addEventListener('error', e => fatal('Ошибка скрипта: '
   + (e.message || e.error) + ' [' + String(e.filename || '').split('/').pop()
   + ':' + e.lineno + ']'));
-window.addEventListener('unhandledrejection', e => fatal('Не доехали данные: '
-  + ((e.reason && (e.reason.message || e.reason)) || 'причина неизвестна')));
-// WebGL: без него MapLibre не нарисует ничего, а панель всё равно будет на месте
-(() => {
-  const c = document.createElement('canvas');
-  let gl = null;
-  try { gl = c.getContext('webgl2') || c.getContext('webgl'); } catch (e) {}
-  if (!gl && !new URLSearchParams(location.search).get('embed'))
-    fatal('Браузер не даёт WebGL - подложку и полную карту рисовать нечем. '
-      + 'Чаще всего это режим блокировки iOS: Safari -> меню страницы «аА» -> '
-      + '«Настройки для этого веб-сайта» -> выключить режим блокировки. '
-      + 'Карты народов в базе знаний работают и без WebGL.');
-})();
-
+window.addEventListener('unhandledrejection', e => {
+  // Отказ шрифта подписей - не отказ данных. OpenLayers и ol-mapbox-style
+  // проверяют шрифт через document.fonts.load и отказа не ловят; в режиме
+  // блокировки iOS и при блокировке веб-шрифтов браузер шрифт не отдаёт, и
+  // сюда приходит DOMException NetworkError. Подписи в этом случае рисуются
+  // системным шрифтом, показ цел (находка 16.09.2026 по скриншотам куратора).
+  // Настоящий отказ данных приходит сюда TypeError - его плашка показывает.
+  if (e.reason && e.reason.name === 'NetworkError') {
+    console.warn('шрифт подписей не загрузился:', e.reason.message);
+    return;
+  }
+  fatal('Не доехали данные: '
+    + ((e.reason && (e.reason.message || e.reason)) || 'причина неизвестна'));
+});
 // ---- сворачиваемая шапка (решение куратора 26.08.2026) --------------------
 (() => {
   const hdr = $('hdr'), btn = $('hdrToggle');
@@ -560,70 +544,34 @@ window.addEventListener('unhandledrejection', e => fatal('Не доехали д
   };
 })();
 
-// Без WebGL MapLibre падает на создании карты и уносит с собой ВЕСЬ скрипт:
-// 31.08.2026 у куратора на айфоне с режимом блокировки iOS (он запрещает
-// WebGL) страница показывала живую панель и чёрный прямоугольник. Теперь
-// вместо карты подставляется заглушка - код доживает до конца, а встроенная
-// карта домена рисует свой пакет обычным SVG (renderSvg ниже). У читателей
-// decolonial.ist режим блокировки включён осознанно, и терять их нельзя.
-// ?nogl=1 - проверить, что видит браузер без WebGL, не заводя телефон с
-// режимом блокировки.
 // Параметры адреса при старте: ползунок переписывает адрес (urlSetDate -> ?d=),
 // и блок камеры внизу, читавший location.search после первого render(), не
 // видел ?ll=&z= - кнопка «полная карта» открывала обзор вместо места
 // (найдено 05.09.2026 при переезде на Equal Earth, было и в MapLibre).
 const START_Q = new URLSearchParams(location.search);
-const HAS_GL = (() => {
-  if (window.EE_MODE) return true;         // OpenLayers рисует без WebGL
-  if (new URLSearchParams(location.search).get('nogl') === '1') return false;
-  try {
-    const c = document.createElement('canvas');
-    return !!(c.getContext('webgl2') || c.getContext('webgl'));
-  } catch (e) { return false; }
-})();
-const mapStub = () => new Proxy({}, {get(t, k) {
-  if (k === 'getCenter') return () => ({lng: 0, lat: 0});
-  if (k === 'getZoom' || k === 'getMinZoom') return () => 1;
-  if (k === 'getBounds') return () => ({getWest: () => 0, getEast: () => 0,
-                                        getNorth: () => 0, getSouth: () => 0});
-  if (k === 'getCanvas') return () => ({style: {}, width: 0, height: 0});
-  if (k === 'getSource' || k === 'getLayer' || k === 'getStyle') return () => null;
-  if (k === 'isStyleLoaded' || k === 'loaded') return () => true;
-  return () => {};
-}});
-// ---- мобильная версия: Leaflet, как у DeepStateMAP -------------------------
-// Куратор 31.08.2026: «а почему дипстейт с телефона у меня открывается, при
-// включенном локдауне? иди проверяй». Проверил: у них НЕТ WebGL вообще.
-// Подложка - обычные картинки <img> (st1.deepstatemap.live/styles/...
-// /6/37/21@2x.webp), линия фронта - SVG-пути в слое Leaflet (124 пути в
-// кадре). Отсюда наша мобильная версия: тот же приём - растровые тайлы
-// картинками плюс наши полигоны поверх. Это же снимает и режим блокировки
-// iOS: без WebGL карта рисуется полностью.
+// ---- узкий экран -----------------------------------------------------------
+// Узким считается окно до 640 px. От него зависит только уровень срезов:
+// телефон берёт облегчённые. Порог читается один раз при загрузке, поэтому
+// окно, растянутое или сжатое через 640 px уже после старта, перезагружаем -
+// иначе оно осталось бы с чужим уровнем (03.09.2026: пейн загрузился узким и
+// карта осталась облегчённой на широком экране). Дата в адресе сохраняется
+// ползунком.
 const NARROW = window.matchMedia('(max-width: 640px)').matches;
-// Режим (MapLibre или Leaflet) выбирается один раз при загрузке. Окно,
-// растянутое или сжатое через 640 px уже после старта, оставалось в чужом
-// режиме (03.09.2026: пейн загрузился узким и карта осталась в Leaflet на
-// широком экране). Перезагружаемся при пересечении порога, дата в адресе
-// сохраняется ползунком.
 window.matchMedia('(max-width: 640px)').addEventListener('change', e => {
   if (e.matches !== NARROW) location.reload();
 });
-// Leaflet идёт и во встроенной карте, и в полной: узкий экран или отсутствие
-// WebGL. Полная карта в этом режиме берёт ОБЛЕГЧЁННЫЕ срезы (data/years_lite,
-// tools/build_lite.py): 193 среза весят 14 МБ вместо 94, один срез приходит
-// за 15-40 КБ вместо полумегабайта, а на обзорном масштабе телефона разницы
-// не видно. Решение куратора 01.09.2026 («го» на задачу A4).
-// Equal Earth (05.09.2026): OpenLayers идёт и на телефоне, Leaflet не нужен;
-// облегчённые срезы на узком экране остаются.
-const LEAFLET = window.EE_MODE ? false : (!HAS_GL || NARROW);
-const LITE = (window.EE_MODE ? NARROW : LEAFLET) && !EMBED;
-const map = (HAS_GL && !LEAFLET) ? new maplibregl.Map({
+// Телефон берёт ОБЛЕГЧЁННЫЕ срезы (data/years_lite, tools/build_lite.py): 193
+// среза весят 14 МБ вместо 94, один срез приходит за 15-40 КБ вместо
+// полумегабайта, а на обзорном масштабе телефона разницы не видно. Решение
+// куратора 01.09.2026 («го» на задачу A4).
+const LITE = NARROW && !EMBED;
+const map = new maplibregl.Map({          // maplibregl здесь - это шим ee-shim.js
   container: 'map',
   style: 'https://tiles.openfreemap.org/styles/dark',
   center: [55, 45],
   zoom: 1.7,
   attributionControl: {compact: false}
-}) : mapStub();
+});
 // Стартовый вид ДО первого тайла (15.09.2026, этап 3). Камера подгонялась
 // под срез даты после первого рендера (fitToCore), а подложка к тому времени
 // уже запрашивала полсотни тайлов обзорного вида, которые тут же
@@ -633,7 +581,7 @@ const map = (HAS_GL && !LEAFLET) ? new maplibregl.Map({
 // подложки. Без пакета, с адресом места или на узком экране - как раньше.
 window.VIEW_READY = (async () => {
   try {
-    if (EMBED || LEAFLET || window.innerWidth <= 900) return;
+    if (EMBED || window.innerWidth <= 900) return;
     if (START_Q.get('ll') || START_Q.get('z')) return;
     const b = await window.START_P;
     const lm = b && b.files && b.files['data/lite_manifest.json'];
@@ -649,14 +597,11 @@ window.VIEW_READY = (async () => {
     window.VIEW_FIT = {t: Math.round(performance.now()), key, zoom: map.getZoom(), center: map.getCenter()};
   } catch (e) { window.VIEW_FIT = {error: String(e)}; }
 })();
-let LMAP = null, LLAYERS = null;          // карта и слои мобильной версии
 let BELARUS = EMPTY;                      // контур Беларуси (показ по периоду)
-// В Leaflet-режиме библиотеки MapLibre на странице нет вовсе (она не
-// грузится - см. голову документа), поэтому её объекты трогать нельзя.
-if (!LEAFLET) map.addControl(new maplibregl.NavigationControl({showCompass: false}));
+map.addControl(new maplibregl.NavigationControl({showCompass: false}));
 map.on('error', e => {
   const m = e && e.error && e.error.message;
-  if (m) fatal('MapLibre: ' + m);
+  if (m) fatal('Показ: ' + m);
 });
 map.on('tileprogress', s => splashSet(30 + 65 * s.done / Math.max(1, s.started),
   'подложка: тайлов ' + s.done + ' из ' + s.started));
@@ -762,11 +707,11 @@ const FULL_MAP_URL = 'https://decolonial-ist.github.io/imperium-map/';
 function fullMapLink() {
   const a = $('fullMap');
   if (!a) return;
-  const c = LMAP ? LMAP.getCenter() : map.getCenter();
+  const c = map.getCenter();
   const d = curT === null ? '' : new Date(curT).toISOString().slice(0, 10);
   a.href = FULL_MAP_URL + '?' + (d ? 'd=' + d + '&' : '')
     + 'll=' + c.lng.toFixed(3) + ',' + c.lat.toFixed(3)
-    + '&z=' + (LMAP ? LMAP.getZoom() : map.getZoom()).toFixed(2);
+    + '&z=' + map.getZoom().toFixed(2);
 }
 let nudges = 0;
 const nudge = setInterval(() => { map.resize(); map.triggerRepaint(); if (++nudges >= 6) clearInterval(nudge); }, 700);
@@ -818,7 +763,7 @@ async function bootEmbed() {
       + ((e && e.message) || e));
     return;
   }
-  EMB = {b: bundle, svg: !HAS_GL};
+  EMB = {b: bundle};
   EMBED.dom = bundle;
   const steps = bundle.steps.filter(s => {
     const t = dayMs(s.d);
@@ -834,7 +779,7 @@ async function bootEmbed() {
   STOPS = EMB.steps.map(x => x.t).filter(t => t >= T0 && t <= T1);
   if (!STOPS.length) STOPS = [T0, T1];
 
-  if (!LEAFLET) {
+  {
     // Камера садится на рамку СРАЗУ: ей стиль не нужен, а ждать подложку
     // приходится секунды - и всё это время читатель видел бы весь мир.
     embedCamera(bundle);
@@ -864,19 +809,6 @@ async function bootEmbed() {
       + '&ll=' + e.lngLat.lng.toFixed(3) + ',' + e.lngLat.lat.toFixed(3)
       + '&z=' + map.getZoom().toFixed(2), '_blank', 'noopener'));
     map.getCanvas().style.cursor = 'pointer';
-  } else {
-    // Мобильная версия и любой браузер без WebGL: Leaflet, как у DeepStateMAP.
-    // Свой показ путями SVG без подложки пробовали 31.08.2026 - куратор
-    // забраковал («выглядит дёшево»), и он был прав: дело было не в SVG, а в
-    // отсутствии растровой подложки под ним.
-    try {
-      await bootLeaflet(bundle);
-    } catch (e) {
-      fatal('Мобильная карта не собралась: ' + ((e && e.message) || e));
-      noGlNotice();
-      document.body.classList.add('ready');
-      return;
-    }
   }
 
   embedChrome();
@@ -895,17 +827,10 @@ const asFC = g => g ? {type: 'FeatureCollection',
 
 function renderEmbed(t, fromPicker) {
   const step = stepAt(t).s;
-  if (LMAP) {
-    for (const k of ['by', 'sphere', 'red', 'ostrog']) {
-      LLAYERS[k].clearLayers();
-      if (step[k]) LLAYERS[k].addData(asFC(step[k]));
-    }
-  } else {
-    setLayer('core', asFC(step.red));      // заодно обновит обводку без шва 180°
-    map.getSource('ostrog').setData(asFC(step.ostrog));
-    map.getSource('sphere').setData(asFC(step.sphere));
-    map.getSource('by').setData(asFC(step.by));
-  }
+  setLayer('core', asFC(step.red));        // заодно обновит обводку без шва 180°
+  map.getSource('ostrog').setData(asFC(step.ostrog));
+  map.getSource('sphere').setData(asFC(step.sphere));
+  map.getSource('by').setData(asFC(step.by));
   // На табло - ЗАПРОШЕННАЯ дата, а не дата шага под ней (то же правило, что в
   // полной карте). Иначе в окне кампании 1917-1921 табло показывало «1886» -
   // дату среза, который лежит под началом окна.
@@ -926,32 +851,9 @@ function renderEmbed(t, fromPicker) {
   return Promise.resolve();
 }
 
-// Попап истории точки в Leaflet-режиме: обёртка с тем же набором вызовов,
-// что у попапа MapLibre, чтобы код истории точки остался один.
-function leafletPopup(maxW) {
-  const p = L.popup({className: 'hist', autoClose: false, closeOnClick: false,
-                     maxWidth: maxW, autoPan: true});
-  return {
-    setLngLat(ll) { p.setLatLng([ll.lat, ll.lng]); return this; },
-    setHTML(h) { p.setContent(h); return this; },
-    addTo() { p.openOn(LMAP); return this; },
-    remove() { LMAP.closePopup(p); return this; },
-    _pan() { try { p._adjustPan(); } catch (e) {} },
-    isOpen() { return !!LMAP.hasLayer(p); },
-    getElement() { return p.getElement(); },
-  };
-}
-
-// ---- общий приёмник данных: MapLibre или Leaflet ---------------------------
+// ---- приёмник данных слоя --------------------------------------------------
 // Показ считается ОДИН РАЗ (render), а куда его класть - решает эта функция.
-// Так у полной карты не появляется второй ветки логики: расходится только
-// последний шаг, установка данных в слой.
 function setLayer(name, fc) {
-  if (LLAYERS && LLAYERS[name]) {
-    LLAYERS[name].clearLayers();
-    if (fc && fc.features && fc.features.length) LLAYERS[name].addData(fc);
-    return;
-  }
   const src = map.getSource(name);
   if (src) src.setData(fc || EMPTY);
   // обводка ядра живёт отдельным источником линий (см. outlineOf)
@@ -993,212 +895,6 @@ function outlineOf(fc) {
   }
   return {type: 'FeatureCollection', features: feats.map(l => ({type: 'Feature',
     properties: {}, geometry: {type: 'LineString', coordinates: l}}))};
-}
-
-// ---- мобильная версия на Leaflet -------------------------------------------
-// Устройство повторяет DeepStateMAP (разбор 31.08.2026): растровая подложка
-// картинками, наши полигоны поверх неё, подписи ТРЕТЬИМ слоем сверху - чтобы
-// названия городов читались поверх красного. WebGL не нужен нигде.
-// Подложка - тёмный растр Esri (тот же поставщик, что уже даёт спутник в
-// полной карте). CARTO пробовали первым - их тайлы теперь возвращаются с
-// водяным знаком «API KEY REQUIRED», без ключа пользоваться нельзя.
-const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/';
-const TILES = ESRI + 'World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
-const TILES_LAB = ESRI + 'World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}';
-const TILE_ATTR = 'Подложка: Esri, HERE, Garmin, &copy; '
-  + '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
-
-function loadLeaflet() {
-  if (window.L) return Promise.resolve();
-  const css = document.createElement('link');
-  css.rel = 'stylesheet';
-  css.href = 'vendor/leaflet.css';
-  document.head.appendChild(css);
-  return new Promise((res, rej) => {
-    const sc = document.createElement('script');
-    sc.src = 'vendor/leaflet.js';
-    sc.onload = res;
-    sc.onerror = () => rej(new Error('не загрузился vendor/leaflet.js'));
-    document.head.appendChild(sc);
-  });
-}
-
-const LSTYLE = {
-  red: {color: '#d43b28', weight: 1.1, fillColor: '#a41f12', fillOpacity: 0.62},
-  // Острог: значок цвета красной обводки империи (куратор 06.09.2026).
-  ostrog: {color: '#d43b28', weight: 1, fillColor: '#d43b28', fillOpacity: 0.85},
-  sphere: {color: '#c9584a', weight: 1, fillColor: '#d9553d', fillOpacity: 0.3},
-  by: {color: '#c9584a', weight: 1, fillColor: '#d9553d', fillOpacity: 0.3},
-};
-
-async function bootLeaflet(bundle) {
-  await loadLeaflet();
-  const b = bundle.bbox;
-  const frame = L.latLngBounds([[b[1], b[0]], [b[3], b[2]]]);
-  // Стартовый вид задаём сразу из пакета. Без него Leaflet считал центр по
-  // ещё не разложенному контейнеру нулевой высоты и падал с «Invalid LatLng
-  // object: (NaN, NaN)» - карта не собиралась вовсе (поймано 31.08.2026).
-  LMAP = L.map('map', {
-    center: [bundle.center[1], bundle.center[0]],
-    zoom: Number.isFinite(bundle.zoom) ? Math.round(bundle.zoom) : 4,
-    zoomControl: true,
-    attributionControl: true,
-    // мягкая привязка Leaflet - ровно то, что у DeepStateMAP: уехать за рамку
-    // даёт, на отпускании возвращает
-    maxBounds: frame.pad(0.45),
-    maxBoundsViscosity: 0,
-    zoomSnap: 0.25,
-    wheelPxPerZoomLevel: 90,
-  });
-  // Посадка на рамку повторяется, пока читатель сам не тронул карту: во
-  // встройке первый кадр часто приходит с другим размером (та же грабля, что
-  // у полной карты).
-  let touched = false;
-  const refit = () => {
-    const el = $('map');
-    if (touched || !el.clientWidth || !el.clientHeight) return;
-    LMAP.invalidateSize({animate: false});
-    LMAP.setMinZoom(0);
-    LMAP.fitBounds(frame, {padding: [6, 6], animate: false});
-    LMAP.setMinZoom(Math.round(LMAP.getZoom() * 4) / 4);  // ниже рамки не пускаем
-  };
-  refit();
-  for (const ms of [120, 400, 900, 1800]) setTimeout(refit, ms);
-  new ResizeObserver(refit).observe($('map'));
-  LMAP.on('dragstart zoomstart', () => { touched = true; });
-  // Тон подложки. Esri Dark Gray сам по себе светлее нашей гаммы (#14171c), и
-  // на нём красное теряет силу. Гасим сами тайлы фильтром: так остаётся один
-  // растр и не надо искать другого поставщика (у CARTO без ключа - водяной
-  // знак, у Stadia - ключ). Значение подбирается параметром адреса
-  // ?dim=0.4..1 - им куратор сравнивает варианты на своём экране.
-  const dimQ = parseFloat(new URLSearchParams(location.search).get('dim'));
-  const dim = isFinite(dimQ) ? Math.min(Math.max(dimQ, 0.2), 1) : 0.55;
-  L.tileLayer(TILES, {attribution: TILE_ATTR, maxZoom: 19, detectRetina: true,
-                      className: 'basemap-dim'}).addTo(LMAP);
-  document.documentElement.style.setProperty('--dim', dim);
-  document.documentElement.style.setProperty('--dim-lab',
-    Math.min(1, dim + 0.25));
-  LMAP.createPane('fills').style.zIndex = 420;
-  const lab = LMAP.createPane('labels');
-  lab.style.zIndex = 460;
-  lab.style.pointerEvents = 'none';
-  // Подписи. По умолчанию - растровые от Esri, но локализовать их нельзя:
-  // служба отдаёт готовые тайлы, поля языка у неё нет. На нашей карте это
-  // означает «Kiev» вместо «Київ». Поэтому есть свой слой - города и области
-  // на МЕСТНОМ языке (tools/build_domain_labels.py). Переключается адресом:
-  // ?labels=own - свои, ?labels=esri - растровые (пока по умолчанию).
-  const labMode = new URLSearchParams(location.search).get('labels') || 'esri';
-  if (labMode === 'own') {
-    const lb = await DFETCH('data/domains/' + EMBED.id + '_labels.json')
-      .then(r => r.ok ? r.json() : null).catch(() => null);
-    // Ставим с проверкой столкновений: 114 подписей в кадре наезжали друг на
-    // друга («КиївКиївська область» одним пятном) и халатами обводок
-    // высветляли всю карту. Порядок важности: город крупнее - важнее, потом
-    // области, потом страны.
-    const PRIO = {city: 0, adm1: 1, adm0: 2};
-    const marks = [];
-    for (const l of ((lb && lb.labels) || [])) {
-      if (!isFinite(l.x) || !isFinite(l.y)) continue;
-      const m = L.marker([l.y, l.x], {
-        pane: 'labels', interactive: false, keyboard: false,
-        icon: L.divIcon({className: 'lbl lbl-' + l.k, html: l.t,
-                         iconSize: null}),
-      }).addTo(LMAP);
-      marks.push({m, l, w: l.t.length * (l.k === 'adm0' ? 8 : 5.6) + 8,
-                  h: l.k === 'adm0' ? 16 : 13});
-    }
-    marks.sort((a, b) => (PRIO[a.l.k] - PRIO[b.l.k])
-      || ((b.l.p || 0) - (a.l.p || 0)));
-    const relabel = () => {
-      const put = [];
-      for (const it of marks) {
-        const el = it.m.getElement();
-        if (!el) continue;
-        const p = LMAP.latLngToContainerPoint(it.m.getLatLng());
-        const box = [p.x - it.w / 2, p.y - it.h / 2, p.x + it.w / 2, p.y + it.h / 2];
-        const hit = put.some(q => !(box[2] < q[0] || box[0] > q[2]
-                                 || box[3] < q[1] || box[1] > q[3]));
-        el.style.display = hit ? 'none' : '';
-        if (!hit) put.push(box);
-      }
-    };
-    LMAP.on('zoomend moveend', relabel);
-    setTimeout(relabel, 60);
-  } else {
-    L.tileLayer(TILES_LAB, {pane: 'labels', maxZoom: 19, detectRetina: true,
-                            className: 'labels-dim'}).addTo(LMAP);
-  }
-  LLAYERS = {};
-  for (const k of ['by', 'sphere', 'red', 'ostrog'])
-    LLAYERS[k] = L.geoJSON(null, {pane: 'fills', style: LSTYLE[k],
-      // точки острогов - кружком постоянного размера, а не иконкой-булавкой
-      pointToLayer: (ft, ll) => L.circleMarker(ll, {...LSTYLE[k], radius: 4})}).addTo(LMAP);
-  // клик уводит в полную карту на это же место и дату
-  LMAP.on('click', e => window.open(FULL_MAP_URL + '?d='
-    + new Date(curT || T0).toISOString().slice(0, 10)
-    + '&ll=' + e.latlng.lng.toFixed(3) + ',' + e.latlng.lat.toFixed(3)
-    + '&z=' + LMAP.getZoom().toFixed(2), '_blank', 'noopener'));
-  LMAP.on('moveend', fullMapLink);
-}
-
-// ---- полная карта на Leaflet (телефон, режим блокировки) -------------------
-// Отличается от встроенной только тем, что камера не заперта рамкой народа и
-// слоёв больше: сфера, постсоветские приобретения, фронт, остроги, Беларусь.
-async function bootLeafletFull() {
-  await loadLeaflet();
-  LMAP = L.map('map', {center: [45, 55], zoom: 2, zoomControl: true,
-                       attributionControl: true, worldCopyJump: true,
-                       zoomSnap: 0.25, wheelPxPerZoomLevel: 90});
-  const dimQ = parseFloat(new URLSearchParams(location.search).get('dim'));
-  const dim = isFinite(dimQ) ? Math.min(Math.max(dimQ, 0.2), 1) : 0.55;
-  document.documentElement.style.setProperty('--dim', dim);
-  document.documentElement.style.setProperty('--dim-lab', Math.min(1, dim + 0.25));
-  L.tileLayer(TILES, {attribution: TILE_ATTR, maxZoom: 19, detectRetina: true,
-                      className: 'basemap-dim'}).addTo(LMAP);
-  LMAP.createPane('fills').style.zIndex = 420;
-  const lab = LMAP.createPane('labels');
-  lab.style.zIndex = 460;
-  lab.style.pointerEvents = 'none';
-  L.tileLayer(TILES_LAB, {pane: 'labels', maxZoom: 19, detectRetina: true,
-                          className: 'labels-dim'}).addTo(LMAP);
-  LLAYERS = {};
-  const style = {
-    belarus: LSTYLE.by, sphere: LSTYLE.sphere, core: LSTYLE.red,
-    terr: LSTYLE.red, front: LSTYLE.red, ostrog: LSTYLE.ostrog,
-  };
-  for (const k of ['belarus', 'sphere', 'core', 'terr', 'front', 'ostrog'])
-    LLAYERS[k] = L.geoJSON(null, {pane: 'fills', style: style[k],
-      pointToLayer: (ft, ll) => L.circleMarker(ll, {...style[k], radius: 4})}).addTo(LMAP);
-  LMAP.on('click', e => showHistory(e.latlng));
-  const ll = (new URLSearchParams(location.search).get('ll') || '')
-    .split(',').map(Number);
-  const z = Number(new URLSearchParams(location.search).get('z'));
-  if (ll.length === 2 && ll.every(v => isFinite(v)))
-    LMAP.setView([ll[1], ll[0]], isFinite(z) && z > 0 ? z : 5);
-  setTimeout(() => LMAP.invalidateSize({animate: false}), 200);
-}
-
-// ---- нет WebGL: объяснение вместо карты ------------------------------------
-function noGlNotice() {
-  const host = $('map');
-  host.innerHTML = '';
-  host.style.background = '#14171c';
-  const box = document.createElement('div');
-  box.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;'
-    + 'justify-content:center;padding:22px;box-sizing:border-box';
-  box.innerHTML = '<div style="max-width:440px;color:#b7c1ca;font-size:13px;'
-    + 'line-height:1.5;text-align:center">'
-    + '<div style="font-size:15px;color:#e6e6e6;margin-bottom:8px">'
-    + 'Карта не может нарисоваться в этом браузере</div>'
-    + 'Он не даёт WebGL - чаще всего это режим блокировки iOS. '
-    + 'В Safari его можно выключить для одного сайта: меню страницы «аА» -> '
-    + '«Настройки для этого веб-сайта» -> «Режим блокировки».'
-    + '<div style="margin-top:12px"><a href="' + FULL_MAP_URL
-    + '" target="_blank" rel="noopener" style="color:#e0654f">'
-    + 'Открыть полную карту ↗</a></div></div>';
-  host.appendChild(box);
-  $('bar').style.display = 'none';
-  $('map').style.inset = '0';
 }
 
 // ---- панель встроенной карты ----------------------------------------------
@@ -1646,11 +1342,10 @@ const corePending = new Map();            // что уже качается: к�
 const DETAIL_Z = 4.5;
 // С этого масштаба (окно Грозного) средний срез меняется на полный.
 const FULL_Z = 8;
-// Масштаб в единицах MapLibre при любом показе: шим Equal Earth приводит зум
-// OpenLayers к нему сам (zML), у Leaflet шкала та же.
+// Масштаб в единицах MapLibre: шим Equal Earth приводит зум OpenLayers к нему
+// сам (zML).
 function zoomNow() {
   try {
-    if (LMAP) return LMAP.getZoom();
     return (map && map.getZoom) ? map.getZoom() : 0;
   } catch (e) { return 0; }
 }
@@ -2262,10 +1957,6 @@ async function render(t, fromPicker) {
 // 19.08.2026 (решение куратора «никаких штриховок»): 1917–1921 рисуется так
 // же бинарно, как остальное. Осталась Беларусь и легенда потерь контроля.
 function periods(t) {
-  if (LLAYERS) {                            // Leaflet: слой живёт данными
-    setLayer('belarus', inPer('by', t) ? BELARUS : EMPTY);
-    return;
-  }
   if (!map.getLayer('by-fill')) return;
   const cuts = lossActive(t);
   for (const [k, ids] of [['by', ['by-fill', 'by-line']]]) {
@@ -2814,20 +2505,14 @@ function clampPopup() {
   const el = histPopup.getElement();
   if (!el) return;
   el.style.marginLeft = '0px';
-  // В Leaflet-режиме карты MapLibre нет: рамку берём у самого контейнера
-  const cont = LMAP ? $('map') : map.getContainer();
+  const cont = map.getContainer();
   if (!cont || !cont.getBoundingClientRect) return;
   const mc = cont.getBoundingClientRect();
   // Попап ставим по центру карты и не даём ему быть выше неё: панель с
   // ползунком начинается сразу под картой, и длинный попап иначе уезжал под
   // неё. Что не влезло - прокручивается внутри самого попапа.
-  // По центру ставим только в полной карте: в Leaflet-режиме попап лежит в
-  // слое, который сам едет вместе с картой, и «середина» там уезжает вместе с
-  // ним. Там попап и так почти во весь экран, а карту под него подвигает
-  // autoPan; нам остаётся ограничить высоту.
-  if (!LMAP) el.classList.add('hist-center');
-  const box = el.querySelector('.maplibregl-popup-content')
-           || el.querySelector('.leaflet-popup-content-wrapper');
+  el.classList.add('hist-center');
+  const box = el.querySelector('.maplibregl-popup-content');
   if (!box) return;
   const cap = h => { box.style.maxHeight = Math.max(120, Math.round(h)) + 'px'; };
   cap(mc.height - 28);
@@ -2836,7 +2521,6 @@ function clampPopup() {
   // Мерим, что вышло, и добираем разницу.
   const over = el.getBoundingClientRect().height - (mc.height - 28);
   if (over > 0) cap(mc.height - 28 - over - 4);
-  if (LMAP && histPopup._pan) histPopup._pan();      // подвинуть карту под попап
 }
 
 function rowHTML(cls, lab, body, dur, prec) {
@@ -3216,10 +2900,9 @@ async function showHistory(ll) {
           sphere: ((sphere && sphere.features) || []).filter(f => inGeom(x, y, f.geometry))};
   if (histPopup) histPopup.remove();         // ширину считаем по окну: телефон
   const maxW = Math.min(340, ($('map').clientWidth || 360) - 28);
-  histPopup = LMAP ? leafletPopup(maxW)
-    : new maplibregl.Popup({className: 'hist', closeOnMove: false,
-        closeOnClick: false, focusAfterOpen: false, maxWidth: maxW + 'px',
-        centered: true});
+  histPopup = new maplibregl.Popup({className: 'hist', closeOnMove: false,
+      closeOnClick: false, focusAfterOpen: false, maxWidth: maxW + 'px',
+      centered: true});
   histPopup.setLngLat(ll).setHTML(histHead()
     + '<div class="wait">считаю историю точки…</div>').addTo(map);
   clampPopup();
@@ -3726,7 +3409,7 @@ addLossStops();
     map.on('styledata', move);
   }
 
-  const coreSrc = map.getSource('core');   // в Leaflet-режиме источника нет
+  const coreSrc = map.getSource('core');   // источник появляется после стиля
   if (coreSrc) coreSrc.attribution =
     'Границы: historical-basemaps · Фронт: <a href="https://deepstatemap.live">DeepStateMAP</a>' +
     ' · 1917–1921: реконструкция (черновик)' +
@@ -3761,22 +3444,15 @@ addLossStops();
     applySat();
   };
 
-  // Телефон и браузер без WebGL: полная карта рисуется Leaflet-ом по
-  // облегчённым срезам (решение куратора 01.09.2026). Все слои MapLibre выше
-  // при этом молча уходят в заглушку и ничего не делают.
-  if (LEAFLET) await bootLeafletFull();
-
   // Ссылка на дату: ?d=1571-05-24 (день можно опустить: ?d=1930-12 или ?d=1783).
   // Заведено 28.08.2026 по вопросу куратора «это можно посмотреть на карте?» -
   // чтобы конкретный день открывался ссылкой, а не набором в трёх полях.
   await render(dateFromUrl() ?? T0);
   // Экран загрузки уходит на первом ПОЛНОМ кадре: после первого рендера ждём
   // 'idle' шима (OpenLayers rendercomplete - все тайлы кадра дорисованы).
-  // Если тайлы кадра уже все на месте, не ждём ничего. Leaflet-режим событий
-  // не шлёт - там экран уходит сразу. Предохранитель - 20 с.
+  // Если тайлы кадра уже все на месте, не ждём ничего. Предохранитель - 20 с.
   splashSet(0, 'первый кадр…');           // полосу ведут тайлы (30-95%), тут только слово
-  if (LEAFLET) splashDone('leaflet');
-  else {
+  {
     // Полный кадр = все запрошенные тайлы подложки приехали. Ждать одного
     // 'idle' мало: OpenLayers успевает отрисовать пустой кадр и объявить
     // rendercomplete до того, как источник поставит первый тайл в очередь
@@ -3836,7 +3512,7 @@ addLossStops();
     const z = Number(START_Q.get('z'));
     if (ll.length === 2 && ll.every(v => isFinite(v)))
       map.jumpTo({center: [ll[0], ll[1]], zoom: isFinite(z) && z > 0 ? z : map.getZoom()});
-    else if (!LEAFLET) fitToCore();
+    else fitToCore();
   }
 }).catch(e => {
   console.error('карта не собралась:', e);
