@@ -2607,12 +2607,16 @@ async function renderHistory() {
   for (const f of OSTROG) {
     if (!inGeom(x, y, f.geometry)) continue;
     const p = f.p;
+    // Типы точки разного рода (с 17.09.2026 на слое есть станицы и сёла):
+    // «крепость оставлена», «село оставлено», всё прочее - «оставлен».
+    const LEFT_WORD = k => (k === 'krepost' || k === 'faktor' || k === 'stanitsa')
+      ? 'оставлена' : (k === 'selenie' ? 'оставлено' : 'оставлен');
     const lab = p.kind_ru.charAt(0).toUpperCase() + p.kind_ru.slice(1);
     html += rowHTML('', lab,
       '<b>' + p.name + '</b>'
         + (p.land ? '<br>чья земля: ' + p.land : '')
         + (p.note ? '<br><span class="prec">' + p.note + '</span>' : ''),
-      'с ' + dmy(f.t0) + (f.t1 < 8.64e15 ? ' · оставлен ' + dmy(f.t1) : ''),
+      'с ' + dmy(f.t0) + (f.t1 < 8.64e15 ? ' · ' + LEFT_WORD(p.kind) + ' ' + dmy(f.t1) : ''),
       p.source);
   }
 
