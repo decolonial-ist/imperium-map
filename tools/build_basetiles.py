@@ -71,6 +71,82 @@ RULES = {
 }
 
 
+# Линия по Перекопу на обзорных зумах (17.09.2026, куратор: «на далёком
+# отдалении всплывает старая граница в Крыму, откуда она берётся»).
+# Фильтр показа (ee-shim.js) снимает спорные линии по признаку claimed_by, а на
+# z3-z4 генерализация OpenMapTiles этот признак теряет: в тайле остаётся голое
+# {admin_level: 2, disputed: 1} без владельца заявки, и линия рисуется. Резать
+# по одному лишь disputed нельзя - с обзора ушли бы Кашмир, линия фактического
+# контроля Китай-Индия, марокканская стена, Косово, Фолкленды и прочие.
+# Поэтому режем ОДНУ фичу и по географии: спорную линию без владельца заявки,
+# которая целиком лежит в крымской коробке. Замер 17.09.2026: в тайлах z3 4/2 и
+# z4 9/5 такая фича ровно одна и лежит в коробке на 100 % (границы
+# 33,6-36,7 в. д. / 44,9-46,2 с. ш.) - это Перекоп, Сиваш и Керченский пролив.
+# Ни одна другая спорная линия мира в эту коробку не попадает.
+KRYM_BOX = (31.5, 44.0, 37.5, 47.0)
+
+
+def tile_lonlat(z, x, y, extent, px, py):
+    """Координаты точки тайла (y вниз) в градусах."""
+    n = 1 << z
+    lon = (x + px / extent) / n * 360.0 - 180.0
+    t = (y + py / extent) / n
+    lat = math.degrees(math.atan(math.sinh(math.pi * (1 - 2 * t))))
+    return lon, lat
+
+
+def _coords(geom):
+    """Все вершины геометрии тайла, какой бы вложенности она ни была."""
+    c = geom.get('coordinates')
+    stack = [c]
+    while stack:
+        it = stack.pop()
+        if not it:
+            continue
+        if isinstance(it[0], (int, float)):
+            yield it[0], it[1]
+        else:
+            stack.extend(it)
+
+
+def _in_krym(z, x, y, extent, line):
+    """Все вершины куска линии лежат в крымской коробке."""
+    w, s0, e, n0 = KRYM_BOX
+    ok = False
+    for pt in line:
+        lon, lat = tile_lonlat(z, x, y, extent, pt[0], pt[1])
+        if not (w <= lon <= e and s0 <= lat <= n0):
+            return False
+        ok = True
+    return ok
+
+
+def cut_perekop(z, x, y, extent, f):
+    """Геометрия без крымских кусков спорной линии, или None если ничего не осталось.
+
+    На обзорных зумах OpenMapTiles СКЛЕИВАЕТ спорные границы мира в одну фичу:
+    на z0 в ней семнадцать кусков - Гайана, Кашмир, Судан, Сомали, Палестина и
+    два крымских. Выбросить фичу целиком нельзя, уйдёт всё сразу; поэтому режем
+    ПО КУСКАМ - убираем те, что целиком лежат в крымской коробке, остальные
+    оставляем как были.
+    """
+    p = f.get('properties') or {}
+    g = f.get('geometry') or {}
+    if p.get('disputed') != 1 or 'claimed_by' in p:
+        return g
+    t, c = g.get('type'), g.get('coordinates')
+    if t == 'LineString':
+        return None if _in_krym(z, x, y, extent, c) else g
+    if t == 'MultiLineString':
+        keep = [ln for ln in c if not _in_krym(z, x, y, extent, ln)]
+        if not keep:
+            return None
+        if len(keep) == len(c):
+            return g
+        return {'type': 'MultiLineString', 'coordinates': keep}
+    return g
+
+
 def lon2x(lon, z):
     return int(math.floor((lon + 180.0) / 360.0 * (1 << z)))
 
@@ -114,7 +190,7 @@ def fetch(url, tries=4):
     raise RuntimeError(f'{url}: {last}')
 
 
-def strip(data):
+def strip(data, tile_xyz=None):
     """Урезанный тайл (сырой pbf) и отчёт по слоям: было/стало фич, байт."""
     tile = mvt.decode(data, default_options={'y_coord_down': True})
     layers, report = [], {}
@@ -122,12 +198,18 @@ def strip(data):
         src = tile.get(name)
         if not src:
             continue
+        ext = src.get('extent', 4096)
         feats = []
         for f in src['features']:
             p = f.get('properties') or {}
             if not keep(p):
                 continue
-            feats.append({'geometry': f['geometry'],
+            geom = f['geometry']
+            if name == 'boundary' and tile_xyz:
+                geom = cut_perekop(tile_xyz[0], tile_xyz[1], tile_xyz[2], ext, f)
+                if geom is None:
+                    continue
+            feats.append({'geometry': geom,
                           'properties': {k: p[k] for k in attrs if k in p}})
         report[name] = [len(src['features']), len(feats)]
         if feats:
@@ -164,7 +246,7 @@ def main():
     if a.only:
         z, x, y = map(int, a.only.split('/'))
         raw = fetch(tpl.replace('{z}', str(z)).replace('{x}', str(x)).replace('{y}', str(y)))
-        enc, rep = strip(raw)
+        enc, rep = strip(raw, (z, x, y))
         gz = gzip.compress(enc, 9) if enc else b''
         print(f'{z}/{x}/{y}: было {len(raw)} байт сырыми ({len(gzip.compress(raw, 6))} gzip); '
               f'стало {len(enc)} сырыми, {len(gz)} gzip')
@@ -188,7 +270,7 @@ def main():
     def work(t):
         z, x, y = t
         raw = fetch(tpl.replace('{z}', str(z)).replace('{x}', str(x)).replace('{y}', str(y)))
-        enc, rep = strip(raw)
+        enc, rep = strip(raw, (z, x, y))
         gz = gzip.compress(enc, 9) if enc else gzip.compress(b'', 9)
         if not a.check:
             d = os.path.join(OUT, str(z), str(x))

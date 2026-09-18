@@ -1,7 +1,7 @@
 {
- "planet": "20260906_080001_pt",
- "tiles_template": "https://tiles.openfreemap.org/planet/20260906_080001_pt/{z}/{x}/{y}.pbf",
- "built": "2026-09-15",
+ "planet": "20260913_164504_pt",
+ "tiles_template": "https://tiles.openfreemap.org/planet/20260913_164504_pt/{z}/{x}/{y}.pbf",
+ "built": "2026-09-18",
  "world_maxzoom": 4,
  "maxzoom": 6,
  "bbox": {
@@ -131,6 +131,6 @@
   "city"
  ],
  "tiles": 1741,
- "bytes": 9062660,
+ "bytes": 9050868,
  "note": "нумерация тайлов как у OpenStreetMap (z/x/y), файлы сжаты gzip; вне охвата и глубже maxzoom карта берёт тайлы OpenFreeMap"
 }
