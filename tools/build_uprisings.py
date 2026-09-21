@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Слой антиколониального сопротивления: 143 выступления с датами и геометрией.
+"""Слой антиколониального сопротивления: 148 выступлений с датами и геометрией.
 
 ЗАЧЕМ. У атласа УІФ сопротивлению отдано пять полноценных разделов (18, 31, 37,
 42, 51), на нашей карте этого сюжета не было как класса: из всего массива
@@ -20,11 +20,18 @@
     в попапе истории точки: «на этой земле в такие-то годы шло восстание такое-то
     (источник)». Так карта не врёт и сюжет не теряется.
 
-КРИТЕРИЙ УДЕРЖАНИЯ - три условия сразу, решение по фактам, не по масштабу:
-  1) на территории работала СВОЯ государственность или администрация, а не
-     только войско в поле;
-  2) удержание длилось не меньше года подряд;
+КРИТЕРИЙ УДЕРЖАНИЯ - три условия сразу, решение по фактам, не по масштабу
+(правило куратора 18.09.2026; порог «не меньше года подряд», стоявший вторым
+условием с 26.08, куратор снял 19.09.2026):
+  1) на территории работала СВОЯ власть - администрация или документально
+     удержанные волости; рейд, где отряд только прошёл, не считается;
+  2) повстанцы не были союзниками империи ни в одном её воплощении (Российская
+     империя, белые, красные, СССР, РФ); союз режет окно по датам, мятежи
+     внутри самой имперской армии не чернеют;
   3) территория на эту дату внутри контура империи - иначе вычитать нечего.
+Разбор всего реестра по этому правилу - ~/tmp/MAP-MATERIALS/
+peresmotr_resheniy_2026-09-18/ (карточки 2-4); списки ниже - по старому
+критерию и пересматриваются.
 
 Кто прошёл критерий (колонки hold_from/hold_to в реестре):
   * Астрахань 24.06.1670 - 27.11.1671 (восстание Разина): полтора года городом
@@ -34,12 +41,14 @@
   * степи Среднего жуза 1841-1845 (восстание Кенесары Касымова): Кенесары избран
     ханом всех казахов, контроль империя вернула только после постройки шести
     укреплений в 1845-1847 гг.
-Кто НЕ прошёл и почему - в колонке note реестра: «Пугачёвщина» (Оренбург, Уфа и
-Яицкая крепость осаду выдержали, Казань удержана сутки), Булавин (два месяца),
-Астраханское восстание 1705-1706 гг. (восемь месяцев), Кронштадт (восемнадцать
-дней), Тамбов и басмачество (сёла держали, города и железные дороги - нет),
-Западно-Сибирское 1921 г. (Тобольск шесть с половиной недель), Андижанское
-(проиграно в первом бою), Среднеазиатское 1916 г. (Тургай не захвачен).
+Кто НЕ прошёл и почему - в колонке note реестра. Список пересматривается по
+правилу 18-19.09.2026 (MAP-MATERIALS/peresmotr_resheniy_2026-09-18/
+03_vosstaniya_svod.md): прежние отказы «два месяца», «шесть недель» стояли на
+снятом пороге в год. Не чернеют по самому правилу армейские мятежи (Астрахань
+1705-1706 гг. - решение куратора 19.09.2026, Кронштадт), городские бунты и
+нападения одного дня (Андижан). Пугачёв, Булавин, Тамбов, басмачи, Западная
+Сибирь 1921 г. и Тургай 1916 г. держали землю - их окна по документам
+заводятся в holds.csv.
 Имамат и Ичкерия удержание прошли, но УЖЕ показаны другими механизмами -
 второй раз то же самое не вычитаем (paint=shown_elsewhere).
 
@@ -53,7 +62,13 @@
 Всё помечено approximate: административная нарезка сегодняшнего дня - не
 граница выступления XVII века, она даёт только «эта земля, примерно».
 
-Вход:  data/resistance/registry.csv (143 строки, курируется руками)
+Вход:  data/resistance/registry.csv (148 строк, курируется руками);
+       data/resistance/holds.csv - окна удержания, по нескольку на одно
+       выступление (19.09.2026: союз с империей режет окно по датам; у Махно
+       пять окон по районам, у Ноябрьского восстания - восемь по воеводствам).
+       Колонка place - подпись окна в подсказке карты. Выступление с окнами в
+       holds.csv держит колонки hold_* реестра пустыми - одно место на
+       правду; у остальных окно по-прежнему в реестре.
 Выход: data/resistance/uprisings.geojson - все выступления, для попапа;
        data/resistance/cuts.geojson      - только удержания, обрезанные
                                            контуром ядра, для выреза из красного;
@@ -77,6 +92,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE = os.path.join(ROOT, 'cache')
 DATA = os.path.join(ROOT, 'data')
 REG = os.path.join(DATA, 'resistance', 'registry.csv')
+HOLDS = os.path.join(DATA, 'resistance', 'holds.csv')
 OUT = os.path.join(DATA, 'resistance', 'uprisings.geojson')
 OUT_CUTS = os.path.join(DATA, 'resistance', 'cuts.geojson')
 REPORT = os.path.join(DATA, 'resistance', 'report.md')
@@ -236,6 +252,42 @@ def _dump(geom, nd=ND):
     return {'type': m['type'], 'coordinates': walk(m['coordinates'])}
 
 
+def load_holds(names):
+    """Окна удержания из holds.csv: {имя выступления: [окно, ...]} и ошибки."""
+    out, bad = {}, []
+    if not os.path.exists(HOLDS):
+        return out, bad
+    with open(HOLDS, encoding='utf-8', newline='') as f:
+        for i, r in enumerate(csv.DictReader(f), 2):
+            name = (r.get('name') or '').strip()
+            if not name or name.startswith('#'):
+                continue
+            where = f'holds.csv, строка {i} ({name})'
+            if name not in names:
+                bad.append(f'{where}: такого выступления нет в реестре')
+                continue
+            hf = (r.get('hold_from') or '').strip()
+            ht = (r.get('hold_to') or '').strip()
+            if not hf or not ht:
+                bad.append(f'{where}: у окна нет начала или конца')
+                continue
+            if _norm(ht) <= _norm(hf):
+                bad.append(f'{where}: окно вывернуто')
+                continue
+            if not (r.get('source') or '').strip():
+                bad.append(f'{where}: пустой источник')
+            out.setdefault(name, []).append({
+                'hold_from': hf, 'hold_to': ht,
+                'hold_geo': (r.get('hold_geo') or '').strip(),
+                'hold_note': (r.get('hold_note') or '').strip(),
+                'hold_source': (r.get('source') or '').strip(),
+                'hold_place': (r.get('place') or '').strip(),
+                'where': where})
+    for ws in out.values():
+        ws.sort(key=lambda w: _norm(w['hold_from']))
+    return out, bad
+
+
 def main():
     if not os.path.exists(REG):
         raise SystemExit(f'нет таблицы {REG}')
@@ -244,6 +296,8 @@ def main():
                 if r.get('name') and not r['name'].startswith('#')]
 
     feats, cuts, report, bad, nogeo = [], [], [], [], []
+    holds, hbad = load_holds({r['name'].strip() for r in rows})
+    bad.extend(hbad)
     for i, r in enumerate(rows, 2):
         name = r['name'].strip()
         kind = r['kind'].strip()
@@ -263,10 +317,20 @@ def main():
         ht = r.get('hold_to', '').strip()
         if hf and not ht:
             bad.append(f'строка {i} ({name}): есть hold_from без hold_to')
+        wins = holds.get(name, [])
+        if wins and (hf or ht or r.get('hold_geo', '').strip()):
+            bad.append(f'строка {i} ({name}): окна удержания и в реестре, и в '
+                       f'holds.csv - оставь одно место')
+        if not wins and hf:
+            wins = [{'hold_from': hf, 'hold_to': ht,
+                     'hold_geo': r.get('hold_geo', '').strip(),
+                     'hold_note': r.get('hold_note', '').strip(),
+                     'hold_source': '', 'hold_place': '',
+                     'where': f'строка {i} ({name})'}]
         # чем показываем
-        if hf and r.get('hold_geo', '').strip():
+        if any(w['hold_geo'] for w in wins):
             paint = 'cut'
-        elif hf:
+        elif wins:
             paint = 'shown_elsewhere'   # имамат, Ичкерия - уже на карте
         else:
             paint = 'none'
@@ -286,8 +350,12 @@ def main():
             'confidence': r.get('confidence', '').strip(),
             'note': r.get('note', '').strip(),
             'paint': paint,
-            'hold_from': hf, 'hold_to': ht,
-            'hold_note': r.get('hold_note', '').strip(),
+            'hold_from': wins[0]['hold_from'] if wins else '',
+            'hold_to': wins[0]['hold_to'] if wins else '',
+            'hold_note': wins[0]['hold_note'] if wins else '',
+            'holds': [{'from': w['hold_from'], 'to': w['hold_to'],
+                       'note': w['hold_note'], 'place': w['hold_place']}
+                      for w in wins],
             'geometry_source': r.get('geo', '').strip(),
             'approximate': True,
         }
@@ -295,26 +363,31 @@ def main():
             feats.append({'type': 'Feature', 'properties': props,
                           'geometry': _dump(geom.simplify(
                               SIMPLIFY, preserve_topology=True))})
-        # вырез: геометрия удержания, обрезанная контуром ядра на дату начала
-        if paint == 'cut':
-            hg = resolve_geo(r['hold_geo'], f'строка {i} ({name}) hold_geo')
-            key = core_key(_norm(hf))
+        # вырез: геометрия удержания, обрезанная контуром ядра на дату начала;
+        # по одному на каждое окно с геометрией
+        for n_win, w in enumerate(wins, 1):
+            if not w['hold_geo']:
+                continue
+            hg = resolve_geo(w['hold_geo'], f"{w['where']}, hold_geo")
+            key = core_key(_norm(w['hold_from']))
             ck = core(key)
             clipped = hg.intersection(ck).buffer(0)
             share = clipped.area / hg.area if hg.area else 0
             if clipped.is_empty:
-                bad.append(f'строка {i} ({name}): удержанная территория целиком '
-                           f'вне контура империи на {hf} (срез {key}) - '
+                bad.append(f"{w['where']}: удержанная территория целиком вне "
+                           f"контура империи на {w['hold_from']} (срез {key}) - "
                            f'вычитать нечего')
                 continue
             if share < 0.2:
-                bad.append(f'строка {i} ({name}): внутри контура империи только '
+                bad.append(f"{w['where']}: внутри контура империи только "
                            f'{share:.0%} удержанной территории (срез {key}) - '
                            f'проверь geo и даты')
             cuts.append({'type': 'Feature', 'properties': dict(
-                props, core_key=key, inside_share=round(share, 3),
-                geometry_source=r['hold_geo'].strip() +
-                f' ∩ ядро на срезе {key}'),
+                props, hold_from=w['hold_from'], hold_to=w['hold_to'],
+                hold_note=w['hold_note'], hold_source=w['hold_source'],
+                hold_place=w['hold_place'],
+                window=n_win, core_key=key, inside_share=round(share, 3),
+                geometry_source=w['hold_geo'] + f' ∩ ядро на срезе {key}'),
                 'geometry': _dump(clipped.simplify(
                     SIMPLIFY_CUT, preserve_topology=True))})
         report.append((frm, to, r['name_ru'].strip(), KINDS[kind], paint,

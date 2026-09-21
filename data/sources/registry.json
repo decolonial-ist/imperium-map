@@ -1,6 +1,6 @@
 {
  "note": "Реестр источников границ imperium-map. Типы: self_determination_map | treaty_annex_map | treaty_text | reference. Статусы: found | downloaded | digitized | integrated | read. Правило 28.08.2026: ни один изученный источник не пропадает - всё, что открывали, попадает сюда с полем used_in (где применено) и честным статусом (read = читали текст, found = видели только выдачу поиска или заголовок).",
- "updated": "2026-08-31",
+ "updated": "2026-09-19",
  "items": [
   {
    "slug": "ukraine-ppc-1919-delegation",
@@ -2391,6 +2391,904 @@
     "MAP-MATERIALS/ukraine/11_zapadnaya_ukraina.md"
    ],
    "note": "Львов занят 03.09.1914, Бобринский генерал-губернатор 05.09.1914-14.07.1915, отход июнь 1915; актов империи на диске нет"
+  },
+  {
+   "slug": "un-s-res-2-1946",
+   "title": "Резолюция Совета Безопасности ООН S/RES/2 (1946) по жалобе Ирана",
+   "author": "Совет Безопасности ООН",
+   "year": 1946,
+   "subject": "советские войска в Иране 1946",
+   "type": "publication",
+   "url": "https://documents.un.org/api/symbol/access?s=S/RES/2(1946)&l=en&t=pdf",
+   "local": "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/S_RES_2_1946_EN.pdf",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/01_iran.md"
+   ],
+   "note": "30.01.1946: стороны намерены решать спор переговорами; Совет просит сообщать о результатах и вправе запросить сведения"
+  },
+  {
+   "slug": "un-s-res-3-1946",
+   "title": "Резолюция Совета Безопасности ООН S/RES/3 (1946) по иранскому вопросу",
+   "author": "Совет Безопасности ООН",
+   "year": 1946,
+   "subject": "вывод советских войск из Ирана",
+   "type": "publication",
+   "url": "https://documents.un.org/api/symbol/access?s=S/RES/3(1946)&l=en&t=pdf",
+   "local": "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/S_RES_3_1946_EN.pdf",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/01_iran.md"
+   ],
+   "note": "04.04.1946: Совет принимает заверения СССР, что вывод войск «уже начат» и завершится за пять-шесть недель; вопрос отложен до 6 мая"
+  },
+  {
+   "slug": "un-s-res-5-1946",
+   "title": "Резолюция Совета Безопасности ООН S/RES/5 (1946) по иранскому вопросу",
+   "author": "Совет Безопасности ООН",
+   "year": 1946,
+   "subject": "вывод советских войск из Ирана",
+   "type": "publication",
+   "url": "https://documents.un.org/api/symbol/access?s=S/RES/5(1946)&l=en&t=pdf",
+   "local": "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/S_RES_5_1946_EN.pdf",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/01_iran.md"
+   ],
+   "note": "08.05.1946: Совет откладывает вопрос до доклада правительства Ирана о полном выводе"
+  },
+  {
+   "slug": "arshinov-1923-mahno",
+   "title": "П. А. Аршинов. История махновского движения (1918–1921 гг.). Берлин, 1923",
+   "author": "П. А. Аршинов",
+   "year": 1923,
+   "subject": "окна махновского контроля 1919–1921",
+   "type": "publication",
+   "url": "http://www.makhno.ru/lit/arsh/",
+   "local": "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/mahno_arshinov_1923_istoriya_mahnovskogo_dvizheniya.txt",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/02_mahno.md"
+   ],
+   "note": "мемуар участника: Александровск занят в начале октября 1919, Екатеринослав оставлен «в конце ноября», красные пришли «в двадцатых числах декабря (по старому стилю)»"
+  },
+  {
+   "slug": "lebedev-1935-astrakhan-1705",
+   "title": "Астраханское восстание 1705–1706 гг. Документы / публ. В. Лебедева // Историк-марксист, 1935, № 4 (44)",
+   "author": "В. Лебедев (публикатор); документы повстанческого круга Астрахани из дел Преображенского приказа",
+   "year": 1935,
+   "subject": "цели, власть и противники Астраханского восстания 1705–1706",
+   "type": "publication",
+   "url": "https://www.vostlit.info/Texts/Dokumenty/Russ/XVIII/1700-1720/Astrachan_vosst/text.htm",
+   "local": "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/1935_lebedev_astrakhan_1705_dokumenty_vostlit.txt",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/04_astrahan_1705.md"
+   ],
+   "note": "указы круга шли «по указу великого государя» под «печатью царства Астраханского»; цель своими словами - против брадобрития и немецкого платья; приговор 10.03.1706 подписали одни полки"
+  },
+  {
+   "slug": "rosspen-2006-mahno",
+   "title": "Нестор Махно. Крестьянское движение на Украине. 1918–1921. Документы и материалы. М.: РОССПЭН, 2006",
+   "author": "сост. В. Данилов, Т. Шанин и др.",
+   "year": 2006,
+   "subject": "дни махновского контроля 1919–1921",
+   "type": "publication",
+   "url": "https://imwerden.de/publ-16986",
+   "local": "MAP-MATERIALS/2006_rosspen_nestor_mahno_dokumenty/makhno_rosspen_2006.txt",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/02_mahno.md"
+   ],
+   "note": "документы махновцев датированы по новому стилю, белых - по старому; вне закона 09.01.1920 (док. № 193); соглашение 02.10.1920 (№ 269); приказ 26.11.1920 (№ 318)"
+  },
+  {
+   "slug": "frus-1941-v3-d427",
+   "title": "FRUS 1941, vol. III, № 122: Dreyfus to Secretary of State, Tehran, 30.08.1941",
+   "author": "US Department of State",
+   "year": 1941,
+   "subject": "граница советской зоны оккупации Ирана",
+   "type": "publication",
+   "url": "https://history.state.gov/historicaldocuments/frus1941v03/d427",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/01_iran.md"
+   ],
+   "note": "британская версия линии отвода советских войск: Ирак - Ушну - Миандоаб - Зенджан - Казвин - Хоррамабад на Каспии - Бабольсар - Семнан - Шахруд - граница СССР"
+  },
+  {
+   "slug": "frus-1941-v3-d436",
+   "title": "FRUS 1941, vol. III, № 134: Dreyfus to Secretary of State, Tehran, 03.09.1941",
+   "author": "US Department of State",
+   "year": 1941,
+   "subject": "граница советской зоны оккупации Ирана",
+   "type": "publication",
+   "url": "https://history.state.gov/historicaldocuments/frus1941v03/d436",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/01_iran.md"
+   ],
+   "note": "Иран просит исключить из советской зоны Казвин, Семнан, Шахруд"
+  },
+  {
+   "slug": "frus-1941-v3-d446",
+   "title": "FRUS 1941, vol. III, № 1638: Steinhardt to Secretary of State, Moscow, 07.09.1941",
+   "author": "US Department of State",
+   "year": 1941,
+   "subject": "граница советской зоны оккупации Ирана",
+   "type": "publication",
+   "url": "https://history.state.gov/historicaldocuments/frus1941v03/d446",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/01_iran.md"
+   ],
+   "note": "советская версия зоны: весь Иранский Азербайджан через Резайе, Миандоаб, Зенджан, Казвин, Амоль; плюс Мешхед"
+  },
+  {
+   "slug": "truman-map-m94-iran",
+   "title": "Map of Soviet Occupation in Iran (Truman Library, M94)",
+   "author": "Harry S. Truman Library",
+   "year": 1946,
+   "subject": "граница советской зоны оккупации Ирана",
+   "type": "publication",
+   "url": "https://www.trumanlibrary.gov/maps/m94-map-soviet-occupation-iran",
+   "status": "found",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/01_iran.md"
+   ],
+   "note": "страница карты открыта, описание и изображение не получены - к розыску"
+  },
+  {
+   "slug": "frus-1941-v3-d445",
+   "title": "FRUS 1941, vol. III, № 140: Dreyfus to Secretary of State, Tehran, 07.09.1941",
+   "author": "US Department of State",
+   "year": 1941,
+   "subject": "граница советской зоны оккупации Ирана",
+   "type": "publication",
+   "url": "https://history.state.gov/historicaldocuments/frus1941v03/d445",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/01_iran.md"
+   ],
+   "note": "СССР отказал Ирану в изменении своей зоны: Казвин, Семнан, Шахруд остаются в ней"
+  },
+  {
+   "slug": "psz1-i-1668-bryuhovetsky",
+   "title": "ПСЗРИ, собрание первое, том I, №№ 426, 427, 455, 459, 447: грамоты 1668 года об измене Брюховецкого и Глуховские статьи 06.03.1669",
+   "author": "Комиссия составления законов",
+   "year": 1830,
+   "subject": "восстание Левобережной Украины 1668–1669: начало, амнистия, возврат полков, пять воеводских городов",
+   "type": "treaty_text",
+   "url": "https://nlr.ru/e-res/law_r/search.php",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_levoberezhye_1668.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/03_vosstaniya_svod.md"
+   ],
+   "note": "текст — ~/tmp/MATERIALS/ukraina/psz/I_raw.txt; Полтавского, Миргородского, Лубенского полковников среди подписавших Глуховские статьи нет"
+  },
+  {
+   "slug": "ayuzr-t7-t9-1668-1672",
+   "title": "Акты, относящиеся к истории Южной и Западной России, тт. 7 (1872), 8 (1873), 9 (1877)",
+   "author": "Археографическая комиссия; ред. т. 8 — Н. И. Костомаров",
+   "year": 1873,
+   "subject": "восстание Левобережья 1668–1669, Многогрешный, Дорошенко, Суховий",
+   "type": "reference",
+   "url": "https://archive.org/details/auzr08",
+   "status": "downloaded",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_levoberezhye_1668.md"
+   ],
+   "note": "archive.org auzr.07, auzr08, auzr09; распознанный текст в istochniki/ayuzr_t0*_djvu.txt; читается розыском"
+  },
+  {
+   "slug": "eiu-mnogohreshny-suhoviy",
+   "title": "Енциклопедія історії України: статті «Многогрішний», «Суховієнко», «Дорошенко Петро», «Полтавський полк», «Миргородський полк»",
+   "author": "Інститут історії України НАН України",
+   "year": 2010,
+   "subject": "Левобережье 1668–1669: кто за кем, полки Суховия",
+   "type": "reference",
+   "url": "http://www.history.org.ua/?encyclopedia",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_levoberezhye_1668.md"
+   ],
+   "note": "тома на диске ~/tmp/MATERIALS/ukraina/eiu_*"
+  },
+  {
+   "slug": "dubrovin-1884-pugachev-t1-t3",
+   "title": "Дубровин Н. Ф. Пугачёв и его сообщники. Тт. 1 и 3. СПб., 1884",
+   "author": "Н. Ф. Дубровин",
+   "year": 1884,
+   "subject": "Яицкий городок 1772; правый берег Волги 1774 — назначенные Пугачёвым воеводы и атаманы по дням",
+   "type": "reference",
+   "url": "https://archive.org/details/pugacheviegosoobschnikit350",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_yaik_1772.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_pugachev_volga_1774.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/03_vosstaniya_svod.md"
+   ],
+   "note": "с шифрами Государственного архива (разряд VI) и Московского архива Главного штаба; т. 1 — archive.org dubrovinnfpugacheviegosoobschnikiv357"
+  },
+  {
+   "slug": "psz1-xx-14233-pugachev",
+   "title": "ПСЗРИ, собрание первое, том XX, № 14233: сентенция 09.01.1775 о казни Пугачёва",
+   "author": "Комиссия составления законов",
+   "year": 1830,
+   "subject": "конец восстания Пугачёва",
+   "type": "treaty_text",
+   "url": "https://nlr.ru/e-res/law_r/search.php",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_pugachev_volga_1774.md"
+   ],
+   "note": "~/tmp/MATERIALS/ukraina/psz/XX_raw.txt, строки 30–490"
+  },
+  {
+   "slug": "avakov-2017-cherkassk-1708",
+   "title": "Аваков П. А. Черкасск и Булавинское восстание в 1708 г. (нехрестоматийная хроника) // Казачество России в бунтах, смутах и революциях. Ростов-на-Дону, 2017. С. 80–88",
+   "author": "П. А. Аваков",
+   "year": 2017,
+   "subject": "окно Черкасска 01.05–27.07.1708",
+   "type": "reference",
+   "url": "https://www.reenactor.ru/ARH/PDF/Avakov_01.pdf",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_bulavin_1708.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/03_vosstaniya_svod.md"
+   ],
+   "note": "с шифрами РГАДА, ф. 9, оп. 2, д. 18; скачали и агент, и куратор — две одинаковые копии в istochniki/"
+  },
+  {
+   "slug": "avakov-2015-azov-1708",
+   "title": "Аваков П. А. Азовский поход булавинцев 1708 г. // Меншиковские чтения – 2015. СПб., 2015. С. 183–194",
+   "author": "П. А. Аваков",
+   "year": 2015,
+   "subject": "Азов 05–06.07.1708 не взят",
+   "type": "reference",
+   "url": "https://www.reenactor.ru/ARH/PDF/Avakov_00.pdf",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_bulavin_1708.md"
+   ],
+   "note": "РГА ВМФ, ф. 176"
+  },
+  {
+   "slug": "avakov-sen-2018-hasan-pasha",
+   "title": "Аваков П. А., Сень Д. В. Письмо К. А. Булавина ачуевскому мухафызу Хасану-паше (1708 г.) // Вестник ВолГУ, 2018, № 2",
+   "author": "П. А. Аваков, Д. В. Сень",
+   "year": 2018,
+   "subject": "внешняя политика Булавина-атамана",
+   "type": "reference",
+   "url": "https://www.reenactor.ru/ARH/PDF/Avakov_Sen.pdf",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_bulavin_1708.md"
+   ],
+   "note": "прочитано частично"
+  },
+  {
+   "slug": "vostlit-podavlenie-bulavin-1722",
+   "title": "О подавлении народного восстания 1707–1708 гг. № 1: сводка реляций армии князя В. В. Долгорукого (1722)",
+   "author": "—",
+   "year": 1722,
+   "subject": "даты 26–28.07.1708 в Черкасске, разгромы Драного и Голого",
+   "type": "reference",
+   "url": "http://www.vostlit.info/Texts/Dokumenty/Russ/XVIII/1700-1720/Bulawin/O_podawlenii/text.htm",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_bulavin_1708.md"
+   ],
+   "note": "копия в istochniki/bulavin_vostlit_*"
+  },
+  {
+   "slug": "kuryshev-2024-zapsib-1921",
+   "title": "Курышев И. В. Повстанческий террор в период Западно-Сибирского восстания 1921 года // Новейшая история России, 2024, т. 14, № 2, с. 333–345",
+   "author": "И. В. Курышев",
+   "year": 2024,
+   "subject": "Тобольск, Ишимский уезд, Каркаралинск 1921",
+   "type": "reference",
+   "url": "http://modernhistory.ru/f/kuryshev.pdf",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_tambov_zapsib_basmachi.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/03_vosstaniya_svod.md"
+   ],
+   "note": "скачал куратор 19.09; архивные шифры Ишима и «Сибирская Вандея»"
+  },
+  {
+   "slug": "shishkin-2000-zapsib-1921",
+   "title": "Шишкин В. И. Западно-Сибирский мятеж 1921 года: достижения и искажения российской историографии // Acta Slavica Iaponica, т. 17 (2000), с. 100–129",
+   "author": "В. И. Шишкин",
+   "year": 2000,
+   "subject": "какие города повстанцы брали и какие нет",
+   "type": "reference",
+   "url": "https://src-h.slav.hokudai.ac.jp/publictn/acta/17/pdf/Shishkin2.pdf",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_tambov_zapsib_basmachi.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/03_vosstaniya_svod.md"
+   ],
+   "note": "скачал куратор 19.09; текст перекодирован из cp1251"
+  },
+  {
+   "slug": "tambov-1994-sbornik",
+   "title": "Крестьянское восстание в Тамбовской губернии в 1919–1921 гг. «Антоновщина». Документы и материалы. Тамбов, 1994",
+   "author": "отв. ред. В. Данилов, Т. Шанин",
+   "year": 1994,
+   "subject": "волости СТК и даты возврата по боевым участкам 1921",
+   "type": "reference",
+   "url": "https://www.tstu.ru/win/kultur/other/antonov/",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_tambov_zapsib_basmachi.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/03_vosstaniya_svod.md"
+   ],
+   "note": "прочитаны отдельные документы: nach38, voj066, raz174, raz212, raz225, raz246, raz303, raz304, raz308, raz310, pril5"
+  },
+  {
+   "slug": "tokarz-1930-wojna-1830",
+   "title": "Tokarz W. Wojna polsko-rosyjska 1830 i 1831. Warszawa, 1930",
+   "author": "Wacław Tokarz",
+   "year": 1930,
+   "subject": "окна Царства Польского по воеводствам; Литва, Волынь, Подолия 1831",
+   "type": "reference",
+   "url": "https://archive.org/details/bc.radom.pl.tokarz-wojny_polsko-rozyjskie_8768_pdf",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_polsha_kavkaz_turgay.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/03_vosstaniya_svod.md"
+   ],
+   "note": "распознанный текст — istochniki/tokarz_1930_wojna_polsko-rosyjska_1830-1831_ocr_fulltext.txt (archive.org, скан библиотеки bc.radom.pl)"
+  },
+  {
+   "slug": "zaborowski-1913-litwa-1831",
+   "title": "Zaborowski A. Wojna na Litwie w roku 1831. 1913",
+   "author": "Aleksander Zaborowski",
+   "year": 1913,
+   "subject": "уезды Жмуди и Виленщины 1831",
+   "type": "reference",
+   "url": "https://pbc.biaman.pl/dlibra/publication/edition/3496",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_polsha_kavkaz_turgay.md"
+   ],
+   "note": "прочитано около 16 разворотов"
+  },
+  {
+   "slug": "argun-salakaya-2018-abhazia-1866",
+   "title": "Аргун М. Р., Салакая С. Ш. Деятельность администрации Абхазии накануне восстания 1866 г. // Гуманитарные и юридические исследования, 2018",
+   "author": "М. Р. Аргун, С. Ш. Салакая",
+   "year": 2018,
+   "subject": "начало Лыхненского восстания 26.07.1866",
+   "type": "reference",
+   "url": "https://cyberleninka.ru/article/n/deyatelnost-administratsii-abhazii-nakanune-vosstaniya-1866-g",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_polsha_kavkaz_turgay.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/03_vosstaniya_svod.md"
+   ],
+   "note": "опора на РГВИА, ф. 400, оп. 1, д. 74"
+  },
+  {
+   "slug": "ohm-ddr-bezirke-1953",
+   "title": "OpenHistoricalMap: округа ГДР 1952–1990 (relations 2692303, 2694008, 2695366–2695376, 2696764, 2848744, 2848745)",
+   "author": "OpenHistoricalMap contributors (CC0)",
+   "year": 2026,
+   "subject": "границы 14 округов ГДР на июнь 1953 года",
+   "type": "reference",
+   "url": "https://www.openhistoricalmap.org/relation/2848744",
+   "status": "downloaded",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/05_satellity.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/geo/ddr_bezirke_1953-06.geojson"
+   ],
+   "note": "выгрузка через overpass-api.openhistoricalmap.org 19.09.2026"
+  },
+  {
+   "slug": "karpov-1911-uraltsy",
+   "title": "Карпов А. Б. Уральцы. Исторический очерк. Ч. 1: Яицкое войско от образования до 1725 г. Уральск, 1911",
+   "author": "А. Б. Карпов",
+   "year": 1911,
+   "subject": "перепись Яицкого войска 1723 г., выборы атаманов",
+   "type": "reference",
+   "url": "https://archive.org/details/karpovaburaltsych1jaitskoevojskoot83",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_kazachi_voyska_don_yaik.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/06_kazachi_voyska.md"
+   ],
+   "note": "istochniki/kazaki_karpov_1911_uraltsy_ch1_yaik_do1725.txt"
+  },
+  {
+   "slug": "sukhorukov-1891-don",
+   "title": "Сухоруков В. Д. Статистическое описание земли донских казаков (рукопись 1822-1832, изд. 1891)",
+   "author": "В. Д. Сухоруков",
+   "year": 1891,
+   "subject": "Азов 1696-1711, транжамент у Черкасска, крепости Св. Анны и Св. Димитрия, заставы 1749 г.",
+   "type": "reference",
+   "url": "https://archive.org/details/suhorukovvdstatisticheskoeopisaniezeml74",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_kazachi_voyska_don_yaik.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/06_kazachi_voyska.md"
+   ],
+   "note": "istochniki/kazaki_sukhorukov_1891_statistich_opisanie_donskikh_kazakov.txt"
+  },
+  {
+   "slug": "rib-24-donskie-dela-2",
+   "title": "Донские дела. Кн. 2 // Русская историческая библиотека, т. 24. СПб., 1906",
+   "author": "Археографическая комиссия",
+   "year": 1906,
+   "subject": "проверялось на присягу Дона 1671 г. - не содержит",
+   "type": "reference",
+   "url": "https://archive.org/details/russkajaistoricheskajabibliotekaizdavae32",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_kazachi_voyska_don_yaik.md"
+   ],
+   "note": "istochniki/kazaki_RIB_t24_donskie_dela_kn2_1906.txt"
+  },
+  {
+   "slug": "psz1-don-yaik-1708-1775",
+   "title": "ПСЗРИ, собрание первое: т. IV № 2218 (18.12.1708), т. VII № 5167 (27.09.1727), т. XI № 8215 (25.08.1740), т. XII №№ 8901-8902 (15.03.1744), т. XX (14-15.02.1775 Дон; 15.01.1775 Яик - Урал)",
+   "author": "Комиссия составления законов",
+   "year": 1830,
+   "subject": "ступени управления империи на земле Войска Донского и Яицкого",
+   "type": "treaty_text",
+   "url": "https://nlr.ru/e-res/law_r/search.php",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_kazachi_voyska_don_yaik.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/06_kazachi_voyska.md"
+   ],
+   "note": "номера актов т. XX по OCR около 14251-14255, дата и текст надёжны"
+  },
+  {
+   "slug": "kozybaev-1974-amangeldy",
+   "title": "Амангельды Иманов (статьи, документы, материалы) / сост. М. К. Козыбаев, П. М. Пахмурный. Алма-Ата: Казахстан, 1974",
+   "author": "М. К. Козыбаев, П. М. Пахмурный",
+   "year": 1974,
+   "subject": "Тургай 1916-1917: осада, волости, ставка Батпаккара, подчинение Временному правительству 28.03.1917",
+   "type": "reference",
+   "url": "https://web.archive.org/web/2015/http://bibliotekar.kz/chitat-onlain-amangeldy-imanov-m-k-kozyb/",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_polsha_kavkaz_turgay.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/03_vosstaniya_svod.md"
+   ],
+   "note": "istochniki/turgay1916_kozybaev_pahmurnyy_1974_amangeldy_imanov_dokumenty.txt; адреса снимков - …_wayback_adresa.json"
+  },
+  {
+   "slug": "radjabov-1995-istiklolchilik",
+   "title": "Раджабов Б. К. «Истиқлолчилик» ҳаракати в Ферганской долине: сущность и основные этапы развития (1918-1924 гг.). Автореферат канд. дисс. Ташкент, 1995",
+   "author": "Б. К. Раджабов",
+   "year": 1995,
+   "subject": "Мадамин-бек, Иргаш, Курширмат - окна с шифрами ЦГАСА и ЦГА Узбекистана",
+   "type": "reference",
+   "url": "https://cheloveknauka.com/istiklolchilik-harakati-v-ferganskoy-doline-suschnost-i-osnovnye-etapy-razvitiya-1918-1924-gg",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_tambov_zapsib_basmachi.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/03_vosstaniya_svod.md"
+   ],
+   "note": "istochniki/fergana_radjabov1995_istiklolchilik_avtoreferat_chelovek-nauka_clean.txt"
+  },
+  {
+   "slug": "zevelev-1981-basmachestvo",
+   "title": "Зевелев А. И., Поляков Ю. А., Чугунов Л. И. Басмачество: возникновение, сущность, крах. М., 1981 (английский перевод JPRS)",
+   "author": "А. И. Зевелев и др.",
+   "year": 1981,
+   "subject": "хроника басмачества с постраничными сносками на ЦГАСА",
+   "type": "reference",
+   "url": "https://www.cia.gov/readingroom/document/cia-rdp82-00850r000500060030-7",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_tambov_zapsib_basmachi.md"
+   ],
+   "note": "JPRS L/10517 (14.05.1982), рассекречено ЦРУ 2007; istochniki/fergana_zevelev1981_basmachestvo_jprs_cia_djvu.txt"
+  },
+  {
+   "slug": "killioglu-2022-basmaci",
+   "title": "Kıllıoğlu M. E. Статьи о басмачах и Ибрагим-беке // Gazi Akademik Bakış 15(30), 2022; Asya Studies 6(20), 2022",
+   "author": "M. E. Kıllıoğlu",
+   "year": 2022,
+   "subject": "Энвер-паша и Ибрагим-бек в Восточной Бухаре, даты удержания",
+   "type": "reference",
+   "url": "https://doi.org/10.19060/gav.1131102",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_tambov_zapsib_basmachi.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/03_vosstaniya_svod.md"
+   ],
+   "note": "istochniki/bukhara_killioglu_2022_*"
+  },
+  {
+   "slug": "korzon-1906-kosciuszko",
+   "title": "Korzon T. Kościuszko: biografia z dokumentów wysnuta. Kraków - Warszawa, 1906",
+   "author": "Tadeusz Korzon",
+   "year": 1906,
+   "subject": "российские гарнизоны в Кракове и Люблине до 1794 г., начало восстания",
+   "type": "reference",
+   "url": "https://archive.org/details/bc.radom.pl.10360-Korzon-Kosciuszko-biografia",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_kosciuszko_1794.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/03_vosstaniya_svod.md"
+   ],
+   "note": "istochniki/kosciuszko1794_korzon_1906_biografia_fulltext.txt"
+  },
+  {
+   "slug": "psz1-xxiii-1792-1795-polsha",
+   "title": "ПСЗРИ, собрание первое, т. XXIII: № 17090 (08.12.1792, занятые российскими войсками польские области), № 17141 (Гродненский трактат 1793), №№ 17286-17287, № 17318 (14.12.1795: Литва «объята Нашими войсками»)",
+   "author": "Комиссия составления законов",
+   "year": 1830,
+   "subject": "оккупация Речи Посполитой 1792-1795",
+   "type": "treaty_text",
+   "url": "https://nlr.ru/e-res/law_r/search.php",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b_kosciuszko_1794.md"
+   ],
+   "note": "~/tmp/MATERIALS/ukraina/psz/XXIII_*.txt"
+  },
+  {
+   "slug": "ohm-krolestwo-1815",
+   "title": "OpenHistoricalMap: Царство Польское 1815-1835 (relation 2692576) и 8 воеводств 1816-1837",
+   "author": "OpenHistoricalMap contributors (CC0)",
+   "year": 2026,
+   "subject": "контур Царства Польского и его воеводств",
+   "type": "reference",
+   "url": "https://www.openhistoricalmap.org/relation/2692576",
+   "status": "integrated",
+   "used_in": [
+    "imperium-map/data/poland/krolestwo_1815.geojson",
+    "imperium-map/data/poland/krolestwo_1816_*.geojson",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/03_vosstaniya_svod.md"
+   ],
+   "note": "выгрузка 19.09.2026; края Царства в каноне (PL_KINGDOM), вырезы 1830-1831"
+  },
+  {
+   "slug": "osm-solovki-islands",
+   "title": "OpenStreetMap: острова Соловецкого архипелага (place=island|islet)",
+   "author": "OpenStreetMap contributors (ODbL)",
+   "year": 2026,
+   "subject": "геометрия Соловецких островов",
+   "type": "reference",
+   "url": "https://www.openstreetmap.org/",
+   "status": "integrated",
+   "used_in": [
+    "imperium-map/data/north/solovki.geojson"
+   ],
+   "note": "tools/fetch_osm_units.py solovki, 166 островов, выгрузка 19.09.2026"
+  },
+  {
+   "slug": "osm-hetman-pereiaslav",
+   "title": "OpenStreetMap через Nominatim: районы Бориспольский, Броварской, Золотоношский и левобережные районы Киева",
+   "author": "OpenStreetMap contributors (ODbL)",
+   "year": 2026,
+   "subject": "левобережье Переяславского и Киевского полков Гетманщины, приближение районами 2020 г.",
+   "type": "reference",
+   "url": "https://nominatim.openstreetmap.org/",
+   "status": "integrated",
+   "used_in": [
+    "imperium-map/data/ukraine/hetman_pereiaslav.geojson"
+   ],
+   "note": "tools/fetch_ua_units.py hetman_pereiaslav, выгрузка 19.09.2026"
+  },
+  {
+   "slug": "stratocherk-ww1-ch4-1922",
+   "title": "Стратегический очерк войны 1914–1918 гг. Часть 4. Период с 6(19) марта по октябрь 1915 г.",
+   "author": "Высший военный редакционный совет",
+   "year": 1922,
+   "subject": "«Великое отступление» 1915 года: Либава, Ивангород, Варшава, Холм, Новогеоргиевск, Ковно, Брест",
+   "type": "primary",
+   "url": "https://archive.org/details/strategicheskijocherkvojny19141918ggm44",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/ww1_stratocherk_1922_ch4_mart-oktyabr1915_velikoe_otstuplenie.txt",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/ww1_front_1915_1917.md"
+   ],
+   "note": "даты двойные (ст. ст. и н. ст.); штабные директивы по дням; BACKLOG Б6 п. 7"
+  },
+  {
+   "slug": "klembovsky-1920-ww1-ch5",
+   "title": "Стратегический очерк войны 1914–1918 гг. Часть 5. Период с октября 1915 г. по сентябрь 1916 г.",
+   "author": "Клембовский В. Н.",
+   "year": 1920,
+   "subject": "позиционная война осени 1915 – весны 1916 года",
+   "type": "primary",
+   "url": "https://archive.org/details/strategicheskijocherkvojny19141918ggm17",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/ww1_klembovskiy_1920_ch5_oktyabr1915-sentyabr1916_pozicionnaya_voyna.txt"
+   ],
+   "note": "общая фраза о фронте от Рижского залива до румынской границы, без пунктов"
+  },
+  {
+   "slug": "stratocherk-ww1-ch6-1923",
+   "title": "Стратегический очерк войны 1914–1918 гг. Часть 6. Период с мая по декабрь 1916 г.",
+   "author": "Высший военный редакционный совет",
+   "year": 1923,
+   "subject": "Брусиловский прорыв: Луцк 25.05 (07.06) 1916, диспозиция мая 1916, Ковель",
+   "type": "primary",
+   "url": "https://archive.org/details/strategicheskijocherkvojny19141918ggm5",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/ww1_stratocherk_1923_ch6_may-dekabr1916_brusilovskiy_proryv.txt",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/ww1_front_1915_1917.md"
+   ],
+   "note": "даты двойные"
+  },
+  {
+   "slug": "stratocherk-ww1-ch7-1923",
+   "title": "Стратегический очерк войны 1914–1918 гг. Часть 7. Кампания 1917 г.",
+   "author": "Высший военный редакционный совет",
+   "year": 1923,
+   "subject": "Тарнополь и Черновицы в июле 1917, Рига 21.08 (03.09) 1917, Якобштадт, Моонзунд",
+   "type": "primary",
+   "url": "https://archive.org/details/strategicheskijocherkvojny19141918ggm43",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/ww1_stratocherk_1923_ch7_kampaniya1917_riga_moonzund.txt",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/ww1_front_1915_1917.md"
+   ],
+   "note": "даты двойные"
+  },
+  {
+   "slug": "zayonchkovsky-1938-t1",
+   "title": "Мировая война 1914–1918 гг. Т. 1: Кампании 1914–1915 гг.",
+   "author": "Зайончковский А. М.",
+   "year": 1938,
+   "subject": "линия фронта осени 1915 года «Рига — Двинск — Поставы — Крево — Барановичи — Пинск — Дубно — Бучач — Новоселицы»; Ковно, Митава, Вильна",
+   "type": "literature",
+   "url": "https://archive.org/details/zajonchkovskijammirovajavojna1914191872",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/ww1_zayonchkovskiy_1938_tom1_kampanii1914-1915.txt",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/ww1_front_1915_1917.md"
+   ],
+   "note": "3-е изд.; даты только нового стиля; Митава «20 августа» расходится со справочными сводами — на проверку"
+  },
+  {
+   "slug": "zayonchkovsky-1938-t2",
+   "title": "Мировая война 1914–1918 гг. Т. 2: Кампании 1916–1918 гг.",
+   "author": "Зайончковский А. М.",
+   "year": 1938,
+   "subject": "Черновицы, Коломыя, Станиславов 1916; отмена Ковельской операции; линия июля 1917 года",
+   "type": "literature",
+   "url": "https://archive.org/details/zajonchkovskijammirovajavojna1914191822",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/ww1_zayonchkovskiy_1938_tom2_kampanii1916-1918.txt",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/ww1_front_1915_1917.md"
+   ],
+   "note": "даты только нового стиля"
+  },
+  {
+   "slug": "ohm-rp-1569-1815",
+   "title": "OpenHistoricalMap: Речь Посполитая 1569–1795, Южная и Новая Восточная Пруссия 1793–1807, Варшавское герцогство 1807–1815, Курляндия 1569–1726",
+   "author": "OpenHistoricalMap contributors (CC0)",
+   "year": 2026,
+   "subject": "западная граница империи 1569–1815: сверка срезов, вычитания Новой Восточной Пруссии и герцогства, оккупации 1792–1795 и 1813–1815",
+   "type": "reference",
+   "url": "https://www.openhistoricalmap.org/relation/2692682",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/geo/ohm_rp_i_nasledniki_1569-1815.geojson",
+    "MAP-MATERIALS/BACKLOG_KARTY.md (Б6 п. 6, 8, 9, 11)"
+   ],
+   "note": "relations 2692495, 2693975, 2693974, 2692526, 2692682, 2692511, 2748128, 2692510, 2692578, 2693945, 2692579, 2696464, 2692577, 2692531; выгрузка через overpass-api.openhistoricalmap.org 19.09.2026; контур 1569–1629 до 1618 года неточен"
+  },
+  {
+   "slug": "berlin-treaty-1878-ru",
+   "title": "Берлинский трактат 1(13) июля 1878 года (русский текст, Викитека)",
+   "author": "",
+   "year": 1878,
+   "subject": "граница Карсской и Батумской областей 1878-1918: ст. 58 (Ольти за Россией, линия от Артвина через Чорох к Нариману, Пенек-чай, Бардуз)",
+   "type": "treaty_text",
+   "url": "https://ru.wikisource.org/wiki/Берлинский_трактат_(1878)",
+   "local": "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/berlinskiy_traktat_1878_ru_wikisource.wiki",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/BACKLOG_KARTY.md (Б6 п. 12, 14)"
+   ],
+   "note": "выгрузка action=raw 21.09.2026; текст ст. 58 и ст. 60 (Алашкерт и Баязет возвращены Турции)"
+  },
+  {
+   "slug": "esbe-olty",
+   "title": "ЭСБЕ, статья «Ольты» (с разделом «Ольтинский округ»)",
+   "author": "В. М.",
+   "year": 1897,
+   "subject": "Ольтинский округ Карсской области: юго-западная часть области, граничит на севере с Кутаисской губернией, на западе и юге с Турцией; 2627,7 кв. версты",
+   "type": "reference",
+   "url": "https://ru.wikisource.org/wiki/ЭСБЕ/Ольты",
+   "local": "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/esbe_olty_oltinskiy_okrug.wiki",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/BACKLOG_KARTY.md (Б6 п. 14)"
+   ],
+   "note": "выгрузка action=raw 21.09.2026; год - по данным статьи (население на 1.01.1896), с титулом тома не сверен"
+  },
+  {
+   "slug": "esbe-kars-oblast",
+   "title": "ЭСБЕ, статья «Карсская область»",
+   "author": "",
+   "year": 1895,
+   "subject": "Карсская область: 4 округа, 16 384,8 кв. версты - сверка региона KARS с провинциями Карс и Ардахан",
+   "type": "reference",
+   "url": "https://ru.wikisource.org/wiki/ЭСБЕ/Карсская_область",
+   "local": "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/esbe_karsskaya_oblast.wiki",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/BACKLOG_KARTY.md (Б6 п. 14)"
+   ],
+   "note": "выгрузка action=raw 21.09.2026; год тома с титулом не сверен"
+  },
+  {
+   "slug": "demirel-2008-dogu-anadolu-idari",
+   "title": "M. Demirel. Doğu Anadolu'da İdari Yapılanma (1877-1878 Osmanlı-Rus Savaşı'ndan Sonra) // A.Ü. Türkiyat Araştırmaları Enstitüsü Dergisi, 2008, Sayı 37, s. 247–258",
+   "author": "Muammer Demirel",
+   "year": 2008,
+   "subject": "османская административная нарезка после 1878: каза Ольты (нахийе Намерван осталась османской), Кискин (Юсуфели) — пограничная каза с 1879",
+   "type": "publication",
+   "url": "https://dergipark.org.tr/tr/download/article-file/33244",
+   "local": "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/demirel_2008_dogu_anadoluda_idari_yapilanma_taed37.txt",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b6_oltinskiy_okrug_1878-1918.md",
+    "MAP-MATERIALS/BACKLOG_KARTY.md (Б6 п. 14)"
+   ],
+   "note": "скан — тот же каталог, .pdf; тот же текст лежит на ayk.gov.tr под чужим названием (сверено diff розыскником)"
+  },
+  {
+   "slug": "berlin-treaty-1878-en-ajil",
+   "title": "Treaty between Austria-Hungary, France, Germany, Great Britain, Italy, Russia and Turkey... Signed at Berlin, July 13, 1878 (AJIL, текст с archive.org)",
+   "author": "",
+   "year": 1878,
+   "subject": "английские написания пунктов ст. 58: Khorda, Aschmichen, Nariman, Tebrenec, Pennek",
+   "type": "treaty_text",
+   "url": "https://archive.org/stream/jstor-2212670/2212670_djvu.txt",
+   "local": "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/berlin_treaty_1878_en_ajil_archiveorg.txt",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b6_oltinskiy_okrug_1878-1918.md",
+    "MAP-MATERIALS/BACKLOG_KARTY.md (Б6 п. 14)"
+   ],
+   "note": "OCR-текст; ст. 58 — строки 3742–3748 файла"
+  },
+  {
+   "slug": "esbe-bardus",
+   "title": "ЭСБЕ, статья «Бардус»",
+   "author": "",
+   "year": 1891,
+   "subject": "село Бардус (Бардуз) Ольтинского округа — ориентир ст. 58 (ныне Газилер, район Шенкая)",
+   "type": "reference",
+   "url": "https://ru.wikisource.org/wiki/ЭСБЕ/Бардус",
+   "local": "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/esbe_bardus_selo.wiki",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b6_oltinskiy_okrug_1878-1918.md",
+    "MAP-MATERIALS/BACKLOG_KARTY.md (Б6 п. 14)"
+   ],
+   "note": "год тома с титулом не сверен"
+  },
+  {
+   "slug": "esbe-penyak-chay",
+   "title": "ЭСБЕ, статья «Пеняк-чай»",
+   "author": "",
+   "year": 1898,
+   "subject": "Пеняк-чай — правый приток Ольты-чая в Ольтинском округе (Пенек-чай ст. 58)",
+   "type": "reference",
+   "url": "https://ru.wikisource.org/wiki/ЭСБЕ/Пеняк-чай",
+   "local": "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/esbe_penyak_chay.wiki",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b6_oltinskiy_okrug_1878-1918.md",
+    "MAP-MATERIALS/BACKLOG_KARTY.md (Б6 п. 14)"
+   ],
+   "note": "год тома с титулом не сверен"
+  },
+  {
+   "slug": "ohm-abroad-1914",
+   "title": "OpenHistoricalMap: Герцогство Буковина 1878–1918, Галиция и Лодомерия 1902–1918, провинция Восточная Пруссия 1878–1920",
+   "author": "OpenHistoricalMap contributors (CC0)",
+   "year": 2026,
+   "subject": "чужая земля 1914 года, куда входили российские войска: маска западного театра слоя Первой мировой",
+   "type": "reference",
+   "url": "https://www.openhistoricalmap.org/relation/2746401",
+   "status": "integrated",
+   "used_in": [
+    "data/ww1/ohm_abroad_1914.geojson",
+    "tools/build_ww1.py (THEATRES west, abroad_file)"
+   ],
+   "note": "relations 2746401 (Bukowina), 2800213 (Galizien und Lodomerien), 2691482 (Provinz Ostpreußen); выгрузка overpass-api.openhistoricalmap.org 21.09.2026; сверено точками: Герца и Фэлтичень вне Буковины, полоса у Белза в Галиции, Мемель в Восточной Пруссии"
+  },
+  {
+   "slug": "direktivy-glavkoma-1917-1920",
+   "title": "Директивы Главного командования Красной Армии (1917–1920). Сборник документов. М.: Воениздат, 1969",
+   "author": "",
+   "year": 1969,
+   "subject": "даты взятия и потери городов Прибалтики красными 1918–1920 (Рига 3.01.1919, Двинск 9.12.1918, Вильна, Елгава, Шяуляй, Паневежис, Гродно 19.07.1920)",
+   "type": "publication",
+   "url": "https://archive.org/details/B-001-037-905-ALL",
+   "local": "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/baltia1917_direktivy_glavkoma_krasnoy_armii_1969_djvu.txt",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b6_baltia_1917_1920.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b6_baltia_1917_1920_sverka.md",
+    "MAP-MATERIALS/BACKLOG_KARTY.md (Б6 п. 10)"
+   ],
+   "note": "OCR-текст archive.org; выписки 21.09 — baltia1917_direktivy_glavkoma_novye_citaty_digest.txt"
+  },
+  {
+   "slug": "dekrety-sovetskoy-vlasti-t4",
+   "title": "Декреты Советской власти. Т. 4 (10 ноября 1918 – 31 марта 1919). М., 1968",
+   "author": "",
+   "year": 1968,
+   "subject": "признание Эстляндской трудовой коммуны 07.12.1918 (Нарва), советские республики Прибалтики",
+   "type": "publication",
+   "url": "https://archive.org/details/dekretysovetskojvlastit410nojabrja19189",
+   "local": "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/baltia1917_dekrety_sovetskoy_vlasti_t4_1968_djvu.txt",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b6_baltia_1917_1920.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b6_baltia_1917_1920_sverka.md",
+    "MAP-MATERIALS/BACKLOG_KARTY.md (Б6 п. 10)"
+   ],
+   "note": "OCR-текст archive.org"
+  },
+  {
+   "slug": "tartu-peace-1920-ru",
+   "title": "Мирный договор между Россией и Эстонией, Юрьев (Тарту), 2 февраля 1920 года (русский текст, Викитека)",
+   "author": "",
+   "year": 1920,
+   "subject": "линия границы РСФСР и Эстонии (ст. III); германская оккупация Эстонии «к 24 февраля 1918 г.» (ст. XI)",
+   "type": "treaty_text",
+   "url": "https://ru.wikisource.org/wiki/Страница:Treaty_of_Peace_between_Russia_and_Esthonia.djvu/1",
+   "local": "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/baltia1917_tartu_rahu_1920_ru_wikisource.txt",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b6_baltia_1917_1920.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b6_baltia_1917_1920_sverka.md",
+    "MAP-MATERIALS/BACKLOG_KARTY.md (Б6 п. 10)"
+   ],
+   "note": "текст по постраничным сканам Викитеки, страницы 1–8, выгрузка 21.09.2026"
+  },
+  {
+   "slug": "riga-latvia-rsfsr-treaty-1920-en",
+   "title": "Peace Treaty between Latvia and Russia, Riga, 11 August 1920 (английский перевод Секретариата Лиги Наций)",
+   "author": "",
+   "year": 1920,
+   "subject": "граница Латвии и РСФСР (ст. 3): Лудза, Резекне, Даугавпилс — латвийские на 11.08.1920",
+   "type": "treaty_text",
+   "url": "http://web.archive.org/web/20210817221145/http://gis.nacse.org/tfdd/tfdddocs/archiveApril2010/24ENG.htm",
+   "local": "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/baltia1917_riga_latvia_treaty_1920_en_nacse.txt",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b6_baltia_1917_1920.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b6_baltia_1917_1920_sverka.md",
+    "MAP-MATERIALS/BACKLOG_KARTY.md (Б6 п. 10)"
+   ],
+   "note": "архивная копия Wayback Machine базы Transboundary Freshwater Dispute Database (Oregon State University); прямой адрес gis.nacse.org из песочницы недоступен; скачано 21.09.2026"
+  },
+  {
+   "slug": "digar-estonian-press-1918",
+   "title": "DIGAR: эстонская пресса 1918 года (Postimees, Tallinna Teataja, Päewaleht, Waba Maa, Sakala, Rahvaleht) — выдержки",
+   "author": "",
+   "year": 1918,
+   "subject": "дни германской оккупации (февраль 1918) и прихода красных (ноябрь–декабрь 1918) в городах Эстонии: Тарту 21.12.1918 («в субботу»), Гапсаль 24.02–02.03.1918, Валга 22.02.1918, Нарва 29–30.11.1918",
+   "type": "publication",
+   "url": "https://dea.digar.ee",
+   "local": "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/istochniki/baltia1917_dea_digar_newspaper_snippets_1918.txt",
+   "status": "read",
+   "used_in": [
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b6_baltia_1917_1920.md",
+    "MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b6_baltia_1917_1920_sverka.md",
+    "MAP-MATERIALS/BACKLOG_KARTY.md (Б6 п. 10)"
+   ],
+   "note": "выдержки из полнотекстового поиска DIGAR; адреса отдельных статей (dea.digar.ee/article/...) — в b6_baltia_1917_1920_sverka.md"
   }
  ]
 }

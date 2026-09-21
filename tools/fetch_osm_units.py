@@ -113,17 +113,39 @@ GROUPS = {
         'bbox': (42.5, 43.0, 43.5, 45.0),
         'names': ['Алагирский район', 'Ирафский район'],
     },
+    # Соловецкие острова (19.09.2026): в старых контурах источника их нет, и
+    # острова краснели только с 1918 г., хотя монастырь под Москвой с
+    # падения Новгорода 1478 г. (MAP-MATERIALS/BACKLOG_KARTY.md, Б6)
+    # Своего района у островов нет, а Приморский муниципальный округ в OSM
+    # включает море - поэтому берутся сами острова (place=island|islet):
+    # Соловецкий, Анзер, Муксалмы, Заяцкие, Топы и мелкие луды
+    'solovki': {
+        'out': 'north/solovki.geojson',
+        'label': 'Соловецкие острова',
+        'bbox': (64.93, 35.45, 65.22, 36.35),
+        'islands': True,
+    },
 }
 
 
 def fetch(group):
     g = GROUPS[group]
     s, w, n, e = g['bbox']
+    if g.get('islands'):
+        q = ('[out:json][timeout:180];'
+             f'(way["place"~"^(island|islet)$"]({s},{w},{n},{e});'
+             f'relation["place"~"^(island|islet)$"]({s},{w},{n},{e}););'
+             'out geom;')
+        return _ask(q)
     names = '|'.join(g['names'])
     q = ('[out:json][timeout:180];'
          'relation["boundary"="administrative"]["admin_level"="6"]'
          f'["name"~"^({names})$"]({s},{w},{n},{e});'
          'out geom;')
+    return _ask(q)
+
+
+def _ask(q):
     last = None
     for api in APIS:
         for attempt in range(2):
@@ -179,14 +201,30 @@ def main():
     d = fetch(name)
     got = {}
     polys = []
-    for el in d.get('elements', []):
+    if g.get('islands'):
+        # острова: замкнутые линии и мультиполигоны; имена - для провенанса
+        for el in d.get('elements', []):
+            nm = el.get('tags', {}).get('name') or f'{el["type"]} {el["id"]}'
+            if el['type'] == 'way' and el.get('geometry'):
+                c = [(p['lon'], p['lat']) for p in el['geometry']]
+                if len(c) > 3 and c[0] == c[-1]:
+                    polys.append(Polygon(c).buffer(0))
+                    got[nm] = True
+            elif el['type'] == 'relation':
+                rr = [Polygon(r).buffer(0) for r in rings(el)]
+                if rr:
+                    polys.append(unary_union(rr))
+                    got[nm] = True
+        if not polys:
+            raise SystemExit('островов не нашлось - геометрия НЕ записана')
+    for el in ([] if g.get('islands') else d.get('elements', [])):
         nm = el.get('tags', {}).get('name')
         rr = [Polygon(r).buffer(0) for r in rings(el)]
         if not rr:
             continue
         got[nm] = True
         polys.append(unary_union(rr))
-    miss = [n for n in g['names'] if n not in got]
+    miss = [n for n in g.get('names', []) if n not in got]
     if miss:
         raise SystemExit('НЕ НАЙДЕНЫ единицы: ' + ', '.join(miss)
                          + ' — проверь имена в OSM, геометрия НЕ записана')
@@ -196,7 +234,9 @@ def main():
         'properties': {
             'group': name, 'label': g['label'],
             'units': sorted(got),
-            'source': 'OpenStreetMap, отношения admin_level=6, выгрузка '
+            'source': ('OpenStreetMap, острова place=island|islet, выгрузка '
+                       if g.get('islands') else
+                       'OpenStreetMap, отношения admin_level=6, выгрузка ')
                       + time.strftime('%d.%m.%Y'),
         }}]}
     out = os.path.join(DATA, g['out'])
