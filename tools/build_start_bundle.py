@@ -64,6 +64,8 @@ VERSION_OF = [
     'data/losses/manifest.json', 'data/attribution/manifest.json',
     'data/basetiles/manifest.json', 'data/postsoviet.geojson', 'data/sphere.geojson',
     'data/build_stamps.json',
+    # пакеты среднего уровня и ячейки крупного масштаба (неделя 3, 24.09.2026)
+    'data/mid_manifest.json', 'data/fine_manifest.json',
 ]
 
 

@@ -16,7 +16,7 @@
 Так Карсская область (Берлинский трактат 01.07.1878) остаётся, а ленты уходят.
 
 ЧУЖИЕ - список ниже (FOREIGN). В него входят только страны, куда империя не
-распространялась НИКОГДА без отдельного акта. Финляндия, Польша, Прибалтика,
+распространялась НИКОГДА без отдельного акта. Финляндия, Польша, страны Балтии,
 Молдова, Кавказ и Средняя Азия сюда НЕ входят: империя ими владела, и их
 контуры - часть обычного показа.
 
@@ -46,14 +46,15 @@ sys.path.insert(0, HERE)
 
 import build_expansion as BE                                    # noqa: E402
 import geoclean as gc                                           # noqa: E402
+import core_tables                                              # noqa: E402
 
 CACHE = os.path.join(ROOT, 'cache')
 YEARS = os.path.join(ROOT, 'data', 'years')
 
 # Страны, где империи без отдельного акта быть не может.
-FOREIGN = ['China', 'Mongolia', 'North Korea', 'South Korea', 'Japan',
-           'Afghanistan', 'Iran', 'Turkey', 'Sweden', 'Norway',
-           'India', 'Pakistan', 'Nepal', 'Bhutan']
+# строки - data/core/foreign.csv (пустое since = чужая всегда)
+_FOREIGN = core_tables.load('FOREIGN')
+FOREIGN = _FOREIGN[0]
 
 # Бывшие республики: чужие НЕ всегда, а с даты, когда империя перестала их
 # держать. Даты - те же, что в REPUBLICS сборщика расползания. До этой даты
@@ -62,20 +63,28 @@ FOREIGN = ['China', 'Mongolia', 'North Korea', 'South Korea', 'Japan',
 # остался за имперский перешеек?») - это ядро из CShapes заходило за линию
 # Natural Earth. Крым, Донбасс, Абхазия и Цхинвали идут отдельными слоями
 # постсоветских эпизодов, в ядре их нет - обрезка их не трогает.
-FOREIGN_SINCE = {
-    'Georgia': '1991-04-09', 'Lithuania': '1991-08-21', 'Estonia': '1991-08-21',
-    'Latvia': '1991-08-21', 'Ukraine': '1991-08-24', 'Belarus': '1991-08-25',
-    'Moldova': '1991-08-27', 'Azerbaijan': '1991-08-30', 'Uzbekistan': '1991-08-31',
-    'Kyrgyzstan': '1991-08-31', 'Tajikistan': '1991-09-09', 'Armenia': '1991-09-21',
-    'Turkmenistan': '1991-10-27', 'Kazakhstan': '1991-12-16',
-}
+FOREIGN_SINCE = _FOREIGN[1]
 
 # Что обязано уцелеть после обрезки: точка, дата, чем держалась.
 # Ключи - только из манифеста: несуществующий срез проверка молча пропускает.
 # До 22.09.2026 здесь стоял '1900' - срез вне манифеста; его вместе с другими
 # двенадцатью такими перенесли в приватный репо (deprecated/, слово куратора).
-KEEP = [((42.9, 40.6), '1905', 'Карсская область, Берлинский трактат 01.07.1878'),
-        ((42.9, 40.6), '1914', 'Карсская область, до Брестского мира')]
+# строки - data/core/keep.csv (с 24.09.2026; комментарии строк - колонка comment)
+KEEP = core_tables.load('KEEP')
+
+
+_PROT = {}
+
+
+def protected():
+    # защищённые регионы (EARLY_PROTECT, LATE_PROTECT: Соловки, полоса Яика, города
+    # ГДР 1953) чистка ниже выбрасывала как тонкие куски и крапинки: полоса Яика
+    # 1772-1824 и Галле на 30.06.1953 пропадали (приёмка пачек 24.09.2026) -
+    # возвращаем то, что от них было в срезе до обрезки
+    if 'g' not in _PROT:
+        _PROT['g'] = unary_union([BE.reg_geom(r) for r in
+                                  sorted(BE.EARLY_PROTECT | BE.LATE_PROTECT)]).buffer(0)
+    return _PROT['g']
 
 
 def key_date(key):
@@ -215,6 +224,11 @@ def main():
             # закрывают дырки-озёра и заливают красным Байкал с Ладогой.
             gg, _ = gc.drop_thin_parts(gg)
             gg, _, _ = gc.despeckle(gg, CACHE)
+            # buffer(0) оставляет только площади: на касаниях пересечение даёт линии,
+            # и difference падал в GEOS (первый прогон --all 24.09.2026)
+            keep = g0.intersection(protected()).buffer(0).difference(cut.buffer(0))
+            if not keep.is_empty:
+                gg = unary_union([gg, keep]).buffer(0)
             if gg.is_empty:
                 continue
             y = dict(x)

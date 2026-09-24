@@ -110,6 +110,10 @@ GEOM = {
     'YUG': 'cs:345',
     'FIN': 'cs:375',
     'AUT-SU': 'ne1:Austria:Niederösterreich|Burgenland|Wien',
+    # советская зона Ирана 1946 года: вся и без округов Мешхеда, Шахруда,
+    # Семнана (выведены к 25.03.1946)
+    'IRN-SU': 'file:iran/soviet_zone_1941-1946.geojson',
+    'IRN-SU-W': 'file:iran/soviet_zone_1941-1946.geojson#main',
     # Азия
     'MNG': 'cs:712',
     'PRK': 'cs:731',
@@ -276,6 +280,18 @@ def geom_slices(spec, frm, to):
                    if hi >= CS_END else f'продлён с {hi} до конца эпизода')
             out.append((lo, to, g, s + '; ' + why))
         return out
+    if kind == 'file':
+        # курируемый файл data/<путь>[#часть] (22.09.2026 - советская зона
+        # Ирана 1946 года шахрестанами OSM; часть - свойство `part` фичи)
+        path, _, part = rest.partition('#')
+        with open(os.path.join(ROOT, 'data', path), encoding='utf-8') as fh:
+            feats = json.load(fh)['features']
+        parts = [shape(f['geometry']).buffer(0) for f in feats
+                 if not part or (f.get('properties') or {}).get('part') == part]
+        if not parts:
+            raise SystemExit(f'файл data/{path}: нет части {part!r}')
+        return [(frm, to, unary_union(parts),
+                 f'курируемый файл data/{path}' + (f', часть {part}' if part else ''))]
     if kind == 'hb':
         year, _, name = rest.partition(':')
         for f in load_hb(int(year)):

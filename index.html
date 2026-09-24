@@ -875,6 +875,15 @@ function setLayer(name, fc) {
 // из которых выброшены рёбра, у которых обе вершины стоят на антимеридиане.
 // Кольца режутся на куски там, где такое ребро было; куски - LineString.
 const onAM = c => Math.abs(Math.abs(c[0]) - 180) < 0.002;
+// Разрез ячейки крупного масштаба: ребро по линии сетки (сдвинутой от круглых
+// градусов на FINE.off, шаг FINE.min) - не граница, в обводку не идёт.
+let FINE_GRID = null;                     // {off, min} из описи ячеек, см. fineManifest
+const onGridLine = v => {
+  const k = (v - FINE_GRID.off) / FINE_GRID.min;
+  return Math.abs(k - Math.round(k)) * FINE_GRID.min < 1e-6;
+};
+const onCellCut = (a, b) => !!FINE_GRID && ((Math.abs(a[0] - b[0]) < 1e-9 && onGridLine(a[0]))
+  || (Math.abs(a[1] - b[1]) < 1e-9 && onGridLine(a[1])));
 function outlineOf(fc) {
   const feats = [];
   const rings = [];
@@ -888,7 +897,7 @@ function outlineOf(fc) {
     let cur = [];
     for (let i = 0; i < r.length; i++) {
       const c = r[i];
-      if (i > 0 && onAM(c) && onAM(r[i - 1])) {   // ребро по антимеридиану: разрыв
+      if (i > 0 && ((onAM(c) && onAM(r[i - 1])) || onCellCut(c, r[i - 1]))) {   // ребро по антимеридиану или разрез ячейки: разрыв
         if (cur.length > 1) feats.push(cur);
         cur = [c];
         continue;
@@ -1339,6 +1348,113 @@ const coreLite = {};                      // облегчённые срезы (
 // ней нет - срез берётся полным, как до этапа 4.
 const coreMid = {};
 let MID_KEYS = new Set();
+// Пакеты среднего уровня по времени (неделя 3, 24.09.2026, tools/build_mid_packs.py).
+// Все даты эпохи - одна топология с общими дугами, пакет до 450 КБ сжатыми;
+// поштучно те же даты стоят в 10-25 раз больше (1450-1800: 138 дат в 403 КБ
+// против 10,2 МБ). Первая остановка ползунка берёт средний срез, как раньше,
+// а пакет её эпохи едет следом; дальше даты эпохи собираются из дуг без сети.
+// Пакета нет в описи или он не приехал - всё как до недели 3.
+let MID_PACK_OF = new Map();              // ключ -> файл пакета
+const midPacks = {};                      // файл -> топология (null - не приехал)
+const midPackPending = new Set();
+function midFromPack(key) {
+  const file = MID_PACK_OF.get(String(key));
+  const t = file && midPacks[file];
+  if (!t || !t.objects || !t.objects[key] || !window.topojson) return null;
+  try {
+    const fc = topojson.feature(t, t.objects[key]);
+    const out = fc.type === 'FeatureCollection' ? fc : {type: 'FeatureCollection', features: [fc]};
+    for (const f of out.features) { f.properties = f.properties || {}; f.properties.mid = true; }
+    coreMid[key] = cleanFC(out);
+    return coreMid[key];
+  } catch (e) { return null; }
+}
+// Ячейки крупного масштаба (неделя 3, 24.09.2026, tools/build_fine_cells.py).
+// С FULL_Z карта брала полный срез на дату - 0,25-3,5 МБ сжатыми на каждую
+// остановку, по всему миру, хотя на экране кусок в пару градусов. Теперь точные
+// срезы нарезаны сеткой 10° (тяжёлые ячейки - мельче, до 2,5°), в ячейке все
+// даты одной топологией; качаются ячейки под окном, и ползунок на этом месте
+// дальше идёт без сети. Описи нет, окно шире 60° или ячейка не приехала -
+// полный срез, как раньше.
+let FINE = null, finePromise = null;      // опись: {off, min, cells: [[x0,y0,x1,y1,файл]]}
+const fineCells = {};                     // файл -> топология (null - не приехала)
+const finePending = new Map();
+const fineFC = new Map();                 // дата|ячейки -> собранный срез
+function fineManifest() {
+  if (!finePromise) finePromise = DFETCH('data/fine_manifest.json').then(r => r.ok ? r.json() : null)
+    .then(m => {
+      FINE = (m && m.cells && m.cells.length) ? m : null;
+      if (FINE) FINE_GRID = {off: FINE.off, min: FINE.min};
+      return FINE;
+    })
+    .catch(() => null);
+  return finePromise;
+}
+// ячейки описи под окном, с запасом в четверть окна
+function fineView() {
+  if (!FINE) return null;
+  let b;
+  try { b = map.getBounds(); } catch (e) { return null; }
+  const w = b.getWest(), s = b.getSouth(), e = b.getEast(), n = b.getNorth();
+  if (![w, s, e, n].every(Number.isFinite) || e - w > 60) return null;
+  const dx = (e - w) / 4, dy = (n - s) / 4;
+  return FINE.cells.filter(c => !(c[2] < w - dx || c[0] > e + dx || c[3] < s - dy || c[1] > n + dy));
+}
+function fineLoad() {
+  return fineManifest().then(() => {
+    const v = fineView();
+    if (!v) return false;
+    return Promise.all(v.map(c => {
+      const file = c[4];
+      if (file in fineCells) return null;
+      if (!finePending.has(file)) finePending.set(file, DFETCH(file).then(r => {
+        if (!r.ok) throw new Error(r.status);
+        return r.json();
+      }).then(t => { fineCells[file] = t; }, () => { fineCells[file] = null; })
+        .finally(() => finePending.delete(file)));
+      return finePending.get(file);
+    })).then(() => v.every(c => fineCells[c[4]]));
+  });
+}
+// Срез даты из ячеек под окном (null - не все приехали). Набор ячеек - часть
+// уровня (lvlOf): кэши вычитаний и подрезки фронта не путают соседние окна.
+function fineFor(key) {
+  const v = fineView();
+  if (!v || !window.topojson || !v.every(c => fineCells[c[4]])) return null;
+  const sig = v.map(c => c[4]).join(',');
+  const ck = key + '|' + sig;
+  if (fineFC.has(ck)) return fineFC.get(ck);
+  const feats = [];
+  try {
+    for (const c of v) {
+      const t = fineCells[c[4]], o = t.objects && t.objects[key];
+      if (!o) continue;
+      const fc = topojson.feature(t, o);
+      for (const f of (fc.type === 'FeatureCollection' ? fc.features : [fc])) {
+        f.properties = {};
+        feats.push(f);
+      }
+    }
+  } catch (e) { return null; }
+  const out = cleanFC({type: 'FeatureCollection', features: feats});
+  out.cellsSig = sig;
+  if (fineFC.size > 60) fineFC.delete(fineFC.keys().next().value);
+  fineFC.set(ck, out);
+  return out;
+}
+function coreLoadFine(key) {
+  return fineLoad().then(ok => (ok && fineFor(key)) || coreLoadFull(key));
+}
+function warmMidPack(key) {
+  const file = MID_PACK_OF.get(String(key));
+  if (!file || file in midPacks || midPackPending.has(file)) return;
+  midPackPending.add(file);
+  DFETCH(file).then(r => {
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
+  }).then(t => { midPacks[file] = t; }, () => { midPacks[file] = null; })
+    .finally(() => midPackPending.delete(file));
+}
 const corePending = new Map();            // что уже качается: ключ -> обещание
 // Крупнее этого масштаба упрощение в 0,02° начинает быть видно: пиксель
 // экрана становится мельче двух километров. До него облегчённый срез и точный
@@ -1372,13 +1488,14 @@ function levelWanted() {
 function detailWanted() { return levelWanted() !== 'l'; }
 // Лежит ли в памяти срез нужного уровня (или подробнее).
 function hasLevel(key, lv) {
-  if (lv === 'f') return !!core[key];
+  if (lv === 'f') return !!core[key] || !!fineFor(key);
   if (lv === 'm') return !!(core[key] || coreMid[key]);
   return true;
 }
 // Уровень геометрии по признаку в свойствах: облегчённые срезы и снимки
 // фронта несут lite, средние срезы - mid, у полных признака нет.
 function lvlOf(fc) {
+  if (fc && fc.cellsSig) return 'c' + fc.cellsSig;     // ячейки крупного масштаба
   const p = fc && fc.features && fc.features[0] && fc.features[0].properties;
   return (p && p.lite) ? 'l' : (p && p.mid) ? 'm' : 'f';
 }
@@ -1439,6 +1556,9 @@ function coreLoadFull(key) {
 // в описи или запрос упал - берём полный.
 function coreLoadMid(key) {
   if (coreMid[key]) return Promise.resolve(coreMid[key]);
+  const p = midFromPack(key);
+  if (p) return Promise.resolve(p);
+  warmMidPack(key);                       // эпоха едет фоном, следующие даты - из неё
   if (!MID_KEYS.has(String(key))) return coreLoadFull(key);
   return fetchSlice('years_mid', key, coreMid).catch(() => coreLoadFull(key));
 }
@@ -1827,7 +1947,7 @@ function refineCore(key, seq) {
     const lv = levelWanted();
     if (lv === 'l') return;
     refining.add(key);
-    (lv === 'm' ? coreLoadMid(key) : coreLoadFull(key)).then(() => {
+    (lv === 'm' ? coreLoadMid(key) : coreLoadFine(key)).then(() => {
       refining.delete(key);
       if (seq === renderSeq && curT != null) render(curT, true);
     }).catch(() => { refining.delete(key); });
@@ -1867,7 +1987,12 @@ async function render(t, fromPicker) {
   // Показанная геометрия: что уже лежит в памяти, иначе ждём облегчённый -
   // он приходит за 25 КБ. Точный срез (300 КБ) догружается фоном и подменяет
   // облегчённый на месте, если к тому времени дата не сменилась.
-  let base = bestCore(coreKey);
+  // пакет эпохи уже в памяти - средний срез собирается из дуг сразу, без
+  // облегчённого на экране и без запроса (неделя 3, пакеты среднего уровня)
+  if (coreKey !== null && !core[coreKey] && !coreMid[coreKey] && levelWanted() === 'm') midFromPack(coreKey);
+  // крупный масштаб: ячейки под окном уже в памяти - срез из них
+  let base = (coreKey !== null && !core[coreKey] && levelWanted() === 'f' && fineFor(coreKey))
+    || bestCore(coreKey);
   if (!base && coreKey !== null) {
     base = await coreLoadLite(coreKey).catch(() => EMPTY);
     if (seq !== renderSeq) return;       // пока качали срез, уехали на другую дату
@@ -2998,7 +3123,10 @@ else Promise.all([
   // полными, как до этапа 4. В разбор результатов ниже не входит.
   startFile('data/mid_manifest.json', () => DFETCH('data/mid_manifest.json')
     .then(r => r.ok ? r.json() : {years: []})).catch(() => ({years: []}))
-    .then(m => { MID_KEYS = new Set(((m && m.years) || []).map(String)); }),
+    .then(m => {
+      MID_KEYS = new Set(((m && m.years) || []).map(String));
+      for (const pk of (m && m.packs) || []) for (const k of pk.keys) MID_PACK_OF.set(String(k), pk.file);
+    }),
   new Promise(res => {
     map.once('load', res);
     (function probe() {

@@ -30,6 +30,7 @@ import argparse
 import csv
 import os
 import sys
+from datetime import timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -122,19 +123,88 @@ def markdown(res, counts, path):
     print(f'OK {os.path.relpath(path, ROOT)}')
 
 
+WEST = os.path.join(cc.CC, 'zones_west_cities.csv')
+WEST_FROM = cc.date(1918, 2, 18)   # раньше - фронт слоя ПМВ, не эти якоря
+
+
+def anchor_rows(mp, path=WEST):
+    """Якоря западного театра (22.09.2026) - на границах срезов, как у ПМВ и
+    ВМВ: накануне смены - прежняя сторона, первый срез не раньше смены - новая.
+    Срезы до 18.02.1918 рисует фронт слоя ПМВ, их сверяет check_ww1."""
+    rows = []
+    keys = [d for d, k in mp.slices if WEST_FROM <= d < RECON_TO]
+    with open(path, encoding='utf-8') as f:
+        for r in csv.DictReader(f):
+            if (r.get('anchor') or 'yes').strip() != 'yes':
+                continue
+            ev = []
+            for p in (r.get('changes') or '').split(';'):
+                if p.strip():
+                    day, side = p.split(':')
+                    ev.append((cc.date(*map(int, day.strip().split('-'))),
+                               side.strip()))
+            ev.sort()
+
+            def row(day, want, why):
+                rows.append(dict(
+                    city=f'{r["city"]} ({why})', lat=r['lat'], lon=r['lon'],
+                    date=day.isoformat(),
+                    expected='empire' if want == 'empire' else 'not_empire',
+                    phase=r['theatre'], source=r['source'], note=r['note']))
+
+            start = r['start'].strip()
+            # start_day - день, к которому относится сторона start (у якорей
+            # Волыни 1920 года - 01.07.1920); раньше якорь не проверяется
+            sd = (r.get('start_day') or '').strip()
+            first_day = cc.date(*map(int, sd.split('-'))) if sd else WEST_FROM
+            # end_day - последний день, когда якорь решает землю (у якорей
+            # Волыни - окно WEST_IN_WINDOWS до 16.11.1920 включительно)
+            ed = (r.get('end_day') or '').strip()
+            last_day = cc.date(*map(int, ed.split('-'))) if ed else RECON_TO
+            ks = [k for k in keys if first_day <= k <= last_day]
+            if ks:
+                prev = start
+                for when, side in ev:
+                    if when <= ks[0]:
+                        prev = side
+                row(ks[0], prev, 'начало модели')
+            for i, (when, side) in enumerate(ev):
+                prev = start if i == 0 else ev[i - 1][1]
+                since = first_day if i == 0 else ev[i - 1][0]
+                nxt = ev[i + 1][0] if i + 1 < len(ev) else None
+                before = when - timedelta(days=1)
+                act = max((k for k in ks if k <= before), default=None)
+                if act and act >= since and first_day <= before <= last_day:
+                    row(before, prev, 'накануне')
+                after = next((k for k in ks if k >= when), None)
+                if after and (nxt is None or nxt > after):
+                    row(after, side, 'следующий срез')
+    return rows
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--cities', default=CSV)
     ap.add_argument('--all', action='store_true', help='печатать всю таблицу')
+    ap.add_argument('--anchors', action='store_true',
+                    help='плюс проверка по якорям западного театра '
+                         '(data/crosscheck/zones_west_cities.csv)')
     ap.add_argument('--md', default=os.path.join(cc.CC, 'cities_report.md'))
     args = ap.parse_args()
 
+    mp = cc.Map()
     with open(args.cities, encoding='utf-8') as f:
         rows = list(csv.DictReader(f))
-    res = run(rows, cc.Map())
+    res = run(rows, mp)
     counts = table(res, only_bad=not args.all)
     markdown(res, counts, args.md)
-    return 1 if counts.get('ОШИБКА') else 0
+    anc_counts = {}
+    if args.anchors:
+        from check_ww2 import run as run_near, table as table_near
+        anc = run_near(anchor_rows(mp), mp)
+        anc_counts = table_near(anc, only_bad=not args.all,
+                                title='ЯКОРЯ ЗАПАДНОГО ТЕАТРА')
+    return 1 if (counts.get('ОШИБКА') or anc_counts.get('ОШИБКА')) else 0
 
 
 if __name__ == '__main__':

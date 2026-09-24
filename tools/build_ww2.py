@@ -115,14 +115,15 @@ def _slice_keys():
              '1945-06-29',    # Закарпатье: контур СССР становится послевоенным
              '1945-08-20',    # Маньчжурия взята
              '1945-09-03']    # капитуляция Японии: Корея, Сахалин, Курилы
-    return keys
+    keys += ['1941-08-25']    # ввод советских войск в Иран (22.09.2026)
+    return sorted(set(keys))
 
 
 KEYS = _slice_keys()
 
 # КОНТУР-ОСНОВА, поверх которого рисуется фронт.
 #   до 29.06.1945 - срез 1940-06-28, который пишет tools/build_pact_1939.py:
-#     СССР в границах на 22.06.1941 (Прибалтика, Западная Украина и Беларусь,
+#     СССР в границах на 22.06.1941 (Эстония, Латвия и Литва, Западная Украина и Беларусь,
 #     Бессарабия, Белостокская область по протоколу 04.10.1939). ФАЙЛ ЧИТАЕТСЯ.
 #   с 29.06.1945 - послевоенный контур CShapes напрямую, cs(1945-05-08):
 #     Закарпатье и Кёнигсберг уже в нём. Берём контур ИСТОЧНИКА, а не файл
@@ -160,6 +161,19 @@ ABROAD = [
 # Изолированные театры, где якорей мало, а границы известны точно.
 # geom - функция, frm - дата входа войск, until - дата вывода (или None).
 EXTRA_SRC = [
+    dict(id='IRAN_N', frm='1941-08-25', until=None,
+         name='Северный Иран (советская зона)',
+         act='ввод войск 25.08.1941 (Закавказский фронт; 53-я армия - в Хорасан '
+             '27.08); линия зоны - британская передача 30.08.1941 и советское '
+             'описание 07.09.1941 (FRUS 1941, т. III, d427 и d446), изменить '
+             'её Ирану отказано 07.09.1941 (d445). Красное до 31.12.1945 '
+             '(решение куратора 18.09.2026), дальше сфера «оккупация» до '
+             'вывода: округа Мешхеда, Шахруда и Семнана - 25.03.1946, остальное '
+             '- 09.05.1946',
+         geom_note='шахрестаны OpenStreetMap: Азербайджан севернее линии '
+                   'Ушну - Миандоаб, Ардебиль, Гилян, Мазендеран, Горган, север '
+                   'Зенджана и Казвина, Карадж, округа Мешхеда, Шахруда, Семнана '
+                   'и Дамган (data/iran/soviet_zone_1941-1946.geojson)'),
     dict(id='FINNMARK', frm='1944-10-25', until='1945-09-25',
          name='Восточный Финнмарк (Киркенес)',
          act='Петсамо-Киркенесская операция; советские войска выведены '
@@ -227,6 +241,11 @@ def extra_geom(eid):
         g = clip(unary_union([ne('North Korea'), ne('South Korea')]), lat0=38.0)
     elif eid == 'SAKHALIN_S':
         g = clip(ne('Russia', ['Sakhalin']), lat1=50.0, lon1=145.5)
+    elif eid == 'IRAN_N':
+        with open(os.path.join(DATA, 'iran', 'soviet_zone_1941-1946.geojson'),
+                  encoding='utf-8') as fh:
+            g = unary_union([shape(f['geometry']).buffer(0)
+                             for f in json.load(fh)['features']])
     elif eid == 'KURILS':
         # Гряду берём из курируемого файла, а не из Сахалинской области
         # Natural Earth: административный регион включает акваторию, и гряда
@@ -250,7 +269,15 @@ def theatre_box():
 def abroad_mask():
     """Всё, куда Красная армия могла войти за пределами границ 1941 года."""
     if 'abroad' not in _g:
-        _g['abroad'] = unary_union([ne(a, n) for a, n in ABROAD]).buffer(0)
+        parts = [ne(a, n) for a, n in ABROAD]
+        # Мемельский край (22.09.2026): германский с 22.03.1939, в основу 1940
+        # года больше не входит (tools/build_pact_1939.py режет его из
+        # основы) - без маски Клайпеда оставалась бы чёрной после взятия
+        # 28.01.1945 до послевоенного контура. Контур края - OHM 2691476
+        with open(os.path.join(DATA, 'borders', 'memelland_ohm_1920-1923.geojson'),
+                  encoding='utf-8') as fh:
+            parts += [shape(f['geometry']).buffer(0) for f in json.load(fh)['features']]
+        _g['abroad'] = unary_union(parts).buffer(0)
     return _g['abroad']
 
 
@@ -469,9 +496,16 @@ def build(key, field, verbose=True):
         'added': [], 'removed': [],
         'source': SOURCE,
     }
+    fin = gc.finish(geom, be.CACHE)
+    # Соловки: курируемая точная береговая линия, общая чистка её снимает
+    # (22.09.2026, см. EARLY_PROTECT в build_expansion.py). Острова всю войну
+    # советские - возвращаем их после чистки
+    prot = [be.reg_geom(r) for r in sorted(be.EARLY_PROTECT)]
+    if prot:
+        fin = unary_union([fin] + prot).buffer(0)
     fc = {'type': 'FeatureCollection', 'features': [{
         'type': 'Feature',
-        'geometry': be._round(mapping(gc.finish(geom, be.CACHE))),
+        'geometry': be._round(mapping(fin)),
         'properties': props}]}
     return fc, len(keep), lost, abroad.area
 

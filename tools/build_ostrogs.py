@@ -34,6 +34,7 @@ kind='raid'). По умолчанию 15 км - примерно дневной 
     cd ~/tmp/imperium-map && .venv/bin/python tools/build_ostrogs.py
 """
 import csv
+import hashlib
 import json
 import math
 import os
@@ -181,6 +182,55 @@ def build(rows, skipped=None):
 
 
 _slices = None
+_table = None
+# кэш попаданий точек в срезы (24.09.2026): правка строки переписывает 4-5
+# срезов из 505, а сборщик читал все 2 ГБ заново (2,5 мин из 5,6 на правку).
+# Для каждого среза помним его отметку (mtime, размер) и номера точек внутри;
+# перечитываются только срезы с новой отметкой. Сменился набор точек - кэш с нуля.
+HITS = os.path.join(ROOT, 'build', 'cache', 'ostrog_hits.json')
+
+
+def red_table(points):
+    """Точка -> ключ первого среза, в котором она внутри (или None), для всех разом."""
+    from shapely.geometry import Point, shape
+    from shapely.prepared import prep
+    pts = sorted(set(points))
+    sig = hashlib.sha1(json.dumps(pts).encode()).hexdigest()
+    try:
+        with open(HITS, encoding='utf-8') as f:
+            cache = json.load(f)
+    except (OSError, ValueError):
+        cache = {}
+    old = cache.get('slices', {}) if cache.get('sig') == sig else {}
+    with open(os.path.join(DATA, 'manifest.json'), encoding='utf-8') as f:
+        keys = [str(k) for k in json.load(f)['years']]
+    keys = sorted((k for k in keys
+                   if os.path.exists(os.path.join(DATA, 'years', k + '.geojson'))),
+                  key=key_date)
+    hits, read = {}, 0
+    for k in keys:
+        path = os.path.join(DATA, 'years', k + '.geojson')
+        st = os.stat(path)
+        stamp = [st.st_mtime_ns, st.st_size]
+        if k in old and old[k][0] == stamp:
+            hits[k] = old[k]
+            continue
+        with open(path, encoding='utf-8') as f:
+            fc = json.load(f)
+        feats = [prep(shape(ft['geometry']).buffer(0)) for ft in fc['features']]
+        hits[k] = [stamp, [i for i, (lon, lat) in enumerate(pts)
+                           if any(g.contains(Point(lon, lat)) for g in feats)]]
+        read += 1
+    os.makedirs(os.path.dirname(HITS), exist_ok=True)
+    with open(HITS + '.tmp', 'w', encoding='utf-8') as f:
+        json.dump({'sig': sig, 'slices': hits}, f)
+    os.replace(HITS + '.tmp', HITS)
+    first = dict.fromkeys(pts)
+    for k in reversed(keys):
+        for i in hits[k][1]:
+            first[pts[i]] = k
+    print(f'   срезов перечитано: {read} из {len(keys)} (остальные из кэша)')
+    return first
 
 
 def red_visible(kind, founded, lon, lat):
@@ -210,6 +260,8 @@ def red_from(lon, lat):
     навсегда.
     """
     global _slices
+    if _table is not None and (lon, lat) in _table:
+        return _table[(lon, lat)]
     from shapely.geometry import Point, shape
     from shapely.prepared import prep
     if _slices is None:
@@ -237,7 +289,9 @@ def red_from(lon, lat):
 
 
 def main():
+    global _table
     rows = read_rows()
+    _table = red_table([(float(r['lon']), float(r['lat'])) for r in rows])
     skipped = []
     feats = build(rows, skipped)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)

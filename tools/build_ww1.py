@@ -293,6 +293,14 @@ def base_geom():
         _g['base'] = unary_union([shape(x['geometry']).buffer(0)
                                   for x in fc['features']
                                   if x.get('geometry')]).buffer(0)
+        # Персидские гарнизоны в основу не входят (24.09.2026): срез 1914-04-04
+        # держит их по окнам PERSIA_*, и без выреза Тебриз оставался красным и
+        # после ухода русских 01.01.1915 (check_ww1). Гарнизоны на дату
+        # добавляет build() по тем же окнам. Режется вся земля Ирана в основе:
+        # другой имперской земли там до войны нет, а контур среза чищен и с
+        # районами гарнизонов точно не совпадает
+        if not be.occupation_geom(BASE_KEY, 'PERSIA_').is_empty:
+            _g['base'] = _g['base'].difference(be.ne_pick('Iran', None)).buffer(0)
     return _g['base']
 
 
@@ -423,6 +431,11 @@ def build(key, fields):
     front = unary_union([g for g in (lost, occ) if not g.is_empty])
     if not front.is_empty:
         geom = local_finish(geom, front.buffer(HALO))
+    # Персия (22.09.2026): районы городов с русскими гарнизонами на дату -
+    # окна PERSIA_* таблицы ADDS tools/build_expansion.py
+    pers = be.occupation_geom(day, 'PERSIA_')
+    if not pers.is_empty:
+        geom = unary_union([geom, pers]).buffer(0)
     abroad = geom.difference(base).area
 
     props = {'year': key, 'role': 'core', 'name': 'Российская империя',
@@ -455,29 +468,37 @@ def local_finish(raw, zone):
     return out.buffer(0)
 
 
-def write_front_line(fields, keys):
-    """Линия фронта отдельным файлом - пруф геометрии, в показ не идёт."""
+def front_feats(fields, key):
+    """Линия фронта одного среза (фичи для ww1_front.geojson)."""
     feats = []
     base = base_geom()
-    for key in keys:
-        day = be.key_date(key)
-        for fl in fields:
-            bx = box(*fl.th['box'])
-            area = unary_union([base, abroad_mask(fl.th)]).intersection(bx)
-            lost_m, occ_m = fl.masks(day)
-            red = area.intersection(base)
-            if lost_m.any():
-                red = red.difference(fl.to_geom(lost_m))
-            if occ_m.any():
-                red = unary_union([red, fl.to_geom(occ_m).intersection(area)])
-            line = red.boundary.difference(area.boundary.buffer(0.02))
-            if line.is_empty:
-                continue
-            feats.append({'type': 'Feature',
-                          'geometry': be._round(mapping(line.simplify(0.02))),
-                          'properties': {'date': key, 'theatre': fl.th['name'],
-                                         'phase': phase(key),
-                                         'method': METHOD}})
+    day = be.key_date(key)
+    for fl in fields:
+        bx = box(*fl.th['box'])
+        area = unary_union([base, abroad_mask(fl.th)]).intersection(bx)
+        lost_m, occ_m = fl.masks(day)
+        red = area.intersection(base)
+        if lost_m.any():
+            red = red.difference(fl.to_geom(lost_m))
+        if occ_m.any():
+            red = unary_union([red, fl.to_geom(occ_m).intersection(area)])
+        line = red.boundary.difference(area.boundary.buffer(0.02))
+        if line.is_empty:
+            continue
+        feats.append({'type': 'Feature',
+                      'geometry': be._round(mapping(line.simplify(0.02))),
+                      'properties': {'date': key, 'theatre': fl.th['name'],
+                                     'phase': phase(key),
+                                     'method': METHOD}})
+    return feats
+
+
+def write_front_line(fields, keys, feats=None):
+    """Линия фронта отдельным файлом - пруф геометрии, в показ не идёт."""
+    if feats is None:
+        feats = []
+        for key in keys:
+            feats += front_feats(fields, key)
     path = os.path.join(DATA, 'ww1_front.geojson')
     with open(path, 'w', encoding='utf-8') as f:
         json.dump({'type': 'FeatureCollection', 'features': feats}, f,
@@ -505,6 +526,24 @@ def update_manifest(written):
     print(f'OK data/manifest.json: срезов {len(mf["years"])}')
 
 
+def _w_init(anchors_path):
+    anchors = load_anchors(anchors_path)
+    base_geom()
+    by_th = {th['id']: sum(a['theatre'] == th['id'] for a in anchors) for th in THEATRES}
+    for th in THEATRES:
+        abroad_mask(th)
+    _g['fields'] = [Field(anchors, th) for th in THEATRES if by_th[th['id']]]
+
+
+def _w_one(args):
+    key, out_dir = args
+    fc, lost, occ = build(key, _g['fields'])
+    path = os.path.join(out_dir, key + '.geojson')
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(gc.sanitize_obj(fc), f, ensure_ascii=False)
+    return key, os.path.getsize(path) // 1024, lost, occ, front_feats(_g['fields'], key)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--only', help='собрать один срез (для отладки)')
@@ -515,6 +554,8 @@ def main():
     ap.add_argument('--preview', metavar='DIR',
                     help='писать срезы в DIR, а не в data/years; манифест и '
                          'штамп не трогать')
+    ap.add_argument('--workers', type=int, default=1,
+                    help='процессов на срезы (tools/rebuild.py - 4)')
     args = ap.parse_args()
     if args.anchors != ANCHORS and not (args.dry_run or args.preview):
         raise SystemExit('чужая таблица якорей - только с --dry-run/--preview')
@@ -534,6 +575,28 @@ def main():
     keys = [args.only] if args.only else slice_keys()
 
     written, total = [], 0
+    if args.workers > 1 and not args.dry_run:
+        # срезы независимы: каждый - основа BASE_KEY и якоря на свой день
+        # (24.09.2026: 20 из 63 минут полной сборки шли здесь по одному)
+        from multiprocessing import get_context
+        out_dir = args.preview or os.path.join(DATA, 'years')
+        with get_context('spawn').Pool(args.workers, initializer=_w_init,
+                                       initargs=(args.anchors,)) as pool:
+            res = pool.map(_w_one, [(k, out_dir) for k in keys], chunksize=1)
+        feats = []
+        for key, kb, lost, occ, ff in res:
+            total += kb
+            written.append(key)
+            feats += ff
+            print(f'OK {key}: {kb:4d} КБ, у противника {lost:6.2f} град², '
+                  f'за границей {occ:6.2f} град²  [{phase(key)}]')
+        if args.preview:
+            return
+        write_front_line(fields, keys, feats)
+        update_manifest(written)
+        gc.write_stamp('ww1')
+        print(f'срезов ПМВ: {len(written)}, суммарно {total} КБ')
+        return
     for key in keys:
         fc, lost, occ = build(key, fields)
         if args.dry_run:

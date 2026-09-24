@@ -1,0 +1,483 @@
+id,spec,comment
+NOVGOROD_LAND,"[('ne', 'Russia', ['Novgorod', 'Leningrad', 'City of St. Petersburg', ""Arkhangel'sk"", 'Murmansk', 'Nenets', 'Karelia'])]","--- XV - начало XVI века: как Москва брала соседей ----------------------
+Заведено 26.08.2026 при сверке с атласом УІФ (розд. 2-5). Раньше карта
+начиналась с 1500 года, и рождение империи оставалось за краем.
+Новгородская земля: город, пригороды и пятины плюс дальние волости -
+Заволочье (Двинская земля), Колоперм и Тре (Кольский полуостров),
+Печора, Корела. Приближены современными областями; Вологда с Заозерьем
+и Важской землёй ушла к Москве раньше, в 1471 г., и вынесена отдельно."
+SOLOVKI,"[('file', 'north/solovki_simple.geojson')]","Соловецкие острова (19.09.2026): в контурах источника их нет, а
+NOVGOROD_LAND обрезан контуром 1492 г. - острова краснели только с 1918 г.
+Геометрия - острова OpenStreetMap (tools/fetch_osm_units.py solovki)"
+VOLOGDA_1471,"[('ne', 'Russia', ['Vologda'])]","Вологда, Заозерье и Кубена, Важская земля, Волок Ламский - по атласу УІФ
+(розд. 5, п. 4-7) отошли Москве по итогам войны 1471 года"
+TVER_LAND,"[('ne', 'Russia', [""Tver'""])]",
+VYATKA_LAND,"[('ne', 'Russia', ['Kirov'])]",
+FI_JOINT_TRIBUTE,"[('ne', 'Finland', None)]","Восточная Финляндия и Лапландия: у источника в контуре 1492 г. они внутри
+Москвы, а в контуре 1500 г. - уже нет. Атлас УІФ (розд. 5, п. 21-22)
+прямо говорит, что территория совместного сбора дани Швеции с Новгородом
+(а потом с Московией - до 1536 г.) в состав ВКМ НЕ ВОШЛА. Вычитаем её из
+окна 1450-1492, дальше идёт контур источника"
+PSKOV_LAND,"[('hb_name', 1500, 'Pskov')]","Псков и Рязань - контуры САМОГО ИСТОЧНИКА: в файле 1500 года это
+отдельные фичи, приближать современными областями незачем"
+RYAZAN_LAND,"[('hb_name', 1500, 'Ryazan')]",
+SEVERSK_1503,"[('ne', 'Russia', ['Bryansk']), ('ne', 'Ukraine', ['Chernihiv']), ('file', 'ukraine/sumy_seversk.geojson')]","--- войны за «киевское наследство» и Смута ------------------------------
+Заведено 26.08.2026 (атлас УІФ, розд. 6-7, 19-20, 22).
+Северщина 1503 г.: Брянск, Стародуб, Новгород-Северский, Чернигов,
+Путивль, Рыльск. Приближена Брянской, Черниговской и Сумской областями
+03.09.2026: Сумская область ЦЕЛИКОМ красила Сумы 1503 годом, за полтора
+века до города (1655). Теперь районами (разбор loop_2026-09-03/E_pravki_a.md):
+Северщина 1503 - Шосткинский район, Путивль и Бурынь; Гетманщина 1654 -
+Конотопский (без Путивля) и Роменский; Слобожанщина 1656 - Сумский и
+Ахтырский"
+SMOLENSK_LAND,"[('ne', 'Russia', ['Smolensk'])]",
+INGRIA_KORELA,"[('file', 'ingria/izhora_1600.geojson'), ('file', 'ingria/korela_1600.geojson')]","Ижорская земля и Корельский уезд: возвращены Тявзинским миром 1595 г.,
+отданы Швеции по Столбовскому миру 1617 г. Ижора отрезана рамкой южнее
+60.2° с. ш. (Выборг, 60.71, шведский с 1323 г., в неё не попадает),
+Корела - рамкой восточнее 29.5° в. д. (Приозерск 61.04 и Сортавала 61.70
+внутри, Выборг снова снаружи)
+РАМКИ ЗАМЕНЕНЫ РАЙОНАМИ (03.09.2026, разбор loop_2026-09-03/C5_baltika_fakt.md).
+Ижорская земля по Столбову 1617 (ПСЗРИ т. I № 19: «Ивань Городь, Яму,
+Копорье, Орѣшекъ... по ихъ прямымъ рубежамъ») - Кингисеппский,
+Ломоносовский, Волосовский, Гатчинский, Кировский, Всеволожский,
+Тосненский районы и Петербург; Корельский уезд - Приозерский район,
+Лахденпохья, Сортавала, Питкяранта и финская Южная Карелия (уступлен
+Швеции Выборгским трактатом 1609, «преже помянутому городу Корелѣ со
+всѣми уѣзды»). Прежние рамки давали квадратные выемки у Финского залива"
+KORELA_1600,"[('file', 'ingria/korela_1600.geojson')]",
+NOVGOROD_SWED,"[('ne', 'Russia', ['Novgorod'])]","Новгородская земля под шведской оккупацией 1611-1617: приближена
+Новгородской областью. Псковщина (Гдов, Порхов) рамкой не затронута -
+сам Псков осаду 1615 г. выдержал"
+DEULINO_1618,"[('ne', 'Ukraine', ['Chernihiv']), ('file', 'ukraine/deulino_sumy.geojson'), ('file', 'ukraine/sumy_shostka.geojson'), ('file', 'ukraine/deulino_bryansk.geojson')]","Что отошло Речи Посполитой по Деулинскому перемирию 01.12.1618:
+Черниговщина целиком; запад Сумщины (Конотоп 33.20, Кролевец 33.38,
+Ромны 33.48) - рамкой западнее 33.6° в. д., чтобы Путивль (33.87) и
+Рыльск остались имперскими, они по Деулину не уступались; юго-запад
+Брянщины (Стародуб 32.87, Почеп 33.45, Трубчевск 33.77) - рамкой
+западнее 34.2° в. д. и южнее 53°, чтобы Брянск (34.36, 53.24) и Севск
+(34.50) остались имперскими, они у Москвы и остались
+ПРЯМОУГОЛЬНЫЕ РАМКИ ЗАМЕНЕНЫ ГРОМАДАМИ И РАЙОНАМИ (02.09.2026). Куратор
+на срезе 1618 года: «квадраты, вздроч какая-то». Смысл рамок был верный —
+отрезать уступленное от того, что осталось у Москвы, — но геометрия
+давала на карте квадрат с идеальными углами у Брянска. Теперь это
+настоящие единицы: четыре громады запада Сумщины (Конотоп, Кролевец,
+Ромны, Бурынь) и тринадцать районов юго-запада Брянщины (Стародуб,
+Почеп, Трубчевск и далее). Путивль и Рыльск НЕ входят — по Деулину они
+не уступались; Брянск и Севск тоже остались у Москвы
+Глухов с Новгород-Северским уездом тоже отошёл Речи
+Посполитой (03.09.2026); Путивль в файл не входит"
+VOLGA_KAZAN,"[('ne', 'Russia', ['Tatarstan', 'Chuvash', 'Mariy-El', 'Udmurt', 'Mordovia', ""Ul'yanovsk""])]","--- Поволжье, Урал, Сибирь ---------------------------------------------"
+VOLGA_LOWER,"[('ne', 'Russia', [""Astrakhan'"", 'Kalmyk', 'Volgograd', 'Saratov', 'Samara', 'Penza'])]",
+BASHKIRIA,"[('ne', 'Russia', ['Bashkortostan', 'Orenburg'])]",
+CHEREMIS_LAND,"[('ne', 'Russia', ['Mariy-El', 'Chuvash', 'Udmurt', 'Mordovia'])]","Черемисские земли: лесное Поволжье, где после взятия Казани шли три
+войны подряд. Татарстан и Ульяновск сюда НЕ входят - Казань взята и
+удержана, а эта земля нет"
+KABARDA,"[('ne', 'Russia', ['Kabardin-Balkar'])]",
+INGUSHETIA,"[('ne', 'Russia', ['Ingush'])]",
+SIB_WEST,"[('ne', 'Russia', [""Tyumen'"", 'Khanty-Mansiy', 'Yamal-Nenets', 'Kurgan', 'Omsk', 'Sverdlovsk', ""Perm'"", 'Chelyabinsk'])]",
+SIB_LENA,"[('ne', 'Russia', ['Sakha (Yakutia)', 'Krasnoyarsk', 'Irkutsk', 'Tomsk', 'Novosibirsk', 'Kemerovo', 'Khakass', 'Buryat', 'Chita', 'Altay', 'Gorno-Altay'])]",
+OKHOTSK,"[('ne', 'Russia', ['Khabarovsk', 'Maga Buryatdan', 'Kamchatka', 'Chukchi Autonomous Okrug', 'Sakhalin'])]",
+CHUKOTKA,"[('ne', 'Russia', ['Chukchi Autonomous Okrug'])]",
+KORYAK_LAND,"[('ne', 'Russia', ['Maga Buryatdan'])]",
+KHAKASSIA,"[('ne', 'Russia', ['Khakass'])]",
+ALTAI_MTN,"[('ne', 'Russia', ['Gorno-Altay'])]",
+BURYAT_LAND,"[('ne', 'Russia', ['Buryat', 'Chita'])]",
+MONGOLIA,"[('ne', 'Mongolia', None)]","Монголия целиком: империи не принадлежала никогда, а контур источника
+1700 г. красит Хубсугул и Мурэн (~140 тыс. км²) в срезах 1700-1711 -
+шум обзорного контура, тот же класс, что Урянхай (разбор
+MAP-MATERIALS/loop_2026-09-03/D2_hubsugul.md)"
+YAKUTIA,"[('ne', 'Russia', ['Sakha (Yakutia)'])]",
+KAMCHATKA,"[('ne', 'Russia', ['Kamchatka'])]",
+BARABA,"[('ne', 'Russia', ['Novosibirsk'])]",
+TOMSK_KUZNETSK,"[('ne', 'Russia', ['Tomsk', 'Kemerovo'])]",
+IRKUTSK_LAND,"[('ne', 'Russia', ['Irkutsk'])]",
+ALTAI_DVOEDAN,"[('file', 'altai/dvoedantsy.geojson')]","Кош-Агачский и Улаганский районы Республики Алтай - земли телесов и
+теленгитов по Чуе, Аргуту и Чулышману, OpenStreetMap admin_level=6"
+TAIMYR,"[('file', 'krasnoyarsk/taimyr.geojson')]","Красноярский край нельзя вычитать целиком: он тянется от Саян до Таймыра,
+и юг с севером жили по-разному. Три группы районов OpenStreetMap"
+YAKUTIA_ARCTIC,"[('file', 'sakha/arctic_uluses.geojson')]","Арктическая Якутия: тринадцать улусов Верхоянского и Среднеколымского
+округов (Устав 1822 г.), OpenStreetMap admin_level=6. Половина
+республики: Якутск и Вилюйск в группу НЕ входят"
+EVENKIA_TURUKHANSK,"[('file', 'krasnoyarsk/evenkia_turukhansk.geojson')]","Эвенкия и Туруханский север: два округа OpenStreetMap, 985 тыс. км²"
+YAMAL_NENETS,"[('ne', 'Russia', ['Yamal-Nenets'])]",
+NORTH_1930,"[('file', 'north/tundra_1930.geojson')]","Весь север, где управление завелось одним указом 10.12.1930: Таймыр с
+Норильском, Эвенкия, Туруханск, Ямало-Ненецкий округ. Нужен позднему
+окну и слою 1917-1921, которые таблицу SUBS не читают"
+KOMI,"[('ne', 'Russia', ['Komi'])]","Русский Север: Коми и ненецкие тундры, четыре разные даты"
+PECHORA_UPPER,"[('file', 'komi/pechora_upper.geojson')]",
+PECHORA_LOWER,"[('file', 'komi/pechora_lower.geojson')]",
+NENETS,"[('ne', 'Russia', ['Nenets'])]",
+OCC11_HANKO,"[('file', 'occ11/occ11_hanko.geojson')]","военно-морские базы на финской земле: Ханко, Порккала (пачка 11, 22.09.2026)"
+OCC11_PORKKALA,"[('file', 'occ11/occ11_porkkala.geojson')]",
+ANGARA,"[('file', 'krasnoyarsk/angara.geojson')]","Приангарье: Богучанский и Кежемский округа OpenStreetMap, 88 тыс. км²"
+KURILS_NORTH,"[('file', 'kurils/north.geojson')]","Курильская гряда, разрезанная по Симодскому трактату 1855 года: Уруп и
+севернее - русские, Итуруп и южнее - японские. Разрез Курильского округа
+по 45,62 с.ш., между Итурупом и Урупом"
+KURILS_SHUMSHU,"[('file', 'kurils/shumshu_paramushir.geojson')]","03.09.2026, разбор MAP-MATERIALS/loop_2026-09-03/D1_kurily.md: контур
+источника 1715 красил Шумшу и Онекотан, но не Парамушир между ними, а
+указ 1779 года не устанавливает контроль, а ОСВОБОЖДАЕТ дальние острова
+от ясака. Гряда собирается из датированных кусков (нарезка north.geojson)"
+KURILS_MIDDLE,"[('file', 'kurils/middle.geojson')]",
+KURILS_URUP,"[('file', 'kurils/urup.geojson')]",
+KURILS_SOUTH,"[('file', 'kurils/south.geojson')]",
+KURILS_ALL,"[('file', 'kurils/all.geojson')]",
+OSSETIA_MTN,"[('file', 'ossetia/gornaya.geojson')]","Горная Осетия: южнее 42,95 с.ш., Владикавказ (43,02) остаётся на равнине
+ПРЯМАЯ ПО ШИРОТЕ 42,95 ЗАМЕНЕНА РАЙОНАМИ (01.09.2026): Алагирский и
+Ирафский - те самые горные общества, которых администрация не держала
+до экспедиции Абхазова 1830 года. Владикавказ и Моздок остаются на
+равнине и в вырез не входят"
+MINUSINSK,"[('file', 'krasnoyarsk/minusinsk.geojson')]",
+KRASNOYARSK_SOUTH,"[('file', 'krasnoyarsk/krasnoyarsk_south.geojson')]",
+UA_LEFT,"[('ne', 'Ukraine', ['Chernihiv', 'Poltava']), ('file', 'ukraine/sumy_hetman.geojson'), ('file', 'ukraine/hetman_pereiaslav.geojson')]","--- Украина -------------------------------------------------------------
+Гетманщина: полки Войска Запорожского на левом берегу. Харьковщина
+ОТСЮДА УБРАНА (02.09.2026): слободские полки подчинялись не гетману, а
+воеводе Белгородского разряда, и Переяславская рада их не касалась
+19.09.2026: плюс левобережье Киевщины и Черкасщины (Переяславский и
+Киевский полки) - без него Переяслав, Борисполь и Бровары краснели
+только с 1686 г., Золотоноша - с 1700 г. (MAP-MATERIALS/BACKLOG_KARTY.md, Б6)"
+UA_SLOBODA,"[('ne', 'Ukraine', ['Kharkiv']), ('file', 'ukraine/sumy_sloboda.geojson')]",
+AZOV,"[('file', 'azov/azov_taganrog.geojson')]","Азов и Таганрог (03.09.2026, E_pravki_a.md): взяты 1696, отданы по Пруту
+1711, пустая зона по Белграду 1739, навечно по Кючук-Кайнарджи 1774"
+MOLDOVA_LEFT,"[('file', 'moldova/left_bank.geojson')]","Молдова по берегам Днестра (03.09.2026): контур источника 1783 красил
+Бендеры и Тирасполь за 8-29 лет до документа"
+MOLDOVA_RIGHT,"[('ne_minus', 'Moldova', None, ['moldova/left_bank.geojson'])]",
+TEREK_SHELK,"[('file', 'chechnya/shelkovskoy.geojson')]","Терская полоса по датам (03.09.2026, F1_chechnya_shagi.md): прежний
+tersk_stanitsy.geojson краснел контуром 1783 года разом"
+TEREK_NAUR,"[('file', 'chechnya/naursky.geojson')]",
+MOZDOK,"[('file', 'chechnya/mozdok.geojson')]",
+CHECHNYA_MTN_1925,"[('file', 'chechnya/mountains_1920_1925.geojson')]",Горная Чечня 1920-1925: «За Шаро-Аргуном советской власти не существует»
+UA_KYIV,"[('ne', 'Ukraine', ['Kiev', 'Kiev City'])]",
+UA_RIGHT,"[('ne', 'Ukraine', ['Zhytomyr', 'Vinnytsya', ""Khmel'nyts'kyy"", 'Cherkasy', 'Kirovohrad'])]",
+UA_VOLHYNIA,"[('ne', 'Ukraine', ['Volyn', 'Rivne'])]",
+UA_ZAPOROZHYE,"[('file', 'ukraine/zaporozhye_volnosti.geojson'), ('ne', 'Ukraine', ['Zaporizhzhya'])]","--- УКРАИНА: настоящие районы вместо контура источника (02.09.2026) ----
+Разбор — MAP-MATERIALS/ukraine/. Контур источника внутри Украины красит
+шестнадцать областей из двадцати семи не по акту, а сам по себе, и ведёт
+границу прямыми отрезками до 340 км. Геометрия — районы OpenStreetMap,
+выгрузка tools/fetch_ua_units.py
+Запорожская область добирается целиком: районами она покрыта на 99,6 %,
+и оставшаяся полоска давала зубец на стыке с контуром источника"
+UA_WILD_FIELD,"[('file', 'ukraine/wild_field.geojson')]",
+UA_LUGANSK_STEPPE,"[('ne', 'Ukraine', [""Luhans'k""])]","Луганщина берётся ОБЛАСТЬЮ, а не районами (02.09.2026): семь районов из
+восьми покрывали 86 % области, и на стыке с грубым контуром источника
+оставались зубцы и красный клин (куратор: «квадраты, вздроч какая-то»).
+Граница области совпадает с той, что рисует базовая карта, — стык чистый"
+UA_OCHAKOV,"[('file', 'ukraine/ochakov_oblast.geojson'), ('ne', 'Ukraine', ['Mykolayiv'])]",
+UA_BUDJAK,"[('file', 'ukraine/budjak.geojson')]",
+UA_KYIV_RIGHT,"[('file', 'ukraine/kyiv_right_bank.geojson')]",
+UA_KIROVOHRAD_STEPPE,"[('file', 'ukraine/kirovohrad_steppe.geojson'), ('ne', 'Ukraine', ['Kirovohrad'])]",
+UA_VOLHYNIA_EAST,"[('file', 'ukraine/volhynia_east.geojson')]",
+UA_GALICIA_1914,"[('ne', 'Ukraine', [""L'viv"", ""Ivano-Frankivs'k"", ""Ternopil'"", 'Chernivtsi'])]","Восточная Галиция и Буковина, занятые в 1914-1915 годах: у империи была
+своя администрация — генерал-губернаторство Галиции и Буковины"
+UA_CRIMEA,"[('ne', 'Russia', ['Crimea', 'Sevastopol'])]","Крым: в Natural Earth он приписан к России, поэтому берётся явно —
+иначе выпадает из любой выборки «областей Украины»"
+BALT_1721,"[('ne', 'Estonia', None), ('ne_region', 'Latvia', ['Vidzeme', 'Riga']), ('ne', 'Russia', ['Leningrad', 'City of St. Petersburg', 'Pskov'])]","--- страны Балтии (Латвия в NE нарезана на волости - режем рамками) --------
+Псковская область здесь НЕ ради Пскова (он в контуре с 1510 года), а
+ради гдовской полосы восточнее Чудского озера: до 1721 года это шведская
+Ингрия, и контур источника 1715 г. её не держит. Без этой строки на
+срезах 1721/1731/1772 зияла дыра 1.04 град² - будто империя взяла
+Эстляндию и Лифляндию, но обошла берег между Псковом и Нарвой.
+Ништадтский мир 30.08.1721 отдал России всю Ингрию (решение куратора
+28.08.2026).
+РАМКИ ПО ДОЛГОТЕ ЗАМЕНЕНЫ ОБЛАСТЯМИ (03.09.2026). Латвия в Natural Earth
+нарезана на 119 единиц, но у каждой есть поле region: Vidzeme, Riga,
+Latgale, Kurzeme, Zemgale - это и есть исторические земли. Шведская
+Лифляндия по Ништадту 1721 = Видземе с Ригой; Польские Инфлянты
+(Латгалия) по первому разделу 1772 = Латгале; герцогство Курляндское и
+Семигальское по третьему разделу 1795 = Курземе и Земгале. Прежние
+рамки 24° и 26,2° в. д. давали на карте прямоугольные выемки между Ригой
+и Двинском (разбор artefacts_2026-09-03/04_glaza.md)."
+LATGALE,"[('ne_region', 'Latvia', ['Latgale'])]",
+COURLAND,"[('ne_region', 'Latvia', ['Kurzeme', 'Zemgale'])]",
+LITHUANIA,"[('ne', 'Lithuania', None)]",
+BY_EAST,"[('ne', 'Belarus', ['Vitebsk', 'Mogilev'])]",--- Беларусь ------------------------------------------------------------
+BY_CENTER,"[('ne', 'Belarus', ['Minsk', 'City of Minsk', 'Gomel'])]",
+BY_WEST,"[('ne', 'Belarus', ['Grodno', 'Brest'])]",
+BIALYSTOK,"[('ne_minus', 'Poland', ['Podlachian'], ['poland/krolestwo_1815.geojson'])]","Белостокская область: контур источника красит её уже с 1800 года и режет
+Подляское воеводство прямой линией — на карте торчал клин с ровными
+гранями (куратор 02.09.2026). После третьего раздела 1795 года Белосток
+отошёл ПРУССИИ и стал российским только по Тильзитскому миру 1807 года
+19.09.2026: Подляское воеводство МИНУС Царство Польское - иначе в
+Белостокскую область попадали Сувалки и Ломжа (Августовское воеводство
+Варшавского герцогства, потом Царства) и краснели с 1807 года"
+PL_KINGDOM,"[('file', 'poland/krolestwo_1815.geojson')]","Царство Польское целиком (19.09.2026): контур источника недобирает его
+края - Калиш у прусской границы не краснел до 1914 года, воеводства
+внутри ядра на 93-98 %. Геометрия - OpenHistoricalMap, relation 2692576"
+DUCHY_WARSAW,"[('file', 'poland/ohm_varshavskoe_gercogstvo_1809-1815.geojson')]","Варшавское герцогство 1809-1815 - OpenHistoricalMap, relation 2692577"
+RP_1667,"[('ne', 'Ukraine', None), ('ne', 'Belarus', None), ('ne', 'Lithuania', None), ('ne', 'Latvia', None), ('ne', 'Poland', None), ('and_file', 'poland/ohm_rp_1667-1773.geojson')]","Земля Речи Посполитой на дату - контуры OpenHistoricalMap (CC0)
+1667-1773, 1773-1793, 1793-1795 в пределах нынешних Украины, Беларуси,
+Литвы, Латвии и Польши (22.09.2026, BACKLOG Б6 п. 11). Сверка 19.09
+нашла, что приближения нынешними областями красят польскую землю до
+разделов: запад Витебщины и Могилёвщины, северо-запад Минщины, Ровно и
+Дубно, правобережье Киевщины, запад Кировоградщины, курляндские края
+в Лифляндии, а контур источника 1783 года - правобережье у Черкасс.
+Вычитание окнами до ратификации следующего раздела: сами земли раздела
+в контур «после раздела» не входят и не режутся"
+RP_1773,"[('ne', 'Ukraine', None), ('ne', 'Belarus', None), ('ne', 'Lithuania', None), ('ne', 'Latvia', None), ('ne', 'Poland', None), ('and_file', 'poland/ohm_rp_1773-1793.geojson')]",
+RP_1793,"[('ne', 'Ukraine', None), ('ne', 'Belarus', None), ('ne', 'Lithuania', None), ('ne', 'Latvia', None), ('ne', 'Poland', None), ('and_file', 'poland/ohm_rp_1793-1795.geojson')]",
+RP_P1,"[('ne', 'Belarus', None), ('ne', 'Latvia', None), ('and_file', 'poland/ohm_rp_1667-1773.geojson'), ('minus_file', 'poland/ohm_rp_1773-1793.geojson')]","Земли разделов по тем же контурам: что ушло из Речи Посполитой к
+империи в каждый раздел. Приближения нынешними областями (BY_EAST,
+BY_CENTER, LATGALE и др.) остаются, эти строки добирают пропуски -
+например, Гомель: первый раздел, а регион BY_EAST берёт только
+Витебскую и Могилёвскую области (проверка 22.09.2026)"
+RP_P2,"[('ne', 'Ukraine', None), ('ne', 'Belarus', None), ('and_file', 'poland/ohm_rp_1773-1793.geojson'), ('minus_file', 'poland/ohm_rp_1793-1795.geojson')]",
+RP92_P2_SOUTH,"[('file', 'poland/rp1792/rp1792_p2_south.geojson')]","Речь Посполитая 1792-1796 (пачка 7, 22.09.2026): районы окон оккупации -
+нарезка нынешних областей и воеводств OHM по контурам Речи Посполитой"
+RP92_P2_KIEV,"[('file', 'poland/rp1792/rp1792_p2_kiev.geojson')]",
+RP92_P2_VITEBSK,"[('file', 'poland/rp1792/rp1792_p2_vitebsk.geojson')]",
+RP92_P2_GOMEL_MOGILEV,"[('file', 'poland/rp1792/rp1792_p2_gomel_mogilev.geojson')]",
+RP92_P2_VINNYTSIA,"[('file', 'poland/rp1792/rp1792_p2_vinnytsia.geojson')]",
+RP92_P2_MINSK,"[('file', 'poland/rp1792/rp1792_p2_minsk.geojson')]",
+RP92_P2_ZHYTOMYR,"[('file', 'poland/rp1792/rp1792_p2_zhytomyr.geojson')]",
+RP92_P2_KHMELNYTSKYI,"[('file', 'poland/rp1792/rp1792_p2_khmelnytskyi.geojson')]",
+RP92_WILNO,"[('file', 'poland/rp1792/rp1792_wilno.geojson')]",
+RP92_TROKI_LT,"[('file', 'poland/rp1792/rp1792_troki_lt.geojson')]",
+RP92_TROKI_BY,"[('file', 'poland/rp1792/rp1792_troki_by.geojson')]",
+RP92_TROKI_PL,"[('file', 'poland/rp1792/rp1792_troki_pl.geojson')]",
+RP92_ZMUDZ,"[('file', 'poland/rp1792/rp1792_zmudz.geojson')]",
+RP92_NOWOGRODEK,"[('file', 'poland/rp1792/rp1792_nowogrodek.geojson')]",
+RP92_BRZESC,"[('file', 'poland/rp1792/rp1792_brzesc.geojson')]",
+RP92_WOLYN_RIVNE,"[('file', 'poland/rp1792/rp1792_wolyn_rivne.geojson')]",
+RP92_WOLYN_VOLYN,"[('file', 'poland/rp1792/rp1792_wolyn_volyn.geojson')]",
+RP92_LUBLIN,"[('file', 'poland/rp1792/rp1792_lublin.geojson')]",
+RP92_WARSZAWA,"[('file', 'poland/rp1792/rp1792_warszawa.geojson')]",
+RP92_KRAKOW,"[('file', 'poland/rp1792/rp1792_krakow.geojson')]",
+RP92_STREFA,"[('file', 'poland/rp1792/rp1792_strefa.geojson')]",
+OCC8_FI13_EAST,"[('file', 'occ8/occ8_fi13_east.geojson')]","оккупации XVIII века на Балтике (пачка 8, 22.09.2026)"
+OCC8_FI13_HAME,"[('file', 'occ8/occ8_fi13_hame.geojson')]",
+OCC8_FI13_PIRKANMAA,"[('file', 'occ8/occ8_fi13_pirkanmaa.geojson')]",
+OCC8_FI13_TURKU,"[('file', 'occ8/occ8_fi13_turku.geojson')]",
+OCC8_FI13_SAVO,"[('file', 'occ8/occ8_fi13_savo.geojson')]",
+OCC8_FI13_ALAND,"[('file', 'occ8/occ8_fi13_aland.geojson')]",
+OCC8_FI13_POHJANMAA,"[('file', 'occ8/occ8_fi13_pohjanmaa.geojson')]",
+OCC8_FI42_EAST,"[('file', 'occ8/occ8_fi42_east.geojson')]",
+OCC8_FI42_UUSIMAA,"[('file', 'occ8/occ8_fi42_uusimaa.geojson')]",
+OCC8_FI42_SAVO,"[('file', 'occ8/occ8_fi42_savo.geojson')]",
+OCC8_FI42_HAME,"[('file', 'occ8/occ8_fi42_hame.geojson')]",
+OCC8_FI42_TURKU,"[('file', 'occ8/occ8_fi42_turku.geojson')]",
+OCC8_FI42_NORTH,"[('file', 'occ8/occ8_fi42_north.geojson')]",
+OCC8_FI43_CESSION,"[('file', 'occ8/occ8_fi43_cession.geojson')]",
+OCC8_MEMEL,"[('file', 'occ8/occ8_memel.geojson')]",
+OCC8_PRUSSIA,"[('file', 'occ8/occ8_prussia.geojson')]",
+OCC8_KOLBERG,"[('file', 'occ8/occ8_kolberg.geojson')]",
+OCC9_KWANTUNG_LUSHUN,"[('file', 'occ9/occ9_kwantung_lushun.geojson')]","Илийский край и Квантун (пачка 9, 22.09.2026)"
+OCC9_KWANTUNG_REST,"[('file', 'occ9/occ9_kwantung_rest.geojson')]",
+OCC9_ILI,"[('file', 'occ9/occ9_ili.geojson')]",
+OCC10_MD_W_1769,"[('file', 'occ10/occ10_md_w_1769.geojson')]","Молдавское и Валашское княжества (пачка 10а, 22.09.2026)"
+OCC10_MD_W,"[('file', 'occ10/occ10_md_w.geojson')]",
+OCC10_MD_E,"[('file', 'occ10/occ10_md_e.geojson')]",
+OCC10_MUNTENIA,"[('file', 'occ10/occ10_muntenia.geojson')]",
+OCC10_OLTENIA,"[('file', 'occ10/occ10_oltenia.geojson')]",
+OCC10_RAYA_BRAILA,"[('file', 'occ10/occ10_raya_braila.geojson')]",
+OCC10_DOBRUJA_N,"[('file', 'occ10/occ10_dobruja_n.geojson')]",
+OCC10B_BG_VELIKO_TARNOVO,"[('file', 'occ10b/occ10b_bg_veliko_tarnovo.geojson')]","Болгария и Восточная Фракия (пачка 10б, 22.09.2026)"
+OCC10B_BG_GABROVO,"[('file', 'occ10b/occ10b_bg_gabrovo.geojson')]",
+OCC10B_BG_LOVECH,"[('file', 'occ10b/occ10b_bg_lovech.geojson')]",
+OCC10B_BG_PLEVEN,"[('file', 'occ10b/occ10b_bg_pleven.geojson')]",
+OCC10B_BG_VRATSA,"[('file', 'occ10b/occ10b_bg_vratsa.geojson')]",
+OCC10B_BG_MONTANA,"[('file', 'occ10b/occ10b_bg_montana.geojson')]",
+OCC10B_BG_SOFIA,"[('file', 'occ10b/occ10b_bg_sofia.geojson')]",
+OCC10B_BG_RUSE,"[('file', 'occ10b/occ10b_bg_ruse.geojson')]",
+OCC10B_BG_RAZGRAD,"[('file', 'occ10b/occ10b_bg_razgrad.geojson')]",
+OCC10B_BG_TARGOVISHTE,"[('file', 'occ10b/occ10b_bg_targovishte.geojson')]",
+OCC10B_BG_DOBRICH,"[('file', 'occ10b/occ10b_bg_dobrich.geojson')]",
+OCC10B_BG_SILISTRA,"[('file', 'occ10b/occ10b_bg_silistra.geojson')]",
+OCC10B_BG_STARA_ZAGORA,"[('file', 'occ10b/occ10b_bg_stara_zagora.geojson')]",
+OCC10B_BG_PLOVDIV,"[('file', 'occ10b/occ10b_bg_plovdiv.geojson')]",
+OCC10B_BG_PAZARDZHIK,"[('file', 'occ10b/occ10b_bg_pazardzhik.geojson')]",
+OCC10B_BG_SLIVEN,"[('file', 'occ10b/occ10b_bg_sliven.geojson')]",
+OCC10B_BG_YAMBOL,"[('file', 'occ10b/occ10b_bg_yambol.geojson')]",
+OCC10B_BG_BURGAS,"[('file', 'occ10b/occ10b_bg_burgas.geojson')]",
+OCC10B_TR_EDIRNE,"[('file', 'occ10b/occ10b_tr_edirne.geojson')]",
+OCC10B_TR_KIRKLARELI,"[('file', 'occ10b/occ10b_tr_kirklareli.geojson')]",
+OCC10B_TR_TEKIRDAG,"[('file', 'occ10b/occ10b_tr_tekirdag.geojson')]",
+OCC10B_BG_SHUMEN_VARNA,"[('file', 'occ10b/occ10b_bg_shumen.geojson'), ('file', 'occ10b/occ10b_bg_varna.geojson')]",
+RP_P3,"[('ne', 'Ukraine', None), ('ne', 'Belarus', None), ('ne', 'Lithuania', None), ('ne', 'Latvia', None), ('and_file', 'poland/ohm_rp_1793-1795.geojson'), ('minus_file', 'poland/krolestwo_1815.geojson')]",
+GALICIA_AUSTRIA,"[('file', 'borders/galicia_austria_1815_1879.geojson')]","Австрийская сторона российско-австрийской границы 1815-1914. Контур
+источника world_1815 проводит эту границу ПРЯМОЙ: один отрезок 285 км
+от 24,26/50,16 под Сокалем до 20,27/49,89 под Краковом и ещё 140 км до
+26,04/49,63 под Тернополем. Тот же отрезок, вершина в вершину, стоит на
+27 срезах 1815-1878 годов - все они опираются на world_1815. Куратор
+17.09.2026, по кадру 1822 года: «что там за граница прямой линией через
+украину и польшу?» Граница установлена Венским конгрессом в 1815 году и
+до 1914-го не двигалась, поэтому австрийскую сторону берём из
+world_1880, где источник рисует её по-настоящему; как файл собран - в
+свойствах самого файла. После правки самый длинный отрезок в этой
+коробке 44,5 км вместо 285."
+GEO_EAST,"[('ne', 'Georgia', ['Tbilisi', 'Shida Kartli', 'Kvemo Kartli', 'Kakheti', 'Mtskheta-Mtianeti']), ('ne', 'Armenia', ['Lori']), ('ne', 'Azerbaijan', ['Qazax', 'Ağstafa', 'Tovuz'])]","--- Кавказ --------------------------------------------------------------
+Казахская и Шамшадильская дистанции подчинялись царям Картли-Кахети и
+вошли вместе с ними в 1801 году, а не по Гюлистану 1813-го"
+GEO_MEGRELIA,"[('ne', 'Georgia', ['Samegrelo-Zemo Svaneti']), ('minus_file', 'georgia/svaneti_upper_mestia_osm.geojson'), ('minus_file', 'georgia/poti_osm.geojson')]","Западная Грузия тоже разобрана на части: княжества входили по одному
+22.09.2026: владения разобраны по муниципалитетам OSM (data/georgia/):
+Верхняя Сванетия (Местиа), Поти, Рача (Амбролаури, Они), Лечхуми с
+Нижней Сванетией (Цагери, Лентехи - земли дома Дадиани), Самурзакано
+(Гал) идут своими датами. Внешние границы - Natural Earth, как у соседей"
+GEO_SVANETI_UPPER,"[('ne', 'Georgia', ['Samegrelo-Zemo Svaneti']), ('and_file', 'georgia/svaneti_upper_mestia_osm.geojson')]",
+GEO_POTI,"[('ne', 'Georgia', ['Samegrelo-Zemo Svaneti']), ('and_file', 'georgia/poti_osm.geojson')]",
+GEO_IMERETI,"[('ne', 'Georgia', ['Imereti'])]",
+GEO_RACHA,"[('ne', 'Georgia', ['Racha-Lechkhumi-Kvemo Svaneti']), ('and_file', 'georgia/racha_osm.geojson')]",
+GEO_LECHKHUMI,"[('ne', 'Georgia', ['Racha-Lechkhumi-Kvemo Svaneti']), ('minus_file', 'georgia/racha_osm.geojson')]",
+GEO_ABKHAZIA,"[('ne', 'Georgia', ['Abkhazia']), ('minus_file', 'georgia/samurzakano_gal_osm.geojson')]",
+GEO_SAMURZAKANO,"[('ne', 'Georgia', ['Abkhazia']), ('and_file', 'georgia/samurzakano_gal_osm.geojson')]",
+GEO_GURIA,"[('ne', 'Georgia', ['Guria'])]",
+GEO_SAMTSKHE,"[('ne', 'Georgia', ['Samtskhe-Javakheti'])]",
+PERSIA_TABRIZ,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Tabriz County'])]","--- Персия 1909-1918: районы (шахрестаны) городов с русскими гарнизонами
+(22.09.2026), OpenStreetMap admin_level 5"
+PERSIA_URMIA,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Urumia County'])]",
+PERSIA_KHOY,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Khoy County'])]",
+PERSIA_SALMAS,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Salmas County'])]",
+PERSIA_MAHABAD,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Mahabad County'])]",
+PERSIA_ARDABIL,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Ardabil city'])]",
+PERSIA_QAZVIN,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Qazvin County'])]",
+PERSIA_RASHT,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Rasht County'])]",
+PERSIA_ANZALI,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Bandar-e-Anzali County'])]",
+PERSIA_MASHHAD,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Mashhad County'])]",
+PERSIA_HAMADAN,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Hamedan County'])]",
+PERSIA_KERMANSHAH,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Kermanshah County'])]",
+PERSIA_SANANDAJ,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Sanandaj County'])]",
+PERSIA_BIJAR,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Bijar County'])]",
+PERSIA_NAHAVAND,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Nahavand County'])]",
+PERSIA_KANGAVAR,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Kangavar County'])]",
+PERSIA_HARSIN,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Harsin County'])]",
+PERSIA_ASADABAD,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Asadabad County'])]",
+PERSIA_DALAHU,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Dalahu County'])]",
+PERSIA_QASR,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Qasr-e-Shirin County'])]",
+ANAT_KARS_1828,"[('file_where', 'turkey/east_anatolia_ilce_osm.geojson', ['Kars Merkez', 'Akyaka', 'Arpaçay', 'Digor', 'Kağızman', 'Sarıkamış', 'Selim', 'Susuz'])]","--- Восточная Анатолия: округа российских оккупаций (22.09.2026) --------
+районы OpenStreetMap; пашалык в документе - нынешний ил, санджак - район"
+ANAT_ARDAHAN_1828,"[('file_where', 'turkey/east_anatolia_ilce_osm.geojson', ['Ardahan Merkez', 'Damal', 'Göle', 'Hanak', 'Posof', 'Çıldır'])]",
+ANAT_BAYAZET_1828,"[('file_where', 'turkey/east_anatolia_ilce_osm.geojson', ['Ağrı Merkez', 'Diyadin', 'Doğubayazıt', 'Eleşkirt', 'Hamur', 'Patnos', 'Taşlıçay', 'Tutak'])]",
+ANAT_ERZURUM_1829,"[('file_where', 'turkey/east_anatolia_ilce_osm.geojson', ['Yakutiye', 'Palandöken', 'Aziziye'])]",
+ANAT_ERZURUM_SANJ_1829,"[('file_where', 'turkey/east_anatolia_ilce_osm.geojson', ['Pasinler', 'Köprüköy', 'Tortum', 'Narman', 'Hınıs', 'Aşkale', 'Tercan', 'Erzincan Merkez'])]",
+ANAT_BAYBURT_1829,"[('file_where', 'turkey/east_anatolia_ilce_osm.geojson', ['Bayburt Merkez'])]",
+ANAT_CILDIR_1855,"[('file_where', 'turkey/east_anatolia_ilce_osm.geojson', ['Çıldır'])]",
+ANAT_ZARUSAD_1855,"[('file_where', 'turkey/east_anatolia_ilce_osm.geojson', ['Arpaçay', 'Akyaka'])]",
+ANAT_KAGIZMAN_1855,"[('file_where', 'turkey/east_anatolia_ilce_osm.geojson', ['Kağızman'])]",
+ANAT_KARS_OBL_1855,"[('file_where', 'turkey/east_anatolia_ilce_osm.geojson', ['Kars Merkez', 'Akyaka', 'Arpaçay', 'Digor', 'Kağızman', 'Sarıkamış', 'Selim', 'Susuz', 'Ardahan Merkez', 'Damal', 'Göle', 'Hanak', 'Posof', 'Çıldır', 'Oltu', 'Şenkaya'])]",
+ANAT_BAYAZET_1877,"[('file_where', 'turkey/east_anatolia_ilce_osm.geojson', ['Doğubayazıt'])]",
+ANAT_ALASHKERT_1877,"[('file_where', 'turkey/east_anatolia_ilce_osm.geojson', ['Eleşkirt'])]",
+ANAT_ERZURUM_OBL_1877,"[('file_where', 'turkey/east_anatolia_ilce_osm.geojson', ['Doğubayazıt', 'Eleşkirt', 'Horasan', 'Pasinler', 'Köprüköy'])]",
+ANAT_ERZURUM_1878,"[('file_where', 'turkey/east_anatolia_ilce_osm.geojson', ['Yakutiye', 'Palandöken', 'Aziziye'])]",
+KARS_ARDAHAN_1877,"[('file_where', 'turkey/east_anatolia_ilce_osm.geojson', ['Ardahan Merkez', 'Damal', 'Göle', 'Hanak', 'Posof', 'Çıldır'])]",
+KARS_KARS_1877,"[('file_where', 'turkey/east_anatolia_ilce_osm.geojson', ['Kars Merkez', 'Akyaka', 'Arpaçay', 'Digor', 'Kağızman', 'Sarıkamış', 'Selim', 'Susuz'])]",
+GEO_AJARIA,"[('ne', 'Georgia', ['Ajaria'])]",
+AZ_GANJA,"[('ne', 'Azerbaijan', ['Gəncə', 'Goranboy', 'Naftalan', 'Samux', 'Şəmkir', 'Daşkəsən', 'Xanlar', 'Gədəbəy', 'Yevlakh', 'Yevlakh Rayon', 'Mingəçevir'])]","ХАНСТВА ПООТДЕЛЬНОСТИ (правка 01.09.2026). Раньше здесь одной строкой
+стоял весь Азербайджан без Нахичевани, и на 12.10.1813 краснела разом
+половина Кавказа. Куратор, посмотрев карту: «сначала строятся крепости
+на кавказе, а потом разом захватывается и грузия и половина кавказа.
+давай как-то постепенно это рисовать». Ханства падали по одному за
+девять лет ДО Гюлистана, мир их только закрепил. Раскладка покрывает
+все 74 района Natural Earth без дыр и без дублей - проверка ниже."
+AZ_KARABAKH,"[('ne', 'Azerbaijan', ['Şuşa', 'Xocalı', 'Xocavənd', 'Stepanakert', 'Ağdam', 'Tərtər', 'Bərdə', 'Ağcabədi', 'Füzuli', 'Cəbrayıl', 'Zəngilan', 'Qubadli', 'Kəlbəcər', 'Beyləqan'])]",
+AZ_SHEKI,"[('ne', 'Azerbaijan', ['Şəki', 'Oğuz', 'Qəbələ', 'Qax'])]",
+AZ_JARO,"[('ne', 'Azerbaijan', ['Zaqatala', 'Balakən'])]",
+AZ_SHIRVAN,"[('ne', 'Azerbaijan', ['Şamaxı', 'Ağsu', 'Qobustan', 'İsmayıllı', 'Kürdəmir', 'Ucar', 'Göyçay', 'Ağdaş', 'Zərdab', 'Shirvan', 'Hajigabul'])]",
+AZ_BAKU,"[('ne', 'Azerbaijan', ['Bakı', 'Abşeron', 'Sumqayıt', 'Xizı'])]",
+AZ_QUBA,"[('ne', 'Azerbaijan', ['Quba', 'Qusar', 'Xaçmaz', 'Dəvəçi', 'Siyəzən'])]",
+AZ_TALYSH,"[('ne', 'Azerbaijan', ['Lankaran', 'Astara', 'Lerik', 'Masallı', 'Yardımlı', 'Cəlilabad', 'Biləsuvar'])]",
+AZ_MUGAN,"[('ne', 'Azerbaijan', ['Salyan', 'Neftçala', 'Saatlı', 'Sabirabad', 'İmişli'])]",
+AZ_NAKHCHIVAN,"[('ne', 'Azerbaijan', ['Naxçıvan', 'Babək', 'Culfa', 'Ordubad', 'Şahbuz', 'Sədərək', 'Kangarli', 'Şərur'])]",
+ARM_GULISTAN,"[('ne', 'Armenia', ['Syunik', 'Tavush'])]",
+ARM_TURKMANCHAY,"[('ne', 'Armenia', ['Erevan', 'Ararat', 'Armavir', 'Aragatsotn', 'Kotayk', 'Gegharkunik', 'Vayots Dzor', 'Shirak']), ('ne', 'Turkey', ['Iğdir'])]",
+DAGESTAN,"[('ne', 'Russia', ['Dagestan'])]",
+DAGESTAN_COAST,"[('file', 'dagestan/primorskaya_polosa.geojson')]","03.09.2026, разбор MAP-MATERIALS/loop_2026-09-03/D3_dagestan.md"
+TEREK_LOWER,"[('file', 'dagestan/nizovya_tereka.geojson')]",
+KARS,"[('ne', 'Turkey', ['Kars', 'Ardahan']), ('file', 'kars/ilce_rossiyskie_1878.geojson')]","Карсская область и Артвинский округ Батумской - по ст. 58 Берлинского
+трактата (22.09.2026). До того регион брал всю нынешнюю провинцию Артвин
+и не брал Ольтинский округ (он в нынешней провинции Эрзурум): Хопа и
+Архаве краснели с 1878 года, хотя русские войска вошли туда в феврале -
+марте 1915-го (Allen & Muratoff 1953, с. 294-295), а Ольты - нет, хотя
+граница шла, «оставляя город Ольти за Россией». Районы OSM: Артвин-центр,
+Ардануч, Борчка, Шавшат, Мургул (по водоразделу Хопы и Чороха -
+приближение), Олту, Олур, Шенкая. Лазистан (Хопа, Архаве, Кемальпаша),
+османская часть Юсуфели, Нарман, Тортум, Узундере в регион не входят -
+их за нынешней границей Турции режет tools/clip_foreign.py. Розыск -
+MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/b6_oltinskiy_okrug_1878-1918.md"
+ANAPA,"[('file', 'kuban/anapa_sudzhuk.geojson')]","РАМКА ЗАМЕНЕНА МУНИЦИПАЛИТЕТАМИ (01.09.2026): Анапа и Новороссийск
+(Суджук-кале) вместо прямоугольника по побережью"
+CIRCASSIA,"[('ne', 'Russia', ['Krasnodar', 'Adygey', 'Karachay-Cherkess'])]",
+CHECHNYA_WAR,"[('ne_minus', 'Russia', ['Chechnya'], ['chechnya/tersk_stanitsy.geojson'])]","--- Кавказ: территории, которые империя ЗАНЯЛА ПОЗЖЕ АКТА (см. RESIST) --
+Чечня южнее Терека: приteречная полоса (станицы Терского казачьего
+войска, Кизлярская линия с 1735 г.) отрезана рамкой по широте 43.5°,
+она у империи была. Грозная (43.32) остаётся южнее рамки - крепость
+1818 г. стояла в воюющей стране, а не в замирённой.
+ПРЯМОУГОЛЬНИК ЗАМЕНЁН НА РАЙОНЫ (01.09.2026). Раньше здесь стояла рамка
+по широте 43,5 - и на карте появлялась идеальная горизонталь поперёк
+Чечни. Куратор: «странные артефакты». Смысл рамки был верный: отрезать
+приteречную полосу со станицами Терского казачьего войска (Кизлярская
+линия с 1735 г.), она у империи была. Теперь то же самое вычитается
+настоящими единицами - Наурский и Шелковской районы, выгрузка
+tools/fetch_osm_units.py."
+DAGESTAN_MTN,"[('ne_minus', 'Russia', ['Dagestan'], ['dagestan/primorskaya_polosa.geojson', 'dagestan/nizovya_tereka.geojson', 'dagestan/kumyk_plain.geojson'])]","Горный Дагестан (ядро имамата): рамка отрезает приморскую полосу с
+Дербентом и Петровском (Гюлистан 1813 - там империя была) и низовья
+с Кизляром. Хасавюрт с кумыкской плоскостью рамка тоже отрезала, но с
+29.08.2026 он вычитается своей группой KUMYK_PLAIN - ниже
+ТО ЖЕ САМОЕ ДЛЯ ДАГЕСТАНА. Рамка (45.0, 41.0, 47.35, 43.15) давала на
+карте прямой угол у Каспия. Ядро имамата - горы: вычитаем приморскую
+полосу с Дербентом (взят 1806, побережье за империей по Гюлистану 1813)
+и низовья Терека с Кизляром (1735). Кумыкская плоскость вычитается
+своей группой KUMYK_PLAIN и здесь НЕ повторяется - у неё своя дата."
+KUMYK_PLAIN,"[('file', 'dagestan/kumyk_plain.geojson')]","Кумыкская плоскость (засулакская Кумыкия), Салатавия и Аух: семь единиц
+OpenStreetMap admin_level=6 - Хасавюртовский, Бабаюртовский,
+Кизилюртовский, Казбековский и Новолакский районы с городскими округами
+Хасавюрта и Кизилюрта. Земля между Тереком и Сулаком, куда рамка горного
+Дагестана не достаёт: она обрезана по 43.15°, а плоскость лежит севернее.
+Кизлярский и Тарумовский районы в группу НЕ входят - там Кизляр 1735 г.
+и станицы, красное там по делу"
+KARACHAY,"[('ne', 'Russia', ['Karachay-Cherkess'])]","Черкесия: левобережье Кубани от Лабы до моря. Рамка НЕ трогает
+Анапу с Суджук-кале (приобретение 1829 г., своя рамка выше),
+правобережье с Екатеринодаром (севернее 44.95°) и Карачай
+(подчинён 1828 г., Карачаево-Черкесия в выборку не входит)
+КАРАЧАЙ: верховья Кубани и Теберды у подошвы Эльбруса. Источник красит
+его контуром 1783 года, а в подданство он приведён только в 1828-м -
+АКАК т. 7: «Въ первый годъ войны съ Турцiею ген. Эмануель привелъ въ
+подданство Россiи Карачаевцевъ, обитающихъ на сѣверо-восточномъ склонѣ
+Кавказскихъ горъ, близь верховьевъ рр. Кубани и Теберды, у подошвы
+Эльбруса». Заведено 02.09.2026"
+NOGAI_STEPPE,"[('ne_minus', 'Russia', ['Krasnodar'], ['kuban/levoberezhye.geojson', 'kuban/anapa_sudzhuk.geojson'])]","НОГАЙСКАЯ СТЕПЬ: правобережье Кубани и восточное Приазовье, где кочевали
+едичкульская, едисанская и джанбулукская орды. Земля Краснодарского края
+МИНУС левобережье (оно вычитается своей группой до 1864 года) и минус
+Анапа с Новороссийском (Адрианополь 1829). Заведено 02.09.2026: куратор
+увидел, что всё Предкавказье краснеет одним шагом контуром 1783 года"
+CIRCASSIA_LEFT,"[('ne', 'Russia', ['Adygey']), ('file', 'kuban/levoberezhye.geojson')]","ПРЯМАЯ ПО ШИРОТЕ 44,95 ЗАМЕНЕНА МУНИЦИПАЛИТЕТАМИ (01.09.2026): рамка
+шла поперёк Кубани ровной горизонталью. Теперь левобережье собрано из
+девяти единиц южнее реки плюс Адыгея целиком; Анапа с Суджук-кале
+(Адрианополь 1829) и правобережье с Екатеринодаром не входят"
+KZ_YOUNGER,"[('ne', 'Kazakhstan', ['West Kazakhstan', 'Atyrau', 'Aqtöbe', 'Mangghystau'])]",--- казахская степь и Средняя Азия --------------------------------------
+KZ_MIDDLE,"[('ne', 'Kazakhstan', ['Aqmola', 'Astana', 'Pavlodar', 'North Kazakhstan', 'Qostanay', 'East Kazakhstan', 'Qaraghandy'])]",
+KZ_SENIOR,"[('ne', 'Kazakhstan', ['Almaty', 'Almaty City'])]",
+TASHKENT,"[('ne', 'Uzbekistan', ['Tashkent', 'Sirdaryo']), ('ne', 'Kazakhstan', ['South Kazakhstan', 'Zhambyl', 'Qyzylorda']), ('ne', 'Kyrgyzstan', ['Chuy', 'Bishkek', 'Ysyk-Köl', 'Naryn', 'Talas'])]",
+ZERAVSHAN,"[('ne', 'Uzbekistan', ['Samarkand', 'Jizzakh', 'Navoi'])]",
+BUKHARA,"[('ne', 'Uzbekistan', ['Bukhoro', 'Kashkadarya', 'Surkhandarya']), ('ne', 'Tajikistan', ['Khatlon', 'Leninabad', 'Dushanbe', 'Tadzhikistan Territories'])]",
+KHIVA,"[('ne', 'Uzbekistan', ['Khorezm', 'Karakalpakstan']), ('ne', 'Turkmenistan', ['Tashauz'])]",
+FERGHANA,"[('ne', 'Uzbekistan', ['Ferghana', 'Andijon', 'Namangan']), ('ne', 'Kyrgyzstan', ['Osh', 'Jalal-Abad', 'Batken'])]",
+TRANSCASPIA,"[('ne', 'Turkmenistan', ['Ahal', 'Balkan', 'Mary', 'Chardzhou'])]",
+PAMIR,"[('ne', 'Tajikistan', ['Gorno-Badakhshan'])]",
+CENTRAL_ASIA,"[('ne', 'Uzbekistan', None), ('ne', 'Turkmenistan', None), ('ne', 'Tajikistan', None), ('ne', 'Kyrgyzstan', None), ('ne', 'Kazakhstan', None)]","Средняя Азия целиком - возврат красного на срезы 1922-1930 (19.09.2026):
+контур атласа «СССР 1922-1923» не держит Бухару и Хорезм (LATE_EDITS)"
+DDR_1953_CHP,"[('file', 'satellite/ddr_1953_bez_zulya.geojson')]","--- сателлиты: окна прямого правления советских войск (22.09.2026) ------
+ГДР 1953: чрезвычайное положение советских комендантов. Округа июня
+1953 года - OpenHistoricalMap (без округа Зуль, где ЧП не вводилось),
+Восточный Берлин - OHM «Ostberlin» 1951-1990, остальные города -
+нынешние границы OSM (приближение городских округов 1953 года; Дессау и
+Биттерфельд - старые города до слияний 2007 года). Выгрузка -
+fetch_ddr1953.py в скретчпаде картографа, розыск -
+MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/sat_dopolnenie_2026-09-22.md"
+MEMELLAND,"[('file', 'borders/memelland_ohm_1920-1923.geojson')]","Мемельский край - прусский до Версаля, с 10.01.1920 под Антантой
+(22.09.2026, BACKLOG Б6 п. 13). Контур 1920-1923 - OpenHistoricalMap"
+DON_HOST,"[('file', 'steppe/don_host_1786.geojson')]","--- степь: самоуправные земли до госуправления (22.09.2026) ------------
+Правило «контроль, а не акт», прецедент Запорожья (вычтено до разгрома
+Сечи 04.05.1775): пока землёй правит свой круг или хан, а у империи на
+ней только крепости-точки, земля не красная. Ответ куратора на строку
+30 файла вопросов и розыски peresmotr_resheniy_2026-09-18/rozysk/
+b_kazachi_voyska_don_yaik.md, b_kazachi_zemli_granitsy_2026-09-22.md,
+b_kalmyki_1700-1771_2026-09-22.md. Геометрия - районы OSM (выгрузка
+fetch_raions.py в скретчпаде картографа), описание в свойствах файлов"
+KALMYK_KHANATE,"[('file', 'steppe/kalmyk_khanate.geojson')]",
+YAIK_TOWNS,"[('file', 'steppe/yaik_uralsk_guryev.geojson')]",
+DDR_1953_13,"[('file', 'satellite/ddr_1953_13_gorodov.geojson')]",
+DDR_1953_3,"[('file', 'satellite/ddr_1953_3_goroda.geojson')]",
+FINLAND,"[('ne', 'Finland', None)]",--- прочее ---------------------------------------------------------------
+MOLDOVA,"[('ne', 'Moldova', None)]",
+SAKHALIN,"[('ne', 'Russia', ['Sakhalin'])]",
+TUVA,"[('ne', 'Russia', ['Tuva'])]",
+ALASKA,"[('alaska',)]",
+AMUR_LEFT,"[('ne', 'Russia', ['Amur', 'Yevrey']), ('ne_box', 'Russia', ['Khabarovsk'], (128.0, 40.0, 145.0, 54.5))]",
+PRIMORYE,"[('ne', 'Russia', [""Primor'ye""])]",

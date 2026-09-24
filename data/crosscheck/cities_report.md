@@ -6,7 +6,7 @@
 Метод: point-in-polygon по срезу, действующему на дату строки.
 `empire` - срез обязан накрыть город, `not_empire` - не должен.
 
-Итог: ok - 95
+Итог: ok - 97
 
 | город | дата | контролёр | ждём | карта | вердикт | срез | источник |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -20,7 +20,7 @@
 | Тула | 1919-10-15 | bolsheviks | empire | empire | ok | 1919-10-15 | Kenez, Civil War in South Russia (1977) |
 | Орёл | 1919-10-15 | whites | empire | empire | ok | 1919-10-15 | Kenez, Civil War in South Russia (1977) |
 | Киев | 1918-03-02 | rada_germans | not_empire | not_empire | ok | 1918-03-02 | data/events/ukraina_1917_1921/draft_events.csv |
-| Киев | 1918-12-01 | directory | not_empire | not_empire | ok | 1918-11-18 | ГВЭ 2010; data/events/ukraina_1917_1921/draft_events.csv |
+| Киев | 1918-12-01 | directory | not_empire | not_empire | ok | 1918-12-01 | ГВЭ 2010; data/events/ukraina_1917_1921/draft_events.csv |
 | Киев | 1919-02-06 | bolsheviks | empire | empire | ok | 1919-02-06 | data/events/ukraina_1917_1921/draft_events.csv |
 | Киев | 1919-05-01 | bolsheviks | empire | empire | ok | 1919-04-20 | Директивы командования фронтов РККА, т. 2 |
 | Киев | 1919-10-01 | whites | empire | empire | ok | 1919-08-31 | Kenez, Civil War in South Russia (1977) |
@@ -39,7 +39,7 @@
 | Архангельск | 1920-03-20 | bolsheviks | empire | empire | ok | 1920-03-20 | Директивы командования фронтов РККА, т. 2 |
 | Мурманск | 1919-06-01 | north_region | empire | empire | ok | 1919-06-01 | ГВЭ 2010 |
 | Ростов-на-Дону | 1918-08-15 | krasnov | empire | empire | ok | 1918-08-15 | Kenez, Civil War in South Russia (1971) |
-| Ростов-на-Дону | 1919-03-01 | whites | empire | empire | ok | 1919-02-06 | Kenez, Civil War in South Russia (1971) |
+| Ростов-на-Дону | 1919-03-01 | whites | empire | empire | ok | 1919-02-24 | Kenez, Civil War in South Russia (1971) |
 | Ростов-на-Дону | 1919-08-31 | whites | empire | empire | ok | 1919-08-31 | Kenez, Civil War in South Russia (1977) |
 | Ростов-на-Дону | 1920-02-08 | bolsheviks | empire | empire | ok | 1920-02-08 | Директивы командования фронтов РККА, т. 2 |
 | Екатеринодар | 1919-06-01 | kuban | not_empire | not_empire | ok | 1919-06-01 | Kenez, Civil War in South Russia (1977); решение куратора 18.08.2026 |
@@ -63,7 +63,7 @@
 | Ереван | 1920-12-02 | bolsheviks | empire | empire | ok | 1920-12-02 | Hovannisian, The Republic of Armenia (1971-1996) |
 | Симферополь | 1918-02-01 | crimean_pr | not_empire | not_empire | ok | 1917-12-25 | ГВЭ 2010; Курултай 13.12.1917 |
 | Симферополь | 1919-09-01 | whites | empire | empire | ok | 1919-08-31 | Kenez, Civil War in South Russia (1977) |
-| Симферополь | 1920-06-01 | vrangel | empire | empire | ok | 1920-05-08 | ГВЭ 2010, Русская армия Врангеля |
+| Симферополь | 1920-06-01 | vrangel | empire | empire | ok | 1920-05-18 | ГВЭ 2010, Русская армия Врангеля |
 | Симферополь | 1920-12-01 | bolsheviks | empire | empire | ok | 1920-11-17 | Директивы командования фронтов РККА, т. 3 |
 | Севастополь | 1918-06-01 | germans | not_empire | not_empire | ok | 1918-04-18 | ГВЭ 2010; Брестский мир |
 | Самара | 1918-08-15 | komuch | empire | empire | ok | 1918-08-15 | Smele, Civil War in Siberia (1996) |
@@ -81,7 +81,7 @@
 | Екатеринбург | 1919-07-20 | bolsheviks | empire | empire | ok | 1919-07-20 | Директивы командования фронтов РККА, т. 2 |
 | Челябинск | 1919-06-25 | kolchak | empire | empire | ok | 1919-06-25 | Smele, Civil War in Siberia (1996) |
 | Омск | 1918-11-15 | directory | empire | empire | ok | 1918-11-15 | Временное Всероссийское правительство (Уфимская директория); data/crosscheck/siberia_actors_1917_1925.md |
-| Омск | 1919-03-01 | kolchak | empire | empire | ok | 1919-02-06 | Smele, Civil War in Siberia (1996) |
+| Омск | 1919-03-01 | kolchak | empire | empire | ok | 1919-02-24 | Smele, Civil War in Siberia (1996) |
 | Омск | 1919-10-15 | kolchak | empire | empire | ok | 1919-10-15 | Smele, Civil War in Siberia (1996) |
 | Омск | 1919-11-20 | bolsheviks | empire | empire | ok | 1919-11-20 | Директивы командования фронтов РККА, т. 2 |
 | Томск | 1918-09-01 | siberia | not_empire | not_empire | ok | 1918-08-15 | Декларация о государственной самостоятельности Сибири 04.07.1918; решение куратора 18.08.2026 |
@@ -93,7 +93,7 @@
 | Владивосток | 1919-10-15 | whites_entente | empire | empire | ok | 1919-10-15 | Smele, Civil War in Siberia (1996) |
 | Владивосток | 1920-11-17 | dvr | empire | empire | ok | 1920-11-17 | ГВЭ 2010, Дальневосточная республика |
 | Якутск | 1918-09-01 | siberia | not_empire | not_empire | ok | 1918-08-15 | Декларация о государственной самостоятельности Сибири 04.07.1918 |
-| Якутск | 1919-01-01 | whites | empire | empire | ok | 1918-11-18 | ГВЭ 2010 |
+| Якутск | 1919-01-01 | whites | empire | empire | ok | 1918-12-24 | ГВЭ 2010 |
 | Якутск | 1920-03-20 | bolsheviks | empire | empire | ok | 1920-03-20 | ГВЭ 2010 |
 | Семипалатинск | 1918-11-15 | alash | not_empire | not_empire | ok | 1918-11-15 | ГВЭ 2010; II Всеказахский съезд 13.12.1917 |
 | Ташкент | 1918-08-15 | bolsheviks | empire | empire | ok | 1918-08-15 | ГВЭ 2010, Туркестанская АССР |
@@ -105,6 +105,8 @@
 | Бухара | 1920-11-01 | bolsheviks | empire | empire | ok | 1920-11-01 | ГВЭ 2010, Бухарская НСР 08.10.1920 |
 | Ашхабад | 1919-02-06 | transcaspia | empire | empire | ok | 1919-02-06 | ГВЭ 2010, Закаспийский фронт |
 | Ашхабад | 1920-03-20 | bolsheviks | empire | empire | ok | 1920-03-20 | ГВЭ 2010, Закаспийский фронт |
+| Тебриз | 1918-01-15 | russian_troops | empire | empire | ok | 1917-12-25 | Encyclopaedia Iranica; Sykes |
+| Тебриз | 1918-03-15 | turks_later | not_empire | not_empire | ok | 1918-03-04 | Sykes: к марту ушли последние части |
 
 ## Примечания к строкам
 
@@ -203,3 +205,5 @@
 - **Бухара, 1920-11-01** - РККА взяла Бухару 02.09.1920
 - **Ашхабад, 1919-02-06** - Закаспийское временное правительство - русская белая администрация под британской интервенцией, империя
 - **Ашхабад, 1920-03-20** - РККА взяла Ашхабад 09.07.1919, Красноводск 06.02.1920
+- **Тебриз, 1918-01-15** - Персия, эвакуация: войска до марта 1918
+- **Тебриз, 1918-03-15** - Персия, эвакуация

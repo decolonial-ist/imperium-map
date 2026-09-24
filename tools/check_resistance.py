@@ -160,7 +160,9 @@ def main():
     with open(os.path.join(DATA, 'resistance', 'registry.csv'),
               encoding='utf-8') as f:
         up = list(csv.DictReader(f))
-    ok('реестр сопротивления: строк', len(up), 148)
+    # 24.09.2026: пачка 5а (Западная Грузия) - Гурийское восстание 1841 года
+    # и окно удержания Абхазии 1866 года
+    ok('реестр сопротивления: строк', len(up), 149)
     ok('реестр сопротивления: имена уникальны',
        len({r['name'] for r in up}), len(up))
     ok('реестр сопротивления: у всех есть источник',
@@ -205,13 +207,14 @@ def main():
     ok('реестр сопротивления: удержавших территорию',
        sorted({r['name'] for r in up if r['hold_from'].strip()}
               | {h['name'] for h in holds}),
-       ['alibek_1877', 'bashkir_1704', 'baysangur_1860', 'ichkeria_1991',
-        'imamate_1828', 'imereti_1810', 'kenesary_1837', 'kholodny_yar_1919',
-        'makhno_1918', 'poland_1830', 'razin_1667', 'tungus_1924'])
+       ['abkhazia_1866', 'alibek_1877', 'bashkir_1704', 'baysangur_1860',
+        'guria_1841', 'ichkeria_1991', 'imamate_1828', 'imereti_1810',
+        'kenesary_1837', 'kholodny_yar_1919', 'makhno_1918', 'poland_1830',
+        'razin_1667', 'tungus_1924'])
 
     # ---- 2. собранные слои --------------------------------------------------
     upg = js('resistance/uprisings.geojson')['features']
-    ok('слой сопротивления: фич', len(upg), 147)
+    ok('слой сопротивления: фич', len(upg), 148)
     ok('слой сопротивления: все геометрии валидны',
        sum(1 for f in upg if not shape(f['geometry']).buffer(0).is_valid), 0)
     ok('слой сопротивления: все помечены approximate',
@@ -222,12 +225,17 @@ def main():
     # 19.09.2026: у махновщины пять окон по районам вместо одного на всё ядро
     # (data/resistance/holds.csv, дни по сборнику РОССПЭН 2006); у Ноябрьского
     # восстания 1830-1831 гг. - восемь окон по воеводствам (Tokarz 1930)
-    ok('вырезы: сколько', len(cuts), 19)
+    ok('вырезы: сколько', len(cuts), 21)
     ok('вырезы: какие', sorted({f['properties']['name'] for f in cuts}),
-       ['alibek_1877', 'baysangur_1860', 'imereti_1810', 'kenesary_1837',
-        'kholodny_yar_1919', 'makhno_1918', 'poland_1830', 'razin_1667'])
+       ['abkhazia_1866', 'alibek_1877', 'baysangur_1860', 'guria_1841',
+        'imereti_1810', 'kenesary_1837', 'kholodny_yar_1919', 'makhno_1918', 'poland_1830',
+        'razin_1667'])
+    # исключения с причиной - LOW_SHARE_OK в tools/build_uprisings.py (24.09.2026:
+    # Разин - калмыцкие кочевья не империя до 1771 года, пачка 3)
+    from build_uprisings import LOW_SHARE_OK
     ok('вырезы: доля внутри контура империи не ниже 20 %',
-       sum(1 for f in cuts if f['properties']['inside_share'] < 0.2), 0)
+       sum(1 for f in cuts if f['properties']['inside_share'] < 0.2
+           and f['properties']['name'] not in LOW_SHARE_OK), 0)
     # Тунгусская республика 1924-1925 добавлена 28.08.2026: землю она удержала,
     # но вырез из красного делает слой потерь контроля (эпизод tungus-1924 в
     # tools/build_losses.py), поэтому здесь она тоже shown_elsewhere.

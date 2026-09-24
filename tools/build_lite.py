@@ -126,17 +126,22 @@ def main_mid(a):
     keys = [str(k) for k in mf['years']]
     if a.only:
         keys = [k for k in keys if k == a.only]
+    redo = set(a.keys.split(',')) if a.keys else None
     done, skipped, sizes = [], [], {}
     for k in keys:
         src = os.path.join(DATA, 'years', k + '.geojson')
         if not os.path.exists(src):
             continue
+        dst = os.path.join(out, k + '.geojson')
+        if redo is not None and k not in redo and os.path.exists(dst):
+            sizes[k] = os.path.getsize(dst)
+            done.append(k)
+            continue
         g = lighten(json.load(open(src, encoding='utf-8')), tol, ND_MID)
         if g is None:
             skipped.append(k)
             continue
-        sizes[k] = write(os.path.join(out, k + '.geojson'), g,
-                         'data/years/%s.geojson' % k, level='mid')
+        sizes[k] = write(dst, g, 'data/years/%s.geojson' % k, level='mid')
         done.append(k)
     total = sum(sizes.values())
     if a.only:
@@ -167,6 +172,10 @@ def main():
     ap.add_argument('--level', choices=('lite', 'mid'), default='lite')
     ap.add_argument('--tol', type=float, default=None)
     ap.add_argument('--only')
+    # --keys k1,k2: пересобрать только эти срезы, остальные взять готовыми из
+    # data/years_lite (years_mid); топология, опись и штамп - по всем
+    # (tools/rebuild.py --changed, 24.09.2026)
+    ap.add_argument('--keys')
     a = ap.parse_args()
     if a.level == 'mid':
         return main_mid(a)
@@ -182,24 +191,37 @@ def main():
     keys = [str(k) for k in mf['years']]
     if a.only:
         keys = [k for k in keys if k == a.only]
+    redo = set(a.keys.split(',')) if a.keys else None
     done_y, size_y, skipped = [], 0, []
     bounds = {}                     # охват среза [зап, юг, вост, сев] - стартовому виду
     for k in keys:
         src = os.path.join(DATA, 'years', k + '.geojson')
         if not os.path.exists(src):
             continue
-        g = lighten(json.load(open(src, encoding='utf-8')), a.tol, ND)
-        if g is None:
-            skipped.append(k)
-            continue
-        size_y += write(os.path.join(out_y, k + '.geojson'), g,
-                        'data/years/%s.geojson' % k)
+        dst = os.path.join(out_y, k + '.geojson')
+        if redo is not None and k not in redo and os.path.exists(dst):
+            with open(dst, encoding='utf-8') as f:
+                g = json.load(f)['features'][0]['geometry']
+            size_y += os.path.getsize(dst)
+        else:
+            g = lighten(json.load(open(src, encoding='utf-8')), a.tol, ND)
+            if g is None:
+                skipped.append(k)
+                continue
+            size_y += write(dst, g, 'data/years/%s.geojson' % k)
         done_y.append(k)
         bounds[k] = [round(v, 3) for v in shape(g).bounds]
 
     dsp = os.path.join(DATA, 'deepstate', 'manifest.json')
     done_m, size_m = [], 0
-    if os.path.exists(dsp) and not a.only:
+    old_lm = os.path.join(DATA, 'lite_manifest.json')
+    if a.keys and os.path.exists(old_lm):
+        # снимки фронта от правки таблиц ядра не зависят - берём готовые
+        with open(old_lm, encoding='utf-8') as f:
+            done_m = json.load(f).get('months') or []
+        size_m = sum(os.path.getsize(os.path.join(out_m, d + '.geojson'))
+                     for d in done_m if os.path.exists(os.path.join(out_m, d + '.geojson')))
+    elif os.path.exists(dsp) and not a.only:
         ds = json.load(open(dsp, encoding='utf-8'))
         for day in (ds.get('months') or []):
             src = os.path.join(DATA, 'deepstate', 'days', day + '.geojson')
