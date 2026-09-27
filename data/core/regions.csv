@@ -160,7 +160,7 @@ UA_LUGANSK_STEPPE,"[('ne', 'Ukraine', [""Luhans'k""])]","Луганщина бе
 восьми покрывали 86 % области, и на стыке с грубым контуром источника
 оставались зубцы и красный клин (куратор: «квадраты, вздроч какая-то»).
 Граница области совпадает с той, что рисует базовая карта, — стык чистый"
-UA_OCHAKOV,"[('file', 'ukraine/ochakov_oblast.geojson'), ('ne', 'Ukraine', ['Mykolayiv'])]",
+UA_OCHAKOV,"[('file', 'ukraine/ochakov_oblast.geojson'), ('ne', 'Ukraine', ['Mykolayiv']), ('minus_file', 'ukraine/bug_east.geojson')]","Очаковская область лежала между Бугом и Днестром: левый берег Буга (Баштанский район, восток Николаевского и вся Николаевская область Natural Earth) до 26.09.2026 вырезался вместе с ней до 1791 года, а с ним угол 1774 года и 62 % Кинбурнского полуострова. Режем по линии Буга OSM"
 UA_BUDJAK,"[('file', 'ukraine/budjak.geojson')]",
 UA_KYIV_RIGHT,"[('file', 'ukraine/kyiv_right_bank.geojson')]",
 UA_KIROVOHRAD_STEPPE,"[('file', 'ukraine/kirovohrad_steppe.geojson'), ('ne', 'Ukraine', ['Kirovohrad'])]",
@@ -481,3 +481,6 @@ TUVA,"[('ne', 'Russia', ['Tuva'])]",
 ALASKA,"[('alaska',)]",
 AMUR_LEFT,"[('ne', 'Russia', ['Amur', 'Yevrey']), ('ne_box', 'Russia', ['Khabarovsk'], (128.0, 40.0, 145.0, 54.5))]",
 PRIMORYE,"[('ne', 'Russia', [""Primor'ye""])]",
+KINBURN,"[('file', 'ukraine/kinburn_peninsula.geojson')]","Кинбурнский полуостров по OpenStreetMap (отношение 8698667, natural=peninsula), 26.09.2026"
+TAMAN,"[('file', 'kuban/taman_temryuk.geojson')]","Таманский полуостров: Темрюкский район по OpenStreetMap (отношение 364171), 26.09.2026 - отдельного контура полуострова в OSM нет"
+BUG_DNIPRO_CORNER,"[('file', 'ukraine/bug_dnipro_corner.geojson')]","Междуречье Южного Буга и Днепра: линии рек OSM (waterway=river), через Днепро-Бугский лиман - прямые по воде; земля - Николаевская и Херсонская области OSM (rel 72635, 71022), 26.09.2026. Сборка файла - WORKFILES/newbuild_2026-09-24/corner/build_corner.py"

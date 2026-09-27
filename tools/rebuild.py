@@ -20,7 +20,9 @@ build/state/: копия таблиц, отпечатки входов слоё�
 Каждая задетая дата собирается ЗАНОВО от основы: ранняя - build(), поздняя -
 основа источника (CShapes, замороженный 1922), копия или срез распада, для
 срезов пакта и ВМВ - их сырой вывод из build/tmp, затем правки своей даты и
-обрезка по чужим границам. Слой войны пересобирается, если сменился его вход
+обрезка по чужим границам. Затем берег: один на все даты, по маске суши
+OSM (tools/coast_osm.py, 25.09.2026) - шаг сам проверяет срезы, у которых
+сменилась отметка, и после ПМВ, чтобы взять и её даты. Слой войны пересобирается, если сменился его вход
 (код, таблица якорей, контур) или его основа (пакт - 1922, ВМВ - пакт, ПМВ -
 1914-04-04, новые ключи окна ПМВ). Потом производные: облегчённые срезы только
 задетых дат, топология, пакеты среднего уровня и ячейки крупного масштаба
@@ -55,7 +57,7 @@ STATE = os.path.join(BUILD, 'state')
 FROZEN_1922 = os.path.join(DATA, 'atlas', 'ussr_1922_frozen_2026-09-24.geojson')
 SIMP = 0.001
 CORE_CODE = ['build_expansion.py', 'build_data.py', 'geoclean.py', 'clip_foreign.py',
-             'core_tables.py', 'rebuild.py']
+             'core_tables.py', 'rebuild.py', 'coast_osm.py']
 
 # слои войн и производные: скрипт, свои модули, ключи-основы
 LAYERS = {
@@ -546,7 +548,7 @@ def main():
     g.add_argument('--all', action='store_true')
     g.add_argument('--changed', action='store_true')
     ap.add_argument('--dry-run', action='store_true')
-    ap.add_argument('--workers', type=int, default=4)
+    ap.add_argument('--workers', type=int, default=max(1, (os.cpu_count() or 4) - 2))
     a = ap.parse_args()
     os.makedirs(TMP, exist_ok=True)
     T0 = time.perf_counter()
@@ -598,11 +600,15 @@ def main():
           f'новых {len(p["added"])}, снятых {len(p["removed"])}')
     for name, reason in p['layers'].items():
         print(f'### слой {name}: ' + '; '.join(reason))
+    import coast_osm
+    coast_todo = coast_osm.pending()
+    if coast_todo:
+        print(f'### берег OSM: срезов к проверке {len(coast_todo)}', flush=True)
     if a.dry_run:
         print('задеты:', ', '.join(sorted(touched, key=BE.key_date)[:60]),
               '…' if len(touched) > 60 else '')
         return
-    if not touched and not p['layers']:
+    if not touched and not p['layers'] and not coast_todo:
         print('### нечего пересобирать')
         return
     area_before = {}
@@ -700,7 +706,11 @@ def main():
         times.append(('ПМВ', run('ПМВ', 'build_ww1.py', '--workers', str(a.workers))))
     if 'sphere' in p['layers']:
         times.append(('сфера', run('сфера', 'build_sphere.py')))
-    lite_keys = sorted(set(clip) | set(p['added']) | (
+    # берег OSM - после обрезки и ПМВ; переписанные им срезы идут в производные
+    b0 = mtimes()
+    times.append(('берег OSM', run('берег OSM', 'coast_osm.py', '--workers', str(a.workers))))
+    coast = {k for k, mt in mtimes().items() if b0.get(k) != mt}
+    lite_keys = sorted(set(clip) | set(p['added']) | coast | (
         {k for k in mtimes() if ww1_window(BE, k)} if 'ww1' in p['layers'] else set()),
         key=BE.key_date)
     lsig_path = os.path.join(STATE, 'losses.json')

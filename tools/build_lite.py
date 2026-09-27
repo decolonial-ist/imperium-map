@@ -70,9 +70,19 @@ TOPO_Q = '1e5'
 # знаков: замер на срезе 1991 года - около 148 КБ сжатыми и 20 тысяч вершин.
 TOL_MID = 0.002
 ND_MID = 5
+# БЕРЕГ ГРУБЕЕ ГРАНИЦ (26.09.2026). С единым берегом OSM (tools/coast_osm.py)
+# красное у моря идёт по настоящей береговой линии, а она у арктических
+# берегов изрезана: средний срез 1968 года вырос со 144 до 623 КБ сжатыми (90
+# тысяч вершин против 20), облегчённый - с 38 до 65. Внутри береговой полосы
+# (море и суша до 0,06° от него, coast_osm.coast_band) контур упрощается с
+# допуском TOL*_COAST, вне её - прежним: сухопутные границы и фронты на
+# телефоне (он берёт средний уровень на любом масштабе) не грубеют.
+# Острова в полосе мельче TOL*_COAST²·4 на этих уровнях не рисуются.
+TOL_COAST = 0.05
+TOL_MID_COAST = 0.012      # ~2 пикселя на масштабе 8; 1968: 161 КБ сжатыми против 144 до OSM
 
 
-def lighten(fc, tol, nd):
+def lighten(fc, tol, nd, tol_coast=None):
     parts = []
     for f in fc.get('features', []):
         g = f.get('geometry')
@@ -86,7 +96,18 @@ def lighten(fc, tol, nd):
             parts.append(s)
     if not parts:
         return None
-    g = unary_union(parts).simplify(tol, preserve_topology=True).buffer(0)
+    g = unary_union(parts)
+    band = None
+    if tol_coast:
+        import coast_osm
+        band = coast_osm.coast_band()
+        # упрощение с сохранением топологии бывает невалидным на касаниях
+        # частей (срезы ПМВ у Вазы, 26.09.2026) - чистим до наложения на полосу
+        gc_ = g.simplify(tol_coast, preserve_topology=True).buffer(0)
+        gl_ = g.simplify(tol, preserve_topology=True).buffer(0)
+        g = unary_union([gc_.intersection(band), gl_.difference(band)]).buffer(0)
+    else:
+        g = g.simplify(tol, preserve_topology=True).buffer(0)
     if g.is_empty:
         return None
     try:
@@ -96,9 +117,34 @@ def lighten(fc, tol, nd):
     if not g.is_valid:
         g = g.buffer(0)
     g = drop_slivers(g, tol * tol * 4)
+    if g is not None and not g.is_empty and band is not None:
+        from shapely.geometry import MultiPolygon, Point
+        small = tol_coast * tol_coast * 4
+        ps = list(g.geoms) if g.geom_type == 'MultiPolygon' else [g]
+        keep = [q for q in ps if q.area >= small or not band.contains(q.representative_point())]
+        g = (MultiPolygon(keep) if len(keep) > 1 else keep[0]) if keep else None
     if g is None or g.is_empty:
         return None
     return gc.sort_polygons(gc.sanitize_geom(mapping(g)))
+
+
+def _one(job):
+    """Один срез уровня: (ключ, путь-источник, путь-вывод, допуски) -> (ключ, байт, охват)."""
+    k, src, dst, tol, nd, tol_coast, level = job
+    with open(src, encoding='utf-8') as f:
+        g = lighten(json.load(f), tol, nd, tol_coast)
+    if g is None:
+        return k, None, None
+    return k, write(dst, g, 'data/years/%s.geojson' % k, level=level), \
+        [round(v, 3) for v in shape(g).bounds]
+
+
+def run_jobs(jobs, workers):
+    if workers <= 1 or len(jobs) < 2:
+        return [_one(j) for j in jobs]
+    from multiprocessing import get_context
+    with get_context('spawn').Pool(workers) as pool:
+        return pool.map(_one, jobs, chunksize=1)
 
 
 def write(path, geom, src, level='lite'):
@@ -128,6 +174,7 @@ def main_mid(a):
         keys = [k for k in keys if k == a.only]
     redo = set(a.keys.split(',')) if a.keys else None
     done, skipped, sizes = [], [], {}
+    jobs = []
     for k in keys:
         src = os.path.join(DATA, 'years', k + '.geojson')
         if not os.path.exists(src):
@@ -135,14 +182,14 @@ def main_mid(a):
         dst = os.path.join(out, k + '.geojson')
         if redo is not None and k not in redo and os.path.exists(dst):
             sizes[k] = os.path.getsize(dst)
-            done.append(k)
             continue
-        g = lighten(json.load(open(src, encoding='utf-8')), tol, ND_MID)
-        if g is None:
+        jobs.append((k, src, dst, tol, ND_MID, TOL_MID_COAST, 'mid'))
+    for k, size, _ in run_jobs(jobs, a.workers):
+        if size is None:
             skipped.append(k)
-            continue
-        sizes[k] = write(dst, g, 'data/years/%s.geojson' % k, level='mid')
-        done.append(k)
+        else:
+            sizes[k] = size
+    done = [k for k in keys if k in sizes]
     total = sum(sizes.values())
     if a.only:
         # проба на одном срезе: опись с одним ключом отправила бы карту за
@@ -151,10 +198,10 @@ def main_mid(a):
               'опись и штамп не тронуты' % (len(done), total / 1048576, len(skipped)))
         return
     man = {
-        'note': ('средний уровень точных срезов: упрощение %.3f°, координаты '
+        'note': ('средний уровень точных срезов: упрощение %.3f° (у моря %.3f°), координаты '
                  'до %d знаков; сборка tools/build_lite.py --level mid'
-                 % (tol, ND_MID)),
-        'tol': tol, 'nd': ND_MID, 'years': done, 'skipped': skipped,
+                 % (tol, TOL_MID_COAST, ND_MID)),
+        'tol': tol, 'tol_coast': TOL_MID_COAST, 'nd': ND_MID, 'years': done, 'skipped': skipped,
         'bytes': sizes,
     }
     with open(os.path.join(DATA, 'mid_manifest.json'), 'w', encoding='utf-8') as f:
@@ -176,6 +223,7 @@ def main():
     # data/years_lite (years_mid); топология, опись и штамп - по всем
     # (tools/rebuild.py --changed, 24.09.2026)
     ap.add_argument('--keys')
+    ap.add_argument('--workers', type=int, default=max(1, (os.cpu_count() or 4) - 2))
     a = ap.parse_args()
     if a.level == 'mid':
         return main_mid(a)
@@ -194,6 +242,7 @@ def main():
     redo = set(a.keys.split(',')) if a.keys else None
     done_y, size_y, skipped = [], 0, []
     bounds = {}                     # охват среза [зап, юг, вост, сев] - стартовому виду
+    jobs = []
     for k in keys:
         src = os.path.join(DATA, 'years', k + '.geojson')
         if not os.path.exists(src):
@@ -203,14 +252,16 @@ def main():
             with open(dst, encoding='utf-8') as f:
                 g = json.load(f)['features'][0]['geometry']
             size_y += os.path.getsize(dst)
+            bounds[k] = [round(v, 3) for v in shape(g).bounds]
         else:
-            g = lighten(json.load(open(src, encoding='utf-8')), a.tol, ND)
-            if g is None:
-                skipped.append(k)
-                continue
-            size_y += write(dst, g, 'data/years/%s.geojson' % k)
-        done_y.append(k)
-        bounds[k] = [round(v, 3) for v in shape(g).bounds]
+            jobs.append((k, src, dst, a.tol, ND, TOL_COAST, 'lite'))
+    for k, size, bb in run_jobs(jobs, a.workers):
+        if size is None:
+            skipped.append(k)
+        else:
+            size_y += size
+            bounds[k] = bb
+    done_y = [k for k in keys if k in bounds]
 
     dsp = os.path.join(DATA, 'deepstate', 'manifest.json')
     done_m, size_m = [], 0

@@ -1254,6 +1254,11 @@ def build_pre20():
                 props['geometry_note'] = (
                     'геометрия условная: обозначение места, не линия контроля')
             g = g.simplify(PRE20_SIMPLIFY)
+            if props.get('clip'):
+                # упрощение на 500 м выносит кромку за подробный берег OSM
+                # (26.09.2026: Севастополь 1855 торчал из среза на 1,05 %) -
+                # обрезаем тем же срезом ещё раз, уже после упрощения
+                g = g.intersection(core_slice(props['clip'])).buffer(0)
             feats.append({'type': 'Feature', 'properties': props,
                           'geometry': gc.clean_rings(rnd(mapping(g)))})
         size = write(os.path.join(OUT, ep['slug'] + '.geojson'), feats)

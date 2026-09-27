@@ -234,7 +234,7 @@ def build_base(args):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--all', action='store_true')
-    ap.add_argument('--workers', type=int, default=4)
+    ap.add_argument('--workers', type=int, default=max(1, (os.cpu_count() or 4) - 2))
     a = ap.parse_args()
     if not os.path.exists(os.path.join(BIN, 'geo2topo')):
         sys.exit('geo2topo не найден: `npm ci` в корне репо')

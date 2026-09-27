@@ -63,7 +63,22 @@ def km2(g):
 
 
 def water_polys():
-    """Вода NE 10m: океан + озёра (Каспий и Арал - тоже вода)."""
+    """Море по маске суши OSM (cache/osm_land/mask.pkl): с 25.09.2026 берег
+    карты - OSM, и по грубому берегу NE 10m настоящие острова считались
+    морем (508 «мест» 26.09.2026). Без маски - океан + озёра NE 10m."""
+    mask = os.path.join(CACHE, 'osm_land', 'mask.pkl')
+    if os.path.exists(mask):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import coast_osm
+        _, keys, boxes, _, kind, _, sea = coast_osm.mask()
+        polys = []
+        for i in range(len(keys)):
+            g = boxes[i] if kind[i] == 'S' else sea[i] if kind[i] == 'C' else None
+            if g is not None:
+                polys.extend(g.geoms if g.geom_type == 'MultiPolygon' else [g])
+        print(f'вода: море по маске OSM, кусков {len(polys)}')
+        return polys
+    print('вода: NE 10m (маски OSM нет)')
     polys = []
     for name in ('ne_10m_ocean.geojson', 'ne_10m_lakes.geojson'):
         with open(os.path.join(CACHE, name), encoding='utf-8') as f:

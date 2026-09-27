@@ -111,17 +111,12 @@ KIND_WORD = {'ostrog': 'острог', 'krepost': 'крепость', 'zavod': '
              'priisk': 'прииск', 'post': 'военный пост',
              'stanitsa': 'казачья станица', 'selenie': 'переселенческое село',
              'zimovye': 'ясачное зимовье', 'uezd': 'уездное управление'}
-# ГРАЖДАНСКОЕ ЗАСЕЛЕНИЕ КРАСНОЕ НЕ ГАСИТ (17.09.2026). Правило от 02.09 -
-# «точка на уже красной земле в показ не идёт» - придумано для острога и
-# крепости: они показывают присутствие там, где красного ещё нет. У станицы,
-# переселенческого села, ясачного зимовья и уездной управы смысл обратный:
-# их и ставят на уже отнятой земле, это и есть заселение. Под старым правилом
-# первые внесённые станицы не показывались вовсе (Темижбекская 1802 на земле,
-# красной с 1783) или горели неделями (Геленджикская 1864 при красном с
-# 21.05.1864), то есть слово куратора «вноси» давало пустоту. Поэтому для этих
-# типов красное не скрывает точку и не гасит её: она горит от основания до
-# своего конца, а если конца нет - до конца линии времени.
-CIVIL = {'stanitsa', 'selenie', 'zimovye', 'uezd'}
+# ПРАВИЛО ОДНО ДЛЯ ВСЕХ ТИПОВ (куратор 25.09.2026). С 17.09 станица, село,
+# зимовье и уездная управа были изъяты из правила красного: горели от
+# основания до конца линии времени, и на срезе 1971 года внутри красного
+# светились 151 такая точка. Куратор: «правило то не менялось - приходит
+# красное - точка гаснет». Изъятие снято: точка на уже красной земле в показ
+# не идёт, точка, до которой красное дошло позже, гаснет в тот день.
 
 
 def build(rows, skipped=None):
@@ -141,7 +136,7 @@ def build(rows, skipped=None):
         # ничего про захват не говорит и только мельтешит на ползунке -
         # появилось и тут же погасло
         red = red_from(lon, lat)
-        if kind not in CIVIL and red is not None and str(red) <= str(r['founded']):
+        if red is not None and str(red) <= str(r['founded']):
             if skipped is not None:
                 skipped.append((r['name_ru'], KIND_WORD[kind],
                                 r['founded'][:4], str(red)[:4]))
@@ -188,6 +183,19 @@ _table = None
 # Для каждого среза помним его отметку (mtime, размер) и номера точек внутри;
 # перечитываются только срезы с новой отметкой. Сменился набор точек - кэш с нуля.
 HITS = os.path.join(ROOT, 'build', 'cache', 'ostrog_hits.json')
+WORKERS = max(1, (os.cpu_count() or 4) - 2)
+
+
+def _hits_one(job):
+    """(ключ, путь, отметка, точки) -> (ключ, [отметка, номера точек внутри среза])."""
+    from shapely.geometry import Point, shape
+    from shapely.prepared import prep
+    k, path, stamp, pts = job
+    with open(path, encoding='utf-8') as f:
+        fc = json.load(f)
+    feats = [prep(shape(ft['geometry']).buffer(0)) for ft in fc['features']]
+    return k, [stamp, [i for i, (lon, lat) in enumerate(pts)
+                       if any(g.contains(Point(lon, lat)) for g in feats)]]
 
 
 def red_table(points):
@@ -207,20 +215,26 @@ def red_table(points):
     keys = sorted((k for k in keys
                    if os.path.exists(os.path.join(DATA, 'years', k + '.geojson'))),
                   key=key_date)
-    hits, read = {}, 0
+    hits, todo = {}, []
     for k in keys:
         path = os.path.join(DATA, 'years', k + '.geojson')
         st = os.stat(path)
         stamp = [st.st_mtime_ns, st.st_size]
         if k in old and old[k][0] == stamp:
             hits[k] = old[k]
-            continue
-        with open(path, encoding='utf-8') as f:
-            fc = json.load(f)
-        feats = [prep(shape(ft['geometry']).buffer(0)) for ft in fc['features']]
-        hits[k] = [stamp, [i for i, (lon, lat) in enumerate(pts)
-                           if any(g.contains(Point(lon, lat)) for g in feats)]]
-        read += 1
+        else:
+            todo.append((k, path, stamp, pts))
+    # срезы читаются параллельно (26.09.2026: в один процесс 505 срезов шли 73 мин)
+    if len(todo) > 1 and WORKERS > 1:
+        from multiprocessing import get_context
+        with get_context('spawn').Pool(min(WORKERS, len(todo))) as pool:
+            for k, h in pool.imap_unordered(_hits_one, todo):
+                hits[k] = h
+    else:
+        for job in todo:
+            k, h = _hits_one(job)
+            hits[k] = h
+    read = len(todo)
     os.makedirs(os.path.dirname(HITS), exist_ok=True)
     with open(HITS + '.tmp', 'w', encoding='utf-8') as f:
         json.dump({'sig': sig, 'slices': hits}, f)
@@ -240,8 +254,6 @@ def red_visible(kind, founded, lon, lat):
     того дня, когда земля вокруг покраснела. Точки, поставленные на уже
     красной земле, до сюда не доходят - их отсеивает build().
     """
-    if kind in CIVIL:
-        return None
     red = red_from(lon, lat)
     if red is None:
         return None

@@ -46,11 +46,15 @@ FULL_UNION = os.path.join(CACHE, 'full_union')
 STATE = os.path.join(CACHE, 'mid_packs.json')
 BIN = os.path.join(ROOT, 'node_modules', '.bin')
 TOL = 0.002                    # как средний уровень (build_lite.TOL_MID)
+# дуги у моря (береговая полоса coast_osm.coast_band) - грубее, как средний
+# уровень у моря (build_lite.TOL_MID_COAST): берег OSM изрезан, и с 0,002 пакеты
+# выросли с 5 до 31 МБ сжатыми (26.09.2026)
+from build_lite import TOL_MID_COAST as TOL_COAST  # noqa: E402
 Q = '1e6'                      # шаг сетки ~0,0004° на охвате империи
 BUDGET = 450 * 1024            # сжатыми; ~5 с на медленном 3G, фоном
 # эпохи - верхний уровень нарезки: внутри них даты делят дуги, на стыках нет
 ERAS = ['1914-07-19', '1922', '1992']
-PARAMS = {'tol': TOL, 'q': Q, 'budget': BUDGET, 'eras': ERAS, 'v': 1}
+PARAMS = {'tol': TOL, 'tol_coast': TOL_COAST, 'q': Q, 'budget': BUDGET, 'eras': ERAS, 'v': 2}
 
 
 def key_date(k):
@@ -87,6 +91,15 @@ def union_one(k):
         json.dump({'type': 'FeatureCollection', 'features': [] if g is None or g.is_empty else [
             {'type': 'Feature', 'properties': {}, 'geometry': mapping(g)}]}, f, separators=(',', ':'))
     g = drop_slivers(g, TOL * TOL * 4) if g is not None and not g.is_empty else None
+    if g is not None and not g.is_empty:
+        # островки у моря мельче TOL_COAST²·4 - как на среднем уровне
+        import coast_osm
+        from shapely.geometry import MultiPolygon
+        band = coast_osm.coast_band()
+        ps = list(g.geoms) if g.geom_type == 'MultiPolygon' else [g]
+        keep = [q for q in ps if q.area >= TOL_COAST * TOL_COAST * 4
+                or not band.contains(q.representative_point())]
+        g = (MultiPolygon(keep) if len(keep) > 1 else keep[0]) if keep else None
     feats = [] if g is None or g.is_empty else [
         {'type': 'Feature', 'properties': {'mid': True}, 'geometry': mapping(g)}]
     out = {'type': 'FeatureCollection', 'features': feats}
@@ -106,10 +119,16 @@ def build_pack(keys):
                        stdout=f, check=True, env=env)
     with open(tmp, encoding='utf-8') as f:
         t = json.load(f)
+    import numpy as np
+    import shapely
+    import coast_osm
+    band = coast_osm.coast_band()
     arcs = []
     for a in t['arcs']:
         if len(a) > 2:
-            s = LineString(a).simplify(TOL, preserve_topology=False).coords
+            xy = np.asarray(a, dtype=float)
+            tol = TOL_COAST if shapely.contains_xy(band, xy[:, 0], xy[:, 1]).mean() >= 0.5 else TOL
+            s = LineString(a).simplify(tol, preserve_topology=False).coords
             a = [list(p) for p in s] if len(s) >= 2 else [a[0], a[-1]]
         arcs.append(a)
     t['arcs'] = arcs
@@ -143,7 +162,7 @@ def fit(keys, out):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--all', action='store_true')
-    ap.add_argument('--workers', type=int, default=4)
+    ap.add_argument('--workers', type=int, default=max(1, (os.cpu_count() or 4) - 2))
     a = ap.parse_args()
     if not os.path.exists(os.path.join(BIN, 'geo2topo')):
         sys.exit('geo2topo не найден: `npm ci` в корне репо')
