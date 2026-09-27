@@ -516,3 +516,192 @@
 
 ## ticks.ww1 - линия времени: полоса 1914-1917
 Первая мировая: помесячные срезы фронта 1914-1917 (реконструкция)
+
+# Подписи, которые сборка кладёт в данные
+
+Эти слова читают сборщики (Python) и пишут в свойства слоёв (kind_ru и т. п.);
+на карту они попадают через данные, поэтому после правки нужна пересборка слоя.
+Ключ = группа + код из реестра (kind в registry.csv); новый код = новый ключ здесь.
+
+## loss.kind.lost - подпись вида потери контроля (tools/build_losses.py)
+вне имперского контроля (украинские силы)
+
+## loss.kind.grey - подпись вида потери контроля (tools/build_losses.py)
+серая зона: империя не контролирует
+
+## loss.kind.raid - подпись вида потери контроля (tools/build_losses.py)
+рейд: контроль часами-сутками
+
+## loss.kind.contested - подпись вида потери контроля (tools/build_losses.py)
+участок оспаривался, но империя его удержала
+
+## loss.kind.occupation - подпись вида потери контроля (tools/build_losses.py)
+занято: империя участком не распоряжалась
+
+## loss.kind.self_rule - подпись вида потери контроля (tools/build_losses.py)
+своя власть: империя землёй не распоряжалась
+
+## sphere.kind.occupation - вид зависимости в сфере влияния (tools/build_sphere.py)
+оккупационная зона
+
+## sphere.kind.bloc - вид зависимости в сфере влияния (tools/build_sphere.py)
+блок: ОВД или СЭВ, войска на территории
+
+## sphere.kind.client_treaty - вид зависимости в сфере влияния (tools/build_sphere.py)
+договор о дружбе и сотрудничестве с военной статьёй
+
+## sphere.kind.client_military - вид зависимости в сфере влияния (tools/build_sphere.py)
+военное присутствие: база, советники
+
+## sphere.kind.client_aid - вид зависимости в сфере влияния (tools/build_sphere.py)
+военная и экономическая помощь, присутствия нет
+
+## sphere.kind.intervention - вид зависимости в сфере влияния (tools/build_sphere.py)
+прямая военная интервенция
+
+## uprising.kind.national - вид выступления (tools/build_uprisings.py)
+антиколониальное национальное выступление
+
+## uprising.kind.urban - вид выступления (tools/build_uprisings.py)
+выступление горожан
+
+## uprising.kind.peasant - вид выступления (tools/build_uprisings.py)
+крестьянское выступление
+
+## uprising.kind.cossack - вид выступления (tools/build_uprisings.py)
+казацкое выступление
+
+## uprising.kind.religious - вид выступления (tools/build_uprisings.py)
+религиозное выступление
+
+## uprising.kind.military - вид выступления (tools/build_uprisings.py)
+выступление войск
+
+## uprising.kind.camp - вид выступления (tools/build_uprisings.py)
+восстание в лагере
+
+## uprising.kind.underground - вид выступления (tools/build_uprisings.py)
+вооружённое подполье
+
+## uprising.kind.worker - вид выступления (tools/build_uprisings.py)
+выступление рабочих
+
+## uprising.kind.satellite - вид выступления (tools/build_uprisings.py)
+выступление в стране под контролем империи
+
+## point.kind.ostrog - слово для типа точки (tools/build_ostrogs.py)
+острог
+
+## point.kind.krepost - слово для типа точки (tools/build_ostrogs.py)
+крепость
+
+## point.kind.zavod - слово для типа точки (tools/build_ostrogs.py)
+завод
+
+## point.kind.faktor - слово для типа точки (tools/build_ostrogs.py)
+фактория компании
+
+## point.kind.katorga - слово для типа точки (tools/build_ostrogs.py)
+каторжный пост
+
+## point.kind.priisk - слово для типа точки (tools/build_ostrogs.py)
+прииск
+
+## point.kind.post - слово для типа точки (tools/build_ostrogs.py)
+военный пост
+
+## point.kind.stanitsa - слово для типа точки (tools/build_ostrogs.py)
+казачья станица
+
+## point.kind.selenie - слово для типа точки (tools/build_ostrogs.py)
+переселенческое село
+
+## point.kind.zimovye - слово для типа точки (tools/build_ostrogs.py)
+ясачное зимовье
+
+## point.kind.uezd - слово для типа точки (tools/build_ostrogs.py)
+уездное управление
+
+## ps.kind.war - вид постсоветского эпизода (tools/build_postsoviet.py)
+война за контроль
+
+## ps.kind.occupation - вид постсоветского эпизода (tools/build_postsoviet.py)
+оккупация
+
+## ps.kind.annexation - вид постсоветского эпизода (tools/build_postsoviet.py)
+аннексия
+
+## ps.kind.de_facto_independent - вид постсоветского эпизода (tools/build_postsoviet.py)
+независимость, отстоянная в войне: империя контроля не имела
+
+## ps.kind.peacekeepers - вид постсоветского эпизода (tools/build_postsoviet.py)
+войска империи под видом «миротворцев»
+
+## ps.series.donbas - подпись серии датированных срезов (tools/build_postsoviet.py)
+помесячная реконструкция линии контроля на Донбассе (апрель 2014 - февраль 2015) и первых недель вторжения 2022 года, tools/build_donbas.py
+
+## event.actor.bolsheviks - актор события 1917-1921 (tools/build_events.py)
+большевики
+
+## event.actor.unr - актор события 1917-1921 (tools/build_events.py)
+УНР (Центральная рада)
+
+## event.actor.directory - актор события 1917-1921 (tools/build_events.py)
+УНР (Директория)
+
+## event.actor.germans - актор события 1917-1921 (tools/build_events.py)
+германские войска
+
+## event.actor.hetmanate - актор события 1917-1921 (tools/build_events.py)
+гетманат Скоропадского
+
+## event.actor.whites - актор события 1917-1921 (tools/build_events.py)
+белые
+
+## event.actor.wrangel - актор события 1917-1921 (tools/build_events.py)
+Врангель
+
+## event.actor.entente - актор события 1917-1921 (tools/build_events.py)
+Антанта
+
+## event.actor.poles - актор события 1917-1921 (tools/build_events.py)
+поляки
+
+## event.actor.makhno - актор события 1917-1921 (tools/build_events.py)
+махновцы
+
+## event.kind.took_city - тип события 1917-1921 (tools/build_events.py)
+взятие города
+
+## event.kind.left_city - тип события 1917-1921 (tools/build_events.py)
+оставление города
+
+## event.kind.evacuation - тип события 1917-1921 (tools/build_events.py)
+эвакуация
+
+## event.kind.operation_start - тип события 1917-1921 (tools/build_events.py)
+начало операции
+
+## event.kind.operation_end - тип события 1917-1921 (tools/build_events.py)
+конец операции
+
+## event.kind.declared_war - тип события 1917-1921 (tools/build_events.py)
+объявление войны
+
+## event.kind.treaty - тип события 1917-1921 (tools/build_events.py)
+договор
+
+## event.conf.high - достоверность события (tools/build_events.py)
+высокая
+
+## event.conf.medium - достоверность события (tools/build_events.py)
+средняя
+
+## event.conf.low - достоверность события (tools/build_events.py)
+низкая
+
+## campaigns.title.nohchi - заголовок домена кампаний (tools/build_campaigns.py)
+Нохчи (чеченцы)
+
+## campaigns.title.ukraina - заголовок домена кампаний (tools/build_campaigns.py)
+Украинцы

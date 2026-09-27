@@ -79,6 +79,24 @@ KEYS = [
     'note.loss_days', 'note.deepstate', 'note.ww1', 'note.recon', 'note.cshapes',
     'ticks.front', 'ticks.recon', 'ticks.ww2', 'ticks.ww1',
 ] + list(SLOTS)
+# группы подписей для сборщиков: ключ = префикс + код (kind из реестров);
+# набор кодов задаёт реестр, поэтому такие ключи не перечислены в KEYS
+LABEL_PREFIXES = ('loss.kind', 'sphere.kind', 'uprising.kind', 'point.kind', 'ps.kind', 'ps.series',
+                  'event.actor', 'event.kind', 'event.conf', 'campaigns.title')
+
+
+def labels(prefix):
+    """Подписи группы prefix из TEXTS.md: {код: текст} - для сборщиков."""
+    texts, err = parse()
+    if err:
+        sys.exit(f'тексты ({os.path.relpath(SRC, ROOT)}): ошибок {len(err)} - '
+                 'python tools/build_texts.py --check')
+    out = {k[len(prefix) + 1:]: v for k, v in texts.items() if k.startswith(prefix + '.')}
+    if not out:
+        sys.exit(f'TEXTS.md: нет ни одной подписи с префиксом {prefix}')
+    return out
+
+
 LISTS = {'months': 12, 'coord.ns': 2, 'coord.ew': 2, 'dur.days': 3, 'dur.years': 3,
          'dur.months': 3}
 
@@ -115,7 +133,7 @@ def parse(path=SRC):
         elif not texts[k]:
             err.append(f'ключ {k} пустой')
     for k in texts:
-        if k not in KEYS:
+        if k not in KEYS and not any(k.startswith(p + '.') for p in LABEL_PREFIXES):
             err.append(f'ключ {k} коду не нужен (лишний или опечатка)')
     for k, need in SLOTS.items():
         if k in texts:

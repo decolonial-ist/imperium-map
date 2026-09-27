@@ -348,7 +348,8 @@ LOSSES_FROM = '1991-12-26'
 def losses_sig():
     h = hashlib.sha1()
     files = ['tools/build_losses.py', 'tools/losses_tables.py', 'tools/geoclean.py',
-             'data/losses/routes.csv', 'cache/cshapes20.geojson', 'cache/ne_admin1.geojson']
+             'data/losses/routes.csv', 'cache/cshapes20.geojson', 'cache/ne_admin1.geojson',
+             'data/text/TEXTS.md', 'tools/build_texts.py']     # подписи kind_ru - из TEXTS.md
     # курируемые таблицы потерь (27.09.2026): data/losses/losses_*.csv
     files += sorted(os.path.relpath(os.path.join(DATA, 'losses', fn), ROOT)
                     for fn in os.listdir(os.path.join(DATA, 'losses'))
@@ -383,6 +384,8 @@ def layer_inputs(name):
     text = open(files[0], encoding='utf-8').read()
     for fn in sorted(set(re.findall(r"'([A-Za-z0-9_.-]+\.(?:csv|geojson))'", text))):
         files += data_index().get(fn, [])
+    if '_bt.labels(' in text:                 # подписи слоя - из data/text/TEXTS.md (27.09.2026)
+        files += [os.path.join(DATA, 'text', 'TEXTS.md'), os.path.join(TOOLS, 'build_texts.py')]
     return {os.path.relpath(p, ROOT): sha(p) for p in files}
 
 

@@ -93,14 +93,8 @@ REPORT = os.path.join(DATA, 'postsoviet', 'report.md')
 # после «1946» у нас есть только «1992», и он держит всё до 2022 года)
 CORE_KEY = '1992'
 
-KINDS = {
-    'war': 'война за контроль',
-    'occupation': 'оккупация',
-    'annexation': 'аннексия',
-    'de_facto_independent': 'независимость, отстоянная в войне: империя '
-                            'контроля не имела',
-    'peacekeepers': 'войска империи под видом «миротворцев»',
-}
+import build_texts as _bt   # noqa: E402  (подписи - data/text/TEXTS.md)
+KINDS = _bt.labels('ps.kind')   # подписи в data/text/TEXTS.md, ключи ps.kind.*
 PAINT_BY_KIND = {
     'occupation': 'red',
     'annexation': 'red',
@@ -109,11 +103,7 @@ PAINT_BY_KIND = {
     # war считается отдельно: внутри контура - вырез, снаружи - ничего
 }
 # серии датированных срезов: в попапе такая серия сворачивается в одну строку
-SERIES = {
-    'donbas': 'помесячная реконструкция линии контроля на Донбассе '
-              '(апрель 2014 - февраль 2015) и первых недель вторжения '
-              '2022 года, tools/build_donbas.py',
-}
+SERIES = _bt.labels('ps.series')   # подписи в data/text/TEXTS.md, ключи ps.series.*
 SIMPLIFY = 0.002        # ~200 м, слой обзорный
 MIN_INSIDE = 0.5        # доля площади внутри контура ядра, чтобы счесть эпизод внутренним
 

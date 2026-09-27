@@ -29,30 +29,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # окно показа события с точностью до дня: сколько дней до и после даты
 DAYS_BEFORE, DAYS_AFTER = 3, 11
 
-ACTORS_RU = {
-    'bolsheviks': 'большевики',
-    'unr': 'УНР (Центральная рада)',
-    'directory': 'УНР (Директория)',
-    'germans': 'германские войска',
-    'hetmanate': 'гетманат Скоропадского',
-    'whites': 'белые',
-    'wrangel': 'Врангель',
-    'entente': 'Антанта',
-    'poles': 'поляки',
-    'makhno': 'махновцы',
-}
+import build_texts as _bt   # noqa: E402  (подписи - data/text/TEXTS.md)
+ACTORS_RU = _bt.labels('event.actor')   # подписи в data/text/TEXTS.md, ключи event.actor.*
 
-EVENTS_RU = {
-    'took_city': 'взятие города',
-    'left_city': 'оставление города',
-    'evacuation': 'эвакуация',
-    'operation_start': 'начало операции',
-    'operation_end': 'конец операции',
-    'declared_war': 'объявление войны',
-    'treaty': 'договор',
-}
+EVENTS_RU = _bt.labels('event.kind')   # подписи в data/text/TEXTS.md, ключи event.kind.*
 
-CONF_RU = {'high': 'высокая', 'medium': 'средняя', 'low': 'низкая'}
+CONF_RU = _bt.labels('event.conf')   # подписи в data/text/TEXTS.md, ключи event.conf.*
 
 MONTHS_RU = ['янв', 'фев', 'мар', 'апр', 'май', 'июн',
              'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']

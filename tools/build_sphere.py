@@ -83,14 +83,8 @@ DIGITS = 3
 NO_SIMPLIFY = 5.0
 
 # Закрытый список типов зависимости. Описан в README, разделе «Сфера влияния».
-KINDS = {
-    'occupation': 'оккупационная зона',
-    'bloc': 'блок: ОВД или СЭВ, войска на территории',
-    'client_treaty': 'договор о дружбе и сотрудничестве с военной статьёй',
-    'client_military': 'военное присутствие: база, советники',
-    'client_aid': 'военная и экономическая помощь, присутствия нет',
-    'intervention': 'прямая военная интервенция',
-}
+import build_texts as _bt   # noqa: E402  (подписи - data/text/TEXTS.md)
+KINDS = _bt.labels('sphere.kind')   # подписи в data/text/TEXTS.md, ключи sphere.kind.*
 CONF = ('high', 'medium', 'low')
 
 # iso3 -> откуда брать контур. Коды ISO 3166-1 alpha-3, для исчезнувших
