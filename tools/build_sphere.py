@@ -98,82 +98,11 @@ CONF = ('high', 'medium', 'low')
 # CSK — Чехословакия, YUG — Югославия), для того, чего в ISO нет вообще:
 # VDR — ДРВ (Северный Вьетнам), MCH — Маньчжурия, AUT-SU — советская зона
 # Австрии (страна целиком тут неверна).
-GEOM = {
-    # Европа и блок
-    'DDR': 'cs:265',
-    'POL': 'cs:290',
-    'CSK': 'cs:315',
-    'HUN': 'cs:310',
-    'ROU': 'cs:360',
-    'BGR': 'cs:355',
-    'ALB': 'cs:339',
-    'YUG': 'cs:345',
-    'FIN': 'cs:375',
-    'AUT-SU': 'ne1:Austria:Niederösterreich|Burgenland|Wien',
-    # советская зона Ирана 1946 года: вся и без округов Мешхеда, Шахруда,
-    # Семнана (выведены к 25.03.1946)
-    'IRN-SU': 'file:iran/soviet_zone_1941-1946.geojson',
-    'IRN-SU-W': 'file:iran/soviet_zone_1941-1946.geojson#main',
-    # Азия
-    'MNG': 'cs:712',
-    'PRK': 'cs:731',
-    'CHN': 'cs:710',
-    'MCH': 'hb:1945:Manchuria',
-    'VDR': 'cs:816',
-    'VNM': 'cs:816',
-    'LAO': 'cs:812',
-    'KHM': 'cs:811',
-    'AFG': 'cs:700',
-    'IND': 'cs:750',
-    'BGD': 'cs:771',
-    'MMR': 'cs:775',
-    'IDN': 'cs:850',
-    # Ближний Восток
-    'IRQ': 'cs:645',
-    'SYR': 'cs:652',
-    'EGY': 'cs:651',
-    'YMD': 'cs:680',
-    'YEM': 'cs:678',
-    'LBY': 'cs:620',
-    'DZA': 'cs:615',
-    'ISR': 'cs:666',
-    # Африка
-    'SOM': 'cs:520',
-    'ETH': 'cs:530',
-    'AGO': 'cs:540',
-    'MOZ': 'cs:541',
-    'COG': 'cs:484',
-    'BEN': 'cs:434',
-    'MDG': 'cs:580',
-    'GIN': 'cs:438',
-    'MLI': 'cs:432',
-    'GNB': 'cs:404',
-    'CAF': 'cs:482',
-    'BFA': 'cs:439',
-    'NER': 'cs:436',
-    'SDN': 'cs:625',
-    'MRT': 'cs:435',
-    'GHA': 'cs:452',
-    'CPV': 'cs:402',
-    'GNQ': 'cs:411',
-    'ZMB': 'cs:551',
-    'TZA': 'cs:510',
-    'UGA': 'cs:500',
-    'ZWE': 'cs:552',
-    # Кого CShapes 2.0 не знает вовсе — современный контур Natural Earth
-    # admin-1 целиком. Границы этих четверых внутри их окон не менялись.
-    'STP': 'ne1:Sao Tome and Principe:*',
-    'SYC': 'ne1:Seychelles:*',
-    'ESH': 'ne1:Western Sahara:*',
-    'GRD': 'ne1:Grenada:*',
-    # Латинская Америка
-    'CUB': 'cs:40',
-    'NIC': 'cs:93',
-    'VEN': 'cs:101',
-    'PER': 'cs:135',
-    'CHL': 'cs:155',
-    'GUY': 'cs:110',
-}
+# Справочник живёт в data/sphere/sphere_geom.csv (27.09.2026, по слову
+# куратора «переноси всё в CSV»): колонки iso3, geom, comment; формы geom
+# описаны выше.
+import csv_tables as _ct   # noqa: E402
+GEOM = _ct.load_dict(os.path.join(OUT, 'sphere', 'sphere_geom.csv'), ['iso3', 'geom', 'comment'])
 
 # Горизонт карты: незакрытые эпизоды тянутся до него. Сам `to` в свойствах
 # остаётся ПУСТЫМ — попап пишет «по сегодня», а не выдуманную дату.

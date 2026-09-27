@@ -78,6 +78,7 @@ import argparse
 import json
 import math
 import os
+import time
 import sys
 import urllib.request
 from datetime import date
@@ -536,7 +537,10 @@ def fill_source_gaps(geom, year, whole=0.5, report=None):
             if enclave:
                 keep.append(r)
         out.append(Polygon(g.exterior, keep) if len(keep) != len(g.interiors) else g)
-    return unary_union(out).buffer(0)
+    if all(o is g for o, g in zip(out, polys)):      # v4: ничего не закрыто - не пересобирать
+        return geom
+    res = unary_union(out)
+    return res if res.is_valid else res.buffer(0)
 
 
 def fill_water(geom, share=0.6, max_km2=100000.0):
@@ -550,20 +554,28 @@ def fill_water(geom, share=0.6, max_km2=100000.0):
     water = water_mask()
     if water is None:
         return geom
+    if 'p' not in _WATER:                    # v4: подготовленная копия - дешёвый intersects
+        import shapely
+        shapely.prepare(water)
+        _WATER['p'] = True
     polys = list(geom.geoms) if geom.geom_type == 'MultiPolygon' else [geom]
     out = []
     for g in polys:
         keep = []
         for r in g.interiors:
             hp = Polygon(r)
-            if hp.area <= 0 or hp.intersection(water).area / hp.area <= share:
+            if hp.area <= 0 or not water.intersects(hp) or \
+                    hp.intersection(water).area / hp.area <= share:
                 keep.append(r)
                 continue
             km2 = hp.area * 111.32 ** 2 * math.cos(math.radians(hp.centroid.y))
             if km2 > max_km2:
                 keep.append(r)
         out.append(Polygon(g.exterior, keep) if len(keep) != len(g.interiors) else g)
-    return unary_union(out).buffer(0)
+    if all(o is g for o, g in zip(out, polys)):      # v4: ничего не залито - не пересобирать
+        return geom
+    res = unary_union(out)
+    return res if res.is_valid else res.buffer(0)
 
 
 def fill_holes(geom, max_area=3.0):
@@ -797,6 +809,8 @@ def reg_geom(name):
             g = g.difference(file_geom(spec[1])).buffer(0)
     if g.is_empty:
         raise SystemExit(f'пустая геометрия региона {name}')
+    import preclip
+    g = preclip.piece('reg', name, g)          # берег один раз, v4 27.09.2026
     _cache[name] = g
     return g
 
@@ -825,6 +839,20 @@ RECON_FROM = date(1917, 12, 25)
 
 
 def src_geom(key):
+    """Контур источника с готовым берегом (v4, 27.09.2026): сырой контур
+    достраивается до берега по единицам NE (fill_coast, один раз на контур,
+    с запретом на землю, датированную позже дня контура) и режется маской
+    суши OSM (tools/preclip.py). Кэш - cache/preclipped/src__<ключ>__<хеш>.wkb."""
+    tag = '__src_' + key
+    if tag not in _cache:
+        import preclip
+        kind, val = SRC[key]
+        raw = hb_core(val) if kind == 'hb' else cs_core(*val)
+        _cache[tag] = preclip.piece('src', key, fill_coast(raw, key_date(key)))
+    return _cache[tag]
+
+
+def src_geom_raw(key):
     kind, val = SRC[key]
     return hb_core(val) if kind == 'hb' else cs_core(*val)
 
@@ -872,12 +900,16 @@ def build(key):
     if not adds and not subs:
         return None, 'правок нет', 0
     log, added, removed = [], [], []
+    pieces = [geom]                      # v4: куски среза - для заливки швов
+    # v4: приобретения не вливаются по одному (каждое объединение заново
+    # перебирает мировой контур), а объединяются каскадом один раз ниже
     for a in adds:
         g = reg_geom(a['reg'])
         if a['clip']:
             g = g.intersection(src_geom(a['clip']))
-        before = geom.area
-        geom = unary_union([geom, g])
+        pieces.append(g)
+        if g.area > 0.5:
+            log.append(f'+ {a["name"]} ({a["frm"]}): кусок {g.area:.1f} град²')
         added.append({'name': a['name'], 'from': a['frm'], 'to': a['to'],
                       'act': a['act'], 'source': a['src'], 'kind': a['kind'],
                       'region': a['reg'],
@@ -886,14 +918,15 @@ def build(key):
                                           if a['reg'] == 'ALASKA' else NE)
                       + (f'; обрезано контуром источника {a["clip"]} г.'
                          if a['clip'] else '')})
-        if geom.area - before > 0.5:
-            log.append(f'+ {a["name"]} ({a["frm"]}): '
-                       f'{before:.0f} -> {geom.area:.0f} град²')
+    geom = unary_union(pieces)
     # Швы между контуром источника и добавленными областями оставляют дырки:
     # у среза 1721-08-30 на стыке Ништадтских приобретений с контуром 1715 г.
     # зияла дыра 1.04 град² поперёк Чудского озера. Закрываем ЗДЕСЬ - до
     # вычитаний: RESIST (имамат, Черкесия) и утраты идут ниже, и их дырки
     # трогать нельзя, они содержательные.
+    import preclip
+    geom = preclip.polys(geom)
+    _before_fill = geom
     geom = fill_water(geom)
     # Берег, который срезала генерализация источника (18.09.2026). Куратор по
     # кадру Кинбурна: контур historical-basemaps не доходит до береговой линии -
@@ -915,7 +948,8 @@ def build(key):
     # якоря по воде давал 203 тыс. км² на 1800 и 519 тыс. км² на 1900, почти
     # всё - арктический берег Сибири; сухопутная щель с Китаем в Алматинской
     # области была внутренней и теперь не пройдёт: кайма считается от моря.
-    geom = fill_coast(geom, day)
+    # fill_coast(geom, day) по срезу больше не нужен: берег достроен и обрезан
+    # у КУСКОВ (src_geom, reg_geom -> preclip), v4 27.09.2026
     # Щели на стыке контура источника с современной нарезкой областей: заливаем
     # только там, где источник и так даёт землю империи (см. fill_source_gaps).
     by = base_year(bkey)
@@ -926,13 +960,20 @@ def build(key):
             if a_ >= 0.02:
                 print(f'   ~ дырка {a_:7.4f} град² у {x_},{y_}: {verdict} '
                       f'(источник: {nm_}, дырка = {sh_}% его куска)')
+    # v4: заливки (fill_water, fill_source_gaps) шли по кольцу красного и красили
+    # морские заливы - приращение режем морем маски OSM
+    _inc = preclip.cut_sea(preclip.polys(geom.difference(_before_fill)))
+    geom = preclip.polys(unary_union([_before_fill, _inc]))
     # Действующее окно оккупации вычитаниями не режется (22.09.2026, пачка 7):
     # вычитание RP_1793 чернит землю Речи Посполитой, а гарнизоны в ней -
     # оккупация, красная до дня ухода войск; окно само кончается этим днём
     occ = [reg_geom(a['reg']) for a in adds if a['kind'] == 'оккупация']
-    occ = unary_union(occ).buffer(0) if occ else None
+    occ = unary_union(occ) if occ else None
+    if occ is not None and not occ.is_valid:
+        occ = occ.buffer(0)
+    # v4: вычитания режут срез одним объединённым куском, а не по одному
+    cuts = []
     for s in subs:
-        before = geom.area
         if s['reg'] == 'ALASKA':
             # после продажи 1867 г. западное полушарие уходит целиком: контур
             # Аляски у среза 1880 г. чуть иной, чем у 1815-го, вычитанием
@@ -941,22 +982,37 @@ def build(key):
                      else [geom])
             geom = unary_union([p for p in parts if not is_russian_america(p)])
         else:
-            cut = reg_geom(s['reg']).buffer(SUB_BUF)
-            if occ is not None:
-                cut = cut.difference(occ)
-            geom = geom.difference(cut)
+            c = reg_geom(s['reg']).buffer(SUB_BUF)
+            cuts.append(c)
+            if c.area > 0.5:
+                log.append(f'- {s["name"]}: кусок {c.area:.1f} град²')
         removed.append({'name': s['name'], 'from': s['frm'], 'to': s['to'],
                         'why': s['why'], 'region': s['reg']})
-        if before - geom.area > 0.5:
-            log.append(f'- {s["name"]}: {before:.0f} -> {geom.area:.0f} град²')
-    geom = geom.simplify(SIMPLIFY).buffer(0)
+    if cuts:
+        cut = unary_union(cuts)
+        if occ is not None:
+            cut = cut.difference(occ)
+        before = geom.area
+        geom = geom.difference(cut)
+        log.append(f'- вычитания: {before:.0f} -> {geom.area:.0f} град²')
+    # v4: щели до берега между кусками (клетки маски, где сходятся границы двух
+    # и более кусков) - заливка по объединению, как раньше по целому срезу
+    geom = preclip.polys(geom)
+    geom, seams = preclip.fill_seams(geom, key, preclip.seam_cells(pieces))
+    if seams:
+        log.append(f'+ швы между кусками: залито {seams:.0f} км²')
+    geom = geom.simplify(SIMPLIFY)
+    if not geom.is_valid:
+        geom = geom.buffer(0)
+    # v4 (27.09.2026): куски уже обрезаны маской суши OSM и достроены до берега,
+    # поэтому чистка по Natural Earth (clip_to_land, drop_sea_parts,
+    # drop_thin_parts, despeckle) выключена - она снимала бы настоящие острова
+    # OSM, которых у NE нет. Порог мелочи - 1e-5 град² (~0,1 км², как ISLE_KM2
+    # маски): мельче только обрезки упрощения и вычитаний.
     geoms = [g for g in (list(geom.geoms) if geom.geom_type == 'MultiPolygon'
-                         else [geom]) if g.area > 0.002]
+                         else [geom]) if g.area > 1e-5]
     geom = unary_union(geoms)
-    geom, sea = gc.clip_to_land(geom, CACHE)
-    geom, wet = gc.drop_sea_parts(geom, CACHE)
-    geom, thin = gc.drop_thin_parts(geom)
-    geom, specks, pinholes = gc.despeckle(geom, CACHE)
+    sea = wet = thin = specks = pinholes = 0
     # Курируемые точные береговые линии общая чистка не трогает (22.09.2026):
     # Соловки по береговой линии Natural Earth лежат «в море» (кремль на
     # берегу бухты Благополучия), drop_sea_parts обрезал остров, а
@@ -997,10 +1053,105 @@ def build(key):
     # ОДНА фича на срез: свойства тяжёлые (список приобретений с актами), а
     # островов в контуре под две сотни - раскладывать их по фичам значит
     # продублировать метаданные двести раз и раздуть файл в двадцать раз
-    fc = {'type': 'FeatureCollection',
-          'features': [{'type': 'Feature', 'geometry': _round(mapping(geom)),
-                        'properties': props}]}
+    # v4: срез из кусков не проходит шаг берега, который чинил невалидность
+    # после округления координат (buffer(0) при чтении) - чиним здесь сами
+    if not geom.is_valid:
+        geom = geom.buffer(0)
+    gj = _round(mapping(geom))
+    rg = shape(gj)
+    if not rg.is_valid:
+        gj = mapping(rg.buffer(0))
+    fc = {'type': 'FeatureCollection', 'coast': 'pieces',
+          'features': [{'type': 'Feature', 'geometry': gj, 'properties': props}]}
     return fc, log, len(geoms)
+
+
+def _add_meta(a):
+    return {'name': a['name'], 'from': a['frm'], 'to': a['to'],
+            'act': a['act'], 'source': a['src'], 'kind': a['kind'],
+            'region': a['reg'],
+            'approximate': a['reg'] != 'ALASKA',
+            'geometry_source': ('срез источника 1815 г.' if a['reg'] == 'ALASKA' else NE)
+            + (f'; обрезано контуром источника {a["clip"]} г.' if a['clip'] else '')}
+
+
+def props_for(key):
+    """Списки приобретений и вычитаний для свойств среза - без геометрии (v4)."""
+    adds, subs = active(key_date(key))
+    return ([_add_meta(a) for a in adds],
+            [{'name': s['name'], 'from': s['frm'], 'to': s['to'], 'why': s['why'],
+              'region': s['reg']} for s in subs])
+
+
+def build_delta(key, fc, rows, sub_rows=()):
+    """Дельта раннего окна (v4, 27.09.2026): в ГОТОВЫЙ срез key влить строки
+    rows (только приобретения; вычитания и снятые строки - пересборка из
+    кусков). Куски уже с берегом; приобретение вида «территория» режется
+    действующими вычитаниями так же, как в build() (оккупация - нет);
+    затем те же заливки щелей, что в build(). -> (fc, лог)."""
+    day = key_date(key)
+    adds, subs = active(day)
+    geom = unary_union([shape(f['geometry']).buffer(0) for f in fc['features']
+                        if f.get('geometry')])
+    occ = [reg_geom(a['reg']) for a in adds if a['kind'] == 'оккупация']
+    cuts = [reg_geom(s['reg']).buffer(SUB_BUF) for s in subs if s['reg'] != 'ALASKA']
+    subcut = unary_union(cuts).buffer(0) if cuts else None
+    if subcut is not None and occ:
+        subcut = subcut.difference(unary_union(occ).buffer(0))
+    log, names, new_pieces = [], [], []
+    for a in rows:
+        g = reg_geom(a['reg'])
+        if a.get('clip'):
+            g = g.intersection(src_geom(a['clip']))
+        if a['kind'] != 'оккупация' and subcut is not None:
+            g = g.difference(subcut)
+        g = g.simplify(SIMPLIFY).buffer(0)
+        before = geom.area
+        geom = unary_union([geom, g]).buffer(0)
+        names.append(a['name'])
+        log.append(f'+Δ {a["name"]} ({a["frm"]}): {before:.0f} -> {geom.area:.0f} град²')
+        new_pieces.append(g)
+    import preclip
+    geom = preclip.polys(geom)
+    geom, seams = preclip.fill_seams(geom, key, preclip.seam_cells(new_pieces, any_piece=True))
+    if seams:
+        log.append(f'+ швы у новых кусков: залито {seams:.0f} км²')
+    _before_fill = geom
+    geom = fill_water(geom)
+    by = base_year(base_key_for(day))
+    if by is not None:
+        geom = fill_source_gaps(geom, by, report=[])
+    _inc = preclip.cut_sea(preclip.polys(geom.difference(_before_fill)))
+    geom = preclip.polys(unary_union([_before_fill, _inc]))
+    # прибавившиеся вычитания - после приобретений, как в build(); действующие
+    # окна оккупации не режутся
+    occ_u = unary_union(occ).buffer(0) if occ else None
+    for x in sub_rows:
+        if x['reg'] == 'ALASKA':
+            raise SystemExit('дельта не умеет вычитание ALASKA - нужна сборка от основы')
+        cut = reg_geom(x['reg']).buffer(SUB_BUF)
+        if occ_u is not None:
+            cut = cut.difference(occ_u)
+        before = geom.area
+        geom = geom.difference(cut).buffer(0)
+        names.append('-' + x['name'])
+        log.append(f'-Δ {x["name"]}: {before:.0f} -> {geom.area:.0f} град²')
+    geoms = [g for g in (list(geom.geoms) if geom.geom_type == 'MultiPolygon' else [geom])
+             if g.area > 1e-5]
+    geom = unary_union(geoms)
+    if not geom.is_valid:
+        geom = geom.buffer(0)
+    gj = _round(mapping(geom))
+    rg = shape(gj)
+    if not rg.is_valid:
+        gj = mapping(rg.buffer(0))
+    props = dict(fc['features'][0]['properties'])
+    props['added'], props['removed'] = props_for(key)
+    props['delta'] = (props.get('delta') or []) + [
+        {'when': time.strftime('%Y-%m-%d'), 'rows': names}]
+    out = {'type': 'FeatureCollection', 'coast': 'pieces',
+           'features': [{'type': 'Feature', 'geometry': gj, 'properties': props}]}
+    return out, log
 
 
 # ============================================================================

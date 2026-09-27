@@ -146,71 +146,18 @@ ABROAD_UNTIL = be.d('1946-01-01')
 # Турция, западная Германия и Финляндия (кроме Петсамо, которое и так внутри
 # контура) в маску НЕ входят: их не занимали, и красным они стать не могут ни
 # при каком раскладе якорей.
-ABROAD = [
-    ('Poland', None), ('Germany', None), ('Austria', None),
-    ('Czech Republic', None), ('Slovakia', None), ('Hungary', None),
-    ('Romania', None), ('Bulgaria', None), ('Republic of Serbia', None),
-    # два куска, которые в 1941 году были ЧУЖИМИ, а сегодня лежат внутри
-    # бывшего СССР - в контур-основу 1940 года они не входят, и без них
-    # Кёнигсберг и Ужгород остались бы чёрными после взятия:
-    ('Russia', ['Kaliningrad']),          # Восточная Пруссия, взята 09.04.1945
-    ('Ukraine', ['Transcarpathia']),      # Закарпатье, венгерское с 15.03.1939
-]
+# ---- курируемые таблицы: data/ww2/*.csv (27.09.2026) -----------------------
+# ABROAD (маска «куда входила Красная армия») и EXTRA_SRC (изолированные
+# театры) живут в CSV - tools/ww2_tables.py читает и проверяет их. Имена
+# файлов строками: по ним tools/rebuild.py и подпись среза видят вход слоя.
+CSV_FILES = ('ww2_abroad.csv', 'ww2_extra.csv')
+import ww2_tables as w2t   # noqa: E402
+ABROAD = w2t.load('ABROAD')
+EXTRA_SRC = w2t.load('EXTRA_SRC')
 
 # ---- куски, которые считаются не полем, а прямым списком -------------------
 # Изолированные театры, где якорей мало, а границы известны точно.
 # geom - функция, frm - дата входа войск, until - дата вывода (или None).
-EXTRA_SRC = [
-    dict(id='IRAN_N', frm='1941-08-25', until=None,
-         name='Северный Иран (советская зона)',
-         act='ввод войск 25.08.1941 (Закавказский фронт; 53-я армия - в Хорасан '
-             '27.08); линия зоны - британская передача 30.08.1941 и советское '
-             'описание 07.09.1941 (FRUS 1941, т. III, d427 и d446), изменить '
-             'её Ирану отказано 07.09.1941 (d445). Красное до 31.12.1945 '
-             '(решение куратора 18.09.2026), дальше сфера «оккупация» до '
-             'вывода: округа Мешхеда, Шахруда и Семнана - 25.03.1946, остальное '
-             '- 09.05.1946',
-         geom_note='шахрестаны OpenStreetMap: Азербайджан севернее линии '
-                   'Ушну - Миандоаб, Ардебиль, Гилян, Мазендеран, Горган, север '
-                   'Зенджана и Казвина, Карадж, округа Мешхеда, Шахруда, Семнана '
-                   'и Дамган (data/iran/soviet_zone_1941-1946.geojson)'),
-    dict(id='FINNMARK', frm='1944-10-25', until='1945-09-25',
-         name='Восточный Финнмарк (Киркенес)',
-         act='Петсамо-Киркенесская операция; советские войска выведены '
-             '25.09.1945',
-         geom_note='Natural Earth admin-1: Финнмарк восточнее 28.8° в. д. '
-                   '(коммуна Сёр-Варангер и Тана) - приближение'),
-    dict(id='BORNHOLM', frm='1945-05-09', until='1946-04-06',
-         name='Борнхольм',
-         act='десант 9.05.1945, немецкий гарнизон капитулировал 11.05.1945; '
-             'советские войска выведены 5.04.1946',
-         geom_note='Natural Earth admin-1: Hovedstaden в рамке острова'),
-    dict(id='MANCHURIA', frm='1945-08-20', until=None,
-         name='Маньчжурия',
-         act='Маньчжурская операция 09.08-02.09.1945; советская военная '
-             'администрация до мая 1946, Порт-Артур как база - до 1955',
-         geom_note='Natural Earth admin-1: Хэйлунцзян, Гирин, Ляонин плюс '
-                   'восточная Внутренняя Монголия (восточнее 111.5° в. д.) - '
-                   'приближение по современной нарезке'),
-    dict(id='KOREA_N', frm='1945-08-24', until=None,
-         name='Северная Корея',
-         act='вход войск 1-го Дальневосточного фронта, август 1945; '
-             'разграничение с США по 38-й параллели, вывод - декабрь 1948',
-         geom_note='Natural Earth admin-1: Корея севернее 38-й параллели '
-                   '(современная граница КНДР южнее её у Кэсона, поэтому '
-                   'режем параллелью, а не границей)'),
-    dict(id='SAKHALIN_S', frm='1945-08-25', until=None,
-         name='Южный Сахалин (Карафуто)',
-         act='Южно-Сахалинская операция 11-25.08.1945; Тойохара взята '
-             '25.08.1945',
-         geom_note='Natural Earth admin-1: Сахалинская область южнее 50° с. ш. '
-                   '(граница 1905-1945 гг. и шла по 50-й параллели)'),
-    dict(id='KURILS', frm='1945-09-03', until=None,
-         name='Курильские острова',
-         act='Курильская десантная операция 18.08-01.09.1945',
-         geom_note='Natural Earth admin-1: Сахалинская область восточнее '
-                   '145.5° в. д.'),
-]
 
 _g = {}
 
@@ -510,22 +457,47 @@ def build(key, field, verbose=True):
     return fc, len(keep), lost, abroad.area
 
 
-def write_front_line(field, keys):
+def front_feat(field, key):
+    """Линия фронта одного среза (фича для ww2_front.geojson) или None."""
+    if 'inside' not in _g:
+        base, _ = base_geom(KEYS[0])
+        _g['inside'] = base.intersection(theatre_box())
+    inside = _g['inside']
+    red = field.red(be.key_date(key))
+    line = inside.intersection(red).boundary.difference(inside.boundary.buffer(0.02))
+    if line.is_empty:
+        return None
+    return {'type': 'Feature',
+            'geometry': be._round(mapping(line.simplify(0.02))),
+            'properties': {'date': key, 'phase': phase(key), 'method': METHOD}}
+
+
+def slice_sig(key, anchors):
+    """Подпись среза (tools/slice_sigs.py, 27.09.2026): основа, сторона КАЖДОГО
+    якоря на этот день, действующие изолированные театры, файлы масок, свой
+    код. Совпала с прошлой сборкой - срез не пересобирается и на берег не идёт."""
+    import slice_sigs as ss
+    tools = os.path.dirname(os.path.abspath(__file__))
+    day = be.key_date(key)
+    if day >= BASE_SWITCH:
+        base = ['cs', POSTWAR, ss.sha_file(os.path.join(be.CACHE, 'cshapes20.geojson'))]
+    else:
+        base = ss.sha_file(os.path.join(DATA, 'years', BASE_PRE + '.geojson'))
+    return ss.sha_obj({
+        'code': [ss.sha_file(os.path.abspath(__file__)),
+                 ss.sha_file(os.path.join(tools, 'geoclean.py'))],
+        'key': key, 'base': base,
+        'ne': ss.sha_file(os.path.join(be.CACHE, 'ne_admin1.geojson')),
+        'inputs': ss.named_inputs(os.path.abspath(__file__),
+                                  exclude=(os.path.basename(ANCHORS), 'ww2_front.geojson')),
+        'anchors': [[a['city'], side_at(a, day)] for a in anchors],
+        'extras': [[e['id'], e['frm'], e['until']] for e in extras_at(day)],
+        'protect': {r: ss.reg_sig(be, r) for r in sorted(be.EARLY_PROTECT)},
+    })
+
+
+def write_front_line(feats):
     """Линия фронта отдельным файлом - пруф геометрии, в показ не идёт."""
-    feats = []
-    base, _ = base_geom(KEYS[0])
-    inside = base.intersection(theatre_box())
-    for key in keys:
-        day = be.key_date(key)
-        red = field.red(day)
-        line = inside.intersection(red).boundary.difference(
-            inside.boundary.buffer(0.02))
-        if line.is_empty:
-            continue
-        feats.append({'type': 'Feature',
-                      'geometry': be._round(mapping(line.simplify(0.02))),
-                      'properties': {'date': key, 'phase': phase(key),
-                                     'method': METHOD}})
     path = os.path.join(DATA, 'ww2_front.geojson')
     with open(path, 'w', encoding='utf-8') as f:
         json.dump({'type': 'FeatureCollection', 'features': feats}, f,
@@ -560,7 +532,10 @@ def main():
     ap.add_argument('--only', help='собрать один срез (для отладки)')
     ap.add_argument('--dry-run', action='store_true',
                     help='считать, но не писать файлы')
+    ap.add_argument('--all', action='store_true',
+                    help='собрать все срезы, не глядя на подписи прошлой сборки')
     args = ap.parse_args()
+    import slice_sigs as ss
 
     anchors = load_anchors()
     print(f'якорей: {len(anchors)} (data/crosscheck/ww2_cities.csv)')
@@ -568,8 +543,15 @@ def main():
     print(f'сетка театра: {field.shape[1]}x{field.shape[0]} узлов, шаг {STEP}°')
 
     keys = [args.only] if args.only else KEYS
+    # подписи срезов: боевая сборка пропускает срезы, чьи входы на их день
+    # не менялись; линия фронта таких срезов берётся из сохранённой
+    live = not (args.dry_run or args.only)
+    sigs = ss.Sigs('ww2', use_old=live and not args.all)
     written, total = [], 0
     for key in keys:
+        sig = slice_sig(key, anchors)
+        if live and sigs.fresh(key, sig, os.path.join(DATA, 'years', key + '.geojson')):
+            continue
         fc, nparts, lost, abroad = build(key, field)
         if args.dry_run:
             print(f'   {key}  частей {nparts:3d}  оккупировано {lost:7.1f} '
@@ -581,15 +563,22 @@ def main():
         kb = os.path.getsize(path) // 1024
         total += kb
         written.append(key)
+        ff = front_feat(field, key)
+        sigs.put(key, sig, front=[ff] if ff else [])
         print(f'OK data/years/{key}.geojson: частей {nparts:3d}, {kb:4d} КБ, '
               f'оккупировано {lost:7.1f} град², за границей {abroad:6.1f} '
               f'град²  [{fc["features"][0]["properties"]["phase"]}]')
-    if args.dry_run:
+    if not live:
         return
-    write_front_line(field, keys)
-    update_manifest(written)
+    sigs.report('ВМВ')
+    feats = []
+    for key in keys:                          # линия фронта всех срезов, по порядку
+        feats += sigs.get(key).get('front', [])
+    write_front_line(feats)
+    update_manifest(keys)
+    sigs.save()
     gc.write_stamp('ww2')
-    print(f'срезов ВМВ: {len(written)}, суммарно {total} КБ')
+    print(f'срезов ВМВ: собрано {len(written)} из {len(keys)}, суммарно {total} КБ')
     print('дальше: .venv/bin/python tools/check_ww2.py, '
           'python3 tools/check_expansion.py, python3 tools/check_cities.py')
 

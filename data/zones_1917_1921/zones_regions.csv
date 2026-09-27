@@ -1,0 +1,83 @@
+id,spec,comment
+UA_ALL,"('Ukraine', [""L'viv"", ""Ivano-Frankivs'k"", ""Ternopil'"", 'Transcarpathia', 'Chernivtsi', 'Kiev', 'Kiev City', 'Zhytomyr', 'Cherkasy', 'Kirovohrad', 'Volyn', 'Rivne', ""Khmel'nyts'kyy"", 'Vinnytsya', 'Chernihiv', 'Sumy', 'Poltava', 'Kharkiv', ""Donets'k"", ""Luhans'k"", 'Odessa', 'Mykolayiv', 'Kherson', ""Dnipropetrovs'k"", 'Zaporizhzhya', 'Kherson'])","--- украинский театр (подневная дробность, вычитается посрезово) -------"
+UA_AUSTRIA,"('Ukraine', [""L'viv"", ""Ivano-Frankivs'k"", ""Ternopil'"", 'Transcarpathia', 'Chernivtsi'])",
+UA_WEST,"('Ukraine', ['Volyn', 'Rivne', ""Khmel'nyts'kyy"", 'Vinnytsya'])",
+UA_RIGHT,"('Ukraine', ['Kiev', 'Kiev City', 'Zhytomyr', 'Cherkasy', 'Kirovohrad', 'Volyn', 'Rivne', ""Khmel'nyts'kyy"", 'Vinnytsya'])",
+UA_LEFT,"('Ukraine', ['Chernihiv', 'Sumy', 'Poltava', 'Kharkiv'])",
+UA_DONBAS,"('Ukraine', [""Donets'k"", ""Luhans'k""])",
+UA_SOUTH_W,"('Ukraine', ['Odessa', 'Mykolayiv', 'Kherson'])",
+UA_TAVRIA,"('Ukraine', ['Kherson', 'Zaporizhzhya'])",
+UA_DNIPRO,"('Ukraine', [""Dnipropetrovs'k"", 'Zaporizhzhya'])",
+UA_KHARKIV,"('Ukraine', ['Kharkiv'])",
+UA_POLTAVA,"('Ukraine', ['Poltava'])",
+UA_KHMEL,"('Ukraine', [""Khmel'nyts'kyy""])",
+UA_VOLYN,"('Ukraine', ['Volyn', 'Rivne'])",
+UA_KIROVOHRAD,"('Ukraine', ['Kirovohrad'])",
+RU_DON,"('Russia', ['Rostov', 'Belgorod'])",
+RU_ROSTOV,"('Russia', ['Rostov'])",
+BY_WEST,"('Belarus', ['Brest', 'Grodno'])",
+BY_MINSK,"('Belarus', ['Minsk', 'City of Minsk'])",
+CRIMEA,"('Russia', None)","по iso_3166_2, см. ne_union"
+MOLDOVA,"('Moldova', None)",вся Бессарабия приближением
+UA_BUDJAK_IZMAIL,file:ukraine/budjak_izmail.geojson,"Измаил, Килия, Болград"
+UA_BUDJAK_AKKERMAN,file:ukraine/budjak_akkerman.geojson,Аккерман
+MURMANSK,"('Russia', ['Murmansk'])",--- север и запад ------------------------------------------------------
+ARKHANGELSK,"('Russia', [""Arkhangel'sk"", 'Nenets'])",
+PSKOV,"('Russia', ['Pskov'])",
+BELARUS_ALL,"('Belarus', None)",
+KUBAN,"('Russia', ['Krasnodar', 'Adygey'])",--- юг России ----------------------------------------------------------
+STAVROPOL,"('Russia', [""Stavropol'""])",
+TEREK,"('Russia', ['Chechnya', 'Ingush', 'North Ossetia', 'Kabardin-Balkar', 'Karachay-Cherkess'])",
+DAGESTAN,"('Russia', ['Dagestan'])",
+TSARITSYN,"('Russia', ['Volgograd'])",
+BELGOROD,"('Russia', ['Belgorod'])",
+KURSK,"('Russia', ['Kursk'])",
+OREL,"('Russia', ['Orel'])",
+VORONEZH,"('Russia', ['Voronezh'])",
+GEORGIA,"('Georgia', None)",--- Закавказье ---------------------------------------------------------
+ARMENIA,"('Armenia', None)",
+AZERBAIJAN,"('Azerbaijan', None)",
+PENZA,"('Russia', ['Penza'])",--- Поволжье и Урал ----------------------------------------------------
+SAMARA,"('Russia', ['Samara'])",
+SIMBIRSK,"('Russia', [""Ul'yanovsk""])",
+KAZAN,"('Russia', ['Tatarstan'])",
+IZHEVSK,"('Russia', ['Udmurt'])",
+ORENBURG,"('Russia', ['Orenburg'])",
+UFA,"('Russia', ['Bashkortostan'])",
+PERM,"('Russia', [""Perm'""])",
+EKATERINBURG,"('Russia', ['Sverdlovsk'])",
+CHELYABINSK,"('Russia', ['Chelyabinsk'])",
+KURGAN,"('Russia', ['Kurgan'])",
+TYUMEN,"('Russia', [""Tyumen'""])",
+SIB_NORTH,"('Russia', ['Khanty-Mansiy', 'Yamal-Nenets'], ['RU-X01~'])",--- Сибирь -------------------------------------------------------------
+OMSK,"('Russia', ['Omsk'])",
+NOVONIKOLAEVSK,"('Russia', ['Novosibirsk'])",
+TOMSK,"('Russia', ['Tomsk'])",
+SIB_EAST,"('Russia', ['Kemerovo', 'Altay', 'Gorno-Altay', 'Khakass', 'Krasnoyarsk'])",
+TUVA,"('Russia', ['Tuva'])",
+IRKUTSK,"('Russia', ['Irkutsk'])",
+YAKUTIA,"('Russia', ['Sakha (Yakutia)'])",
+FAR_EAST,"('Russia', ['Buryat', 'Chita', 'Amur', 'Yevrey', 'Khabarovsk', ""Primor'ye"", 'Sakhalin', 'Maga Buryatdan', 'Kamchatka', 'Chukchi Autonomous Okrug'])",
+KZ_STEPPE,"('Kazakhstan', ['Aqmola', 'Astana', 'Qostanay', 'North Kazakhstan', 'Pavlodar', 'East Kazakhstan', 'Qaraghandy', 'Atyrau', 'West Kazakhstan', 'Mangghystau'])",--- Средняя Азия -------------------------------------------------------
+KZ_AKTOBE,"('Kazakhstan', ['Aqtöbe'])",коридор Оренбург - Ташкент
+TRANSCASPIA,"('Turkmenistan', ['Ahal', 'Balkan', 'Mary', 'Chardzhou', 'Tashauz'])",
+TAJIKISTAN,"('Tajikistan', None)",
+NORTH_NOT_YET,file:north/not_yet.geojson,"Север, которым на 1917-1921 годы империя ещё не распоряжается: Таймыр,
+Эвенкия, Туруханск, Ямал и Гыдан. В tools/build_expansion.py красное
+приходит сюда 10.12.1930, одним постановлением об организации
+национальных объединений. Геометрия - тот же файл, что и там."
+CHECHNYA_MTN_1925,file:chechnya/mountains_1920_1925.geojson,"горная Чечня южнее Шатоя и за Шаро-Аргуном: советской власти нет до
+разоружения 1925 г. (03.09.2026, F1_chechnya_shagi.md)"
+NORTHCAUC_EMIRATE,"('Russia', ['Chechnya', 'Ingush'])","--- субъекты, реально вышедшие из империи (окна kind='out') ------------
+Северо-Кавказский эмират Узун-Хаджи (09.1919-03.1920): горная Чечня и
+Ингушетия. Приближение целыми республиками - Грозный в эти месяцы был у
+ВСЮР, а по нашей нарезке уходит в чёрное вместе с горами."
+BASHKIR_SMALL,"('Russia', ['Bashkortostan'])","«Малая Башкирия» башкирского правительства (Валидов) - юго-восток
+современного Башкортостана: рамка отсекает Уфу, которая в те месяцы была
+у Комуча и Колчака, то есть у имперской фракции (красное)."
+SIBERIA_INDEP,"[('Russia', [""Tyumen'""]), ('Russia', ['Kurgan']), ('Russia', ['Khanty-Mansiy', 'Yamal-Nenets'], ['RU-X01~']), ('Russia', ['Omsk']), ('Russia', ['Novosibirsk']), ('Russia', ['Tomsk']), ('Russia', ['Kemerovo', 'Altay', 'Gorno-Altay', 'Khakass', 'Krasnoyarsk']), ('Russia', ['Irkutsk']), ('Russia', ['Sakha (Yakutia)'])]","Сибирь в окно самостоятельности 04.07-18.11.1918 (Декларация
+Временного сибирского правительства). Забайкалье и Дальний Восток НЕ
+входят: там Семёнов и интервенция с белой администрацией - красное."
+VOLGA_MID,"('Russia', ['Tatarstan', ""Ul'yanovsk"", 'Samara', 'Penza', 'Udmurt', 'Mariy-El', 'Chuvash', 'Mordovia', 'Nizhegorod', 'Kirov'])",--- группы для ВОЗВРАТА после резки атласными линиями (резка убрана) ---
+NORTH_RU,"('Russia', ['Komi', 'Karelia'])",
+TURKESTAN,"[('Uzbekistan', None), ('Kyrgyzstan', None), ('Kazakhstan', ['Qyzylorda', 'South Kazakhstan', 'Zhambyl', 'Almaty', 'Almaty City'])]",

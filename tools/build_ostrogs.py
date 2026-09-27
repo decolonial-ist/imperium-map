@@ -183,7 +183,7 @@ _table = None
 # Для каждого среза помним его отметку (mtime, размер) и номера точек внутри;
 # перечитываются только срезы с новой отметкой. Сменился набор точек - кэш с нуля.
 HITS = os.path.join(ROOT, 'build', 'cache', 'ostrog_hits.json')
-WORKERS = max(1, (os.cpu_count() or 4) - 2)
+WORKERS = max(1, min(8, (os.cpu_count() or 4) - 2))
 
 
 def _hits_one(job):

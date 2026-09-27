@@ -370,8 +370,13 @@ def _clip(g, x0, y0, x1, y1):
         return g.buffer(0).intersection(box(x0, y0, x1, y1))
 
 
-def coast_fc(fc, key):
-    """Привести берег среза. -> (снято км², залито км², снято чужого км²)."""
+def coast_fc(fc, key, foreign=True, cells=None):
+    """Привести берег среза. -> (снято км², залито км², снято чужого км²).
+
+    foreign=False - без проверки чужих границ: так режутся КУСКИ (контуры
+    источника и регионы) в tools/preclip.py, v4 27.09.2026; чужое у срезов
+    снимает шаг обрезки rebuild.clip_key. cells - только эти клетки маски и
+    только заливка (швы между кусками в build(), v4): резать нечего."""
     import shapely
     from shapely.geometry import shape
     from shapely.ops import unary_union
@@ -387,7 +392,7 @@ def coast_fc(fc, key):
     hit = tree.query(red, predicate='intersects')
     seacells = [i for i in hit if kind[i] in ('S', 'C')]
     cut = 0.0
-    if seacells:
+    if seacells and cells is None:
         try:                                   # клетки не перекрываются - быстрый путь
             SEA = shapely.coverage_union_all([sea[i] for i in seacells])
         except Exception:                      # noqa: BLE001
@@ -405,7 +410,7 @@ def coast_fc(fc, key):
     alien = 0.0
     # клетки у края красного и в G_ISLE от него (острова в соседней клетке)
     eidx = tree.query(red.boundary, predicate='dwithin', distance=G_ISLE)
-    fcells = [i for i in eidx if kind[i] in ('C', 'LN')]
+    fcells = [i for i in eidx if kind[i] in ('C', 'LN') and (cells is None or i in cells)]
     add = {}
     if fcells:
         sea_tree, ne_sea = gc._sea_tree(NE)
@@ -494,7 +499,7 @@ def coast_fc(fc, key):
                 cb = c.buffer(1e-5)
                 j = max(live_j, key=lambda j: geoms[j].intersection(cb).area)
             add.setdefault(j, []).append(c)
-    if add:
+    if add and foreign:
         # 3) чужие границы: как шаг обрезки (rebuild.clip_key)
         import clip_foreign as cf
         if 'f' not in _M:
@@ -521,6 +526,13 @@ def coast_fc(fc, key):
             fill += km2(pc)
             # внахлёст на 2e-6° (0,2 м): встык оставался волосяной шов
             geoms[j] = unary_union([geoms[j], pc.buffer(2e-6, join_style=2)])
+    elif add:
+        for j, cs in add.items():
+            pc = unary_union(cs)
+            if pc.is_empty:
+                continue
+            fill += km2(pc)
+            geoms[j] = unary_union([geoms[j], pc.buffer(2e-6, join_style=2)])
     for j, g in enumerate(geoms):
         if fc['features'][j].get('geometry') and g is not None:
             fc['features'][j]['geometry'] = g.__geo_interface__
@@ -540,6 +552,10 @@ def coast_key(args):
     path = os.path.join(YEARS, k + '.geojson')
     with open(path, encoding='utf-8') as f:
         fc = json.load(f)
+    if fc.get('coast') == 'pieces':
+        # срез собран из кусков, обрезанных маской заранее (v4, 27.09.2026):
+        # берег уже тот же, резать нечего
+        return k, 0.0, 0.0, 0.0, stamp(k), time.perf_counter() - t
     cut, fill, alien = coast_fc(fc, k)
     if not dry and (cut > 0 or fill > 0):
         with open(path, 'w', encoding='utf-8') as f:

@@ -213,6 +213,9 @@ const BARE = new URLSearchParams(location.search).get('base') !== 'full';
 // порядка строк снова их не убила.
 // Цвета подложки правятся тем же набором (см. блок перекраски ниже).
 const Q0 = new URLSearchParams(location.search);
+// Тексты витрины - из data/text.js (window.TEXT, собирает tools/build_texts.py
+// из data/text/TEXTS.md); нет ключа - его имя в скобках.
+const TXT = k => (window.TEXT && window.TEXT[k] !== undefined) ? window.TEXT[k] : '[' + k + ']';
 const WATER = Q0.get('water') || 'rgb(19,26,38)';        // море: тёмная синева
 const WATER_LINE = Q0.get('water') || 'rgb(24,33,48)';   // реки
 const BORDER = Q0.get('border') || 'rgb(104,104,108)';   // государственные границы
@@ -290,11 +293,11 @@ class Map {
     if (Q0.get('base') === 'esri') {
       const mk = (name, z) => new ol.TileLayer({zIndex: z, source: new ol.XYZ({
         url: `https://server.arcgisonline.com/ArcGis/rest/services/Canvas/${name}/MapServer/tile/{z}/{y}/{x}`,
-        maxZoom: 16, crossOrigin: 'anonymous', attributions: 'Подложка: Esri, HERE, Garmin, OpenStreetMap contributors'})});
+        maxZoom: 16, crossOrigin: 'anonymous', attributions: TXT('base.attrib')})});
       const base = mk('World_Dark_Gray_Base', 10), ref = mk('World_Dark_Gray_Reference', 200);
       if (Q0.get('lblo')) ref.setOpacity(+Q0.get('lblo'));
       this.ol.addLayer(base); this.ol.addLayer(ref);
-      this._baseAttrib = 'Подложка: Esri'; this._renderAttrib(); this._styleLoaded = true;
+      this._baseAttrib = TXT('base.attrib_short'); this._renderAttrib(); this._styleLoaded = true;
       this._emit('load', {}); this._emit('styledata', {}); this._emit('sourcedata', {});
       return;
     }
@@ -741,7 +744,7 @@ class Popup {
     // попап истории растягивался на 1380 px; здесь предел ставим содержимому)
     el.querySelector('.maplibregl-popup-content').style.maxWidth = this._opt.maxWidth || '240px';
     const btn = document.createElement('button');
-    btn.className = 'maplibregl-popup-close-button'; btn.type = 'button'; btn.textContent = '×'; btn.title = 'закрыть';
+    btn.className = 'maplibregl-popup-close-button'; btn.type = 'button'; btn.textContent = '×'; btn.title = TXT('popup.close');
     btn.onclick = () => this.remove();
     el.querySelector('.maplibregl-popup-content').appendChild(btn);
     this._el = el; this._html = ''; this._map = null;

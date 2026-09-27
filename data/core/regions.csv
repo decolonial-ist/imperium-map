@@ -484,3 +484,13 @@ PRIMORYE,"[('ne', 'Russia', [""Primor'ye""])]",
 KINBURN,"[('file', 'ukraine/kinburn_peninsula.geojson')]","Кинбурнский полуостров по OpenStreetMap (отношение 8698667, natural=peninsula), 26.09.2026"
 TAMAN,"[('file', 'kuban/taman_temryuk.geojson')]","Таманский полуостров: Темрюкский район по OpenStreetMap (отношение 364171), 26.09.2026 - отдельного контура полуострова в OSM нет"
 BUG_DNIPRO_CORNER,"[('file', 'ukraine/bug_dnipro_corner.geojson')]","Междуречье Южного Буга и Днепра: линии рек OSM (waterway=river), через Днепро-Бугский лиман - прямые по воде; земля - Николаевская и Херсонская области OSM (rel 72635, 71022), 26.09.2026. Сборка файла - WORKFILES/newbuild_2026-09-24/corner/build_corner.py"
+HOTIN_RAYA,"[('file', 'ukraine/hotin_raya.geojson')]","Хотинская райя: Днестровский район Черновицкой области по OSM (rel 11905201), приближение; в Молдавское княжество восточнее Прута (OCC10_MD_E) не входит, в Natural Earth Молдовы её нет. 27.09.2026"
+BUDJAK_AKKERMAN,"[('file', 'ukraine/budjak_akkerman.geojson')]","Аккерманская райя: Белгород-Днестровский район по OSM (rel 11883401), часть UA_BUDJAK. 27.09.2026"
+BUDJAK_IZMAIL,"[('file', 'ukraine/budjak_izmail.geojson')]","Измаил (и Килия): Измаильский и Болградский районы по OSM (rel 11821462, 11884966), часть UA_BUDJAK. 27.09.2026"
+BUDJAK_KILIA,"[('file', 'ukraine/kilia_hromada.geojson')]",Килия: Килийская громада по OSM (rel 13298111) - Килия падала раньше Измаила в 1770 и 1806 годах. 27.09.2026
+MD_BENDERY,"[('ne', 'Moldova', ['Causeni', 'Anenii Noi', 'Ștefan Vodă'])]","Бендерская райя: Каушанский, Новоаненский и Штефан-Водский районы Natural Earth (Бендеры и Приднестровье - в MOLDOVA_LEFT). Это единицы, которые OCC10_MD_E исключает как райю. 27.09.2026"
+MD_BUDJAK,"[('ne', 'Moldova', ['Cahul', 'Cantemir', 'Cimişlia', 'Basarabeasca', 'Taraclia', 'Comrat'])]","Буджак в нынешней Молдове (ногайская степь между Бендерами, Аккерманом и Измаилом): шесть единиц Natural Earth, которые OCC10_MD_E исключает как Буджак. 27.09.2026"
+FRANZ_JOSEF_LAND,"[('file', 'arctic/franz_josef_land.geojson')]","Земля Франца-Иосифа: контур архипелага OSM (rel 3068295), суша - по маске OSM. 27.09.2026"
+SEVERNAYA_ZEMLYA,"[('file', 'arctic/severnaya_zemlya.geojson')]",Северная Земля: контур архипелага OSM (rel 3718999). 27.09.2026
+WRANGEL,"[('file', 'arctic/wrangel.geojson')]",Остров Врангеля с Геральдом: OSM rel 1866564 (через 180°). 27.09.2026
+RATMANOV,"[('file', 'arctic/ratmanov.geojson')]","Остров Ратманова (Большой Диомид): OSM rel 2283488, 29 км². 27.09.2026"

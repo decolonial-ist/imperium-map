@@ -526,6 +526,30 @@ def update_manifest(written):
     print(f'OK data/manifest.json: срезов {len(mf["years"])}')
 
 
+def slice_sig(key, anchors):
+    """Подпись среза (tools/slice_sigs.py, 27.09.2026): основа, сторона КАЖДОГО
+    якоря на этот день, окна Персии, файлы масок, свой код. Совпала с прошлой
+    сборкой - срез не пересобирается и на берег не идёт; правка якоря задевает
+    только дни, где у него меняется сторона."""
+    import slice_sigs as ss
+    tools = os.path.dirname(os.path.abspath(__file__))
+    day = be.key_date(key)
+    return ss.sha_obj({
+        'code': [ss.sha_file(os.path.abspath(__file__)),
+                 ss.sha_file(os.path.join(tools, 'geoclean.py'))],
+        'key': key,
+        'base': ss.sha_file(os.path.join(DATA, 'years', BASE_KEY + '.geojson')),
+        'ne': ss.sha_file(os.path.join(be.CACHE, 'ne_admin1.geojson')),
+        'inputs': ss.named_inputs(os.path.abspath(__file__),
+                                  exclude=(os.path.basename(ANCHORS), 'ww1_front.geojson')),
+        'anchors': [[a['city'], a['theatre'], side_at(a, day)] for a in anchors],
+        'persia': [[a['reg'], a['frm'], a['to'], a['kind'], a.get('clip'),
+                    ss.reg_sig(be, a['reg'])] for a in be.ADDS
+                   if a['reg'].startswith('PERSIA_') and be.d(a['frm']) <= day
+                   and not (a['to'] and be.d(a['to']) <= day)],
+    })
+
+
 def _w_init(anchors_path):
     anchors = load_anchors(anchors_path)
     base_geom()
@@ -556,7 +580,10 @@ def main():
                          'штамп не трогать')
     ap.add_argument('--workers', type=int, default=1,
                     help='процессов на срезы (tools/rebuild.py - 4)')
+    ap.add_argument('--all', action='store_true',
+                    help='собрать все срезы, не глядя на подписи прошлой сборки')
     args = ap.parse_args()
+    import slice_sigs as ss
     if args.anchors != ANCHORS and not (args.dry_run or args.preview):
         raise SystemExit('чужая таблица якорей - только с --dry-run/--preview')
 
@@ -573,51 +600,62 @@ def main():
         print(f'театр {fl.th["name"]}: сетка {fl.shape[1]}x{fl.shape[0]}, '
               f'якорей империи {len(fl.E)}, противника {len(fl.F)}')
     keys = [args.only] if args.only else slice_keys()
+    out_dir = args.preview or os.path.join(DATA, 'years')
+    # подписи срезов: боевая сборка (не --dry-run/--preview/--only) пропускает
+    # срезы, чьи входы на их день не менялись; линия фронта таких срезов
+    # берётся из сохранённой
+    live = not (args.dry_run or args.preview or args.only)
+    sigs = ss.Sigs('ww1', use_old=live and not args.all)
+    todo = []
+    for key in keys:
+        sig = slice_sig(key, anchors)
+        if live and sigs.fresh(key, sig, os.path.join(out_dir, key + '.geojson')):
+            continue
+        todo.append((key, sig))
+    if live:
+        sigs.report('ПМВ')
 
     written, total = [], 0
-    if args.workers > 1 and not args.dry_run:
+    if args.workers > 1 and not args.dry_run and todo:
         # срезы независимы: каждый - основа BASE_KEY и якоря на свой день
         # (24.09.2026: 20 из 63 минут полной сборки шли здесь по одному)
         from multiprocessing import get_context
-        out_dir = args.preview or os.path.join(DATA, 'years')
-        with get_context('spawn').Pool(args.workers, initializer=_w_init,
+        with get_context('spawn').Pool(min(args.workers, len(todo)), initializer=_w_init,
                                        initargs=(args.anchors,)) as pool:
-            res = pool.map(_w_one, [(k, out_dir) for k in keys], chunksize=1)
-        feats = []
+            res = pool.map(_w_one, [(k, out_dir) for k, _ in todo], chunksize=1)
+        sig_of = dict(todo)
         for key, kb, lost, occ, ff in res:
             total += kb
             written.append(key)
-            feats += ff
+            sigs.put(key, sig_of[key], front=ff)
             print(f'OK {key}: {kb:4d} КБ, у противника {lost:6.2f} град², '
                   f'за границей {occ:6.2f} град²  [{phase(key)}]')
-        if args.preview:
-            return
-        write_front_line(fields, keys, feats)
-        update_manifest(written)
-        gc.write_stamp('ww1')
-        print(f'срезов ПМВ: {len(written)}, суммарно {total} КБ')
+    else:
+        for key, sig in todo:
+            fc, lost, occ = build(key, fields)
+            if args.dry_run:
+                print(f'   {key}  у противника {lost:6.2f} град²  занято за '
+                      f'границей {occ:6.2f} град²  [{phase(key)}]')
+                continue
+            path = os.path.join(out_dir, key + '.geojson')
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(gc.sanitize_obj(fc), f, ensure_ascii=False)
+            kb = os.path.getsize(path) // 1024
+            total += kb
+            written.append(key)
+            sigs.put(key, sig, front=front_feats(fields, key))
+            print(f'OK {os.path.relpath(path, bd.ROOT)}: {kb:4d} КБ, у противника '
+                  f'{lost:6.2f} град², за границей {occ:6.2f} град²  [{phase(key)}]')
+    if not live:
         return
-    for key in keys:
-        fc, lost, occ = build(key, fields)
-        if args.dry_run:
-            print(f'   {key}  у противника {lost:6.2f} град²  занято за '
-                  f'границей {occ:6.2f} град²  [{phase(key)}]')
-            continue
-        out_dir = args.preview or os.path.join(DATA, 'years')
-        path = os.path.join(out_dir, key + '.geojson')
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump(gc.sanitize_obj(fc), f, ensure_ascii=False)
-        kb = os.path.getsize(path) // 1024
-        total += kb
-        written.append(key)
-        print(f'OK {os.path.relpath(path, bd.ROOT)}: {kb:4d} КБ, у противника '
-              f'{lost:6.2f} град², за границей {occ:6.2f} град²  [{phase(key)}]')
-    if args.dry_run or args.preview:
-        return
-    write_front_line(fields, keys)
-    update_manifest(written)
+    feats = []
+    for key in keys:                          # линия фронта всех срезов, по порядку
+        feats += sigs.get(key).get('front', [])
+    write_front_line(fields, keys, feats)
+    update_manifest(keys)
+    sigs.save()
     gc.write_stamp('ww1')
-    print(f'срезов ПМВ: {len(written)}, суммарно {total} КБ')
+    print(f'срезов ПМВ: собрано {len(written)} из {len(keys)}, суммарно {total} КБ')
     print('дальше: .venv/bin/python tools/check_ww1.py --anchors')
 
 

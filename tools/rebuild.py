@@ -146,6 +146,28 @@ def early_key(key):
     return key, nparts, time.perf_counter() - t
 
 
+def delta_key(args):
+    """v4: влить в готовый срез только прибавившиеся приобретения."""
+    key, v = args
+    m = mods()
+    t = time.perf_counter()
+    path = os.path.join(YEARS, f'{key}.geojson')
+    fc, log = m['BE'].build_delta(key, load(path), v['adds'], v['subs'])
+    save(path, m['gc'].sanitize_obj(fc))
+    return key, len(v['adds']) + len(v['subs']), time.perf_counter() - t
+
+
+def meta_key(key):
+    """v4: правка текстов строк - обновить свойства среза без геометрии."""
+    m = mods()
+    path = os.path.join(YEARS, f'{key}.geojson')
+    fc = load(path)
+    pr = fc['features'][0]['properties']
+    pr['added'], pr['removed'] = m['BE'].props_for(key)
+    save(path, m['gc'].sanitize_obj(fc))
+    return key
+
+
 _CS = {}
 
 
@@ -325,8 +347,13 @@ LOSSES_FROM = '1991-12-26'
 
 def losses_sig():
     h = hashlib.sha1()
-    for f in ('tools/build_losses.py', 'tools/geoclean.py', 'data/losses/routes.csv',
-              'cache/cshapes20.geojson', 'cache/ne_admin1.geojson'):
+    files = ['tools/build_losses.py', 'tools/losses_tables.py', 'tools/geoclean.py',
+             'data/losses/routes.csv', 'cache/cshapes20.geojson', 'cache/ne_admin1.geojson']
+    # курируемые таблицы потерь (27.09.2026): data/losses/losses_*.csv
+    files += sorted(os.path.relpath(os.path.join(DATA, 'losses', fn), ROOT)
+                    for fn in os.listdir(os.path.join(DATA, 'losses'))
+                    if fn.startswith('losses_') and fn.endswith('.csv'))
+    for f in files:
         h.update(str(sha(os.path.join(ROOT, f))).encode())
     days = os.path.join(DATA, 'deepstate', 'days')
     for fn in sorted(os.listdir(days)) if os.path.isdir(days) else ():
@@ -399,6 +426,37 @@ def row_windows(name, row, lo, hi):
     return []
 
 
+def active_sets(rows, key, BE):
+    """Действующие на ключ строки adds и subs (v4): геометрическая часть -
+    кортежи без дат и текстов (регион, вид, clip, описание региона), плюс сами
+    строки, чтобы дельта знала, что вливать."""
+    d = BE.key_date
+    day = d(key)
+    regs = {dict(r)['id']: dict(r)['spec'] for r in rows.get('REG', [])}
+    A, S = {}, {}
+    for r in rows.get('ADDS', []):
+        a = dict(r)
+        if d(a['frm']) <= day and (not a['to'] or day < d(a['to'])):
+            A[(a['reg'], a['kind'], a.get('clip', ''), regs.get(a['reg'], ''))] = a
+    for r in rows.get('SUBS', []):
+        x = dict(r)
+        if (not x['frm'] or d(x['frm']) <= day) and (not x['to'] or day < d(x['to'])):
+            S[(x['reg'], regs.get(x['reg'], ''))] = x
+    return A, S
+
+
+def key_sigs(rows, keys, BE):
+    """Подпись ранних срезов по содержанию (v4, 27.09.2026): основа и
+    геометрическая часть действующих строк. Даты и тексты в подпись не входят:
+    сдвиг даты - переименование, правка текста акта - обновление свойств."""
+    out = {}
+    for k in keys:
+        A, S = active_sets(rows, k, BE)
+        out[k] = hashlib.sha1(json.dumps([BE.base_key_for(BE.key_date(k)), sorted(A), sorted(S)],
+                                         ensure_ascii=False).encode('utf-8')).hexdigest()
+    return out
+
+
 def changed(state_core):
     """Изменённые строки: {таблица: [строки, которых нет по другую сторону]}."""
     old, new = read_core(state_core), read_core(os.path.join(DATA, 'core'))
@@ -422,9 +480,16 @@ def plan(state, BE):
             continue
         for r in rows:
             for w in row_windows(name, r, lo, hi):
-                wins.append(w)
                 why.setdefault(name, 0)
                 why[name] += 1
+                if name in ('ADDS', 'SUBS'):
+                    # v4 (27.09.2026): ранние ключи выбирает подпись содержания
+                    # (key_sigs); окно строки нужно лишь датам окна ПМВ, их
+                    # строит слой по основе 1914-04-04
+                    if w[1] <= '1914-07-19':
+                        continue
+                    w = (max(w[0], '1914-07-19'), w[1])
+                wins.append(w)
     reg_changed = {dict(r)['id'] for r in diff.get('REG', [])}
     if reg_changed:
         for name in ('ADDS', 'SUBS', 'RESIST', 'LATE_EDITS'):
@@ -451,6 +516,68 @@ def plan(state, BE):
     removed = sorted((derived_old - e_new - late_new) & mf_keys, key=BE.key_date)
     all_keys = (mf_keys - set(removed)) | e_new | late_new
     added = sorted(all_keys - mf_keys, key=BE.key_date)
+    # v4 (27.09.2026): подпись среза по содержанию. Новый ключ с подписью
+    # снятого - переименование файлов, не пересборка; ключ с той же подписью,
+    # что в прошлой сборке, - не задет, какие бы даты у строк ни сдвинулись
+    early_all = [k for k in all_keys if BE.key_date(k) < BE.RECON_FROM and not ww1_window(BE, k)]
+    sig_new = key_sigs(new, early_all, BE)
+    sig_old = key_sigs(old, [k for k in early_all if k in old_keys] + list(removed), BE)
+    renamed, bysig = {}, {}
+    for k in removed:
+        bysig.setdefault(sig_old[k], []).append(k)
+    for k in added:
+        if k in sig_new and bysig.get(sig_new[k]):
+            renamed[k] = bysig[sig_new[k]].pop(0)
+    gone = set(renamed.values())
+    removed = [k for k in removed if k not in gone]
+    sig_touched = {k for k in early_all if k not in renamed and sig_new[k] != sig_old.get(k)}
+    # дельта: у ключа только ПРИБАВИЛИСЬ приобретения (вычитания и основа те же,
+    # срез лежит на диске) - влить куски в готовый срез, не собирать от основы
+    delta, meta = {}, []
+    texts = lambda A: sorted((k, a['name'], a['act'], a['src'], a['frm'], a['to'])   # noqa: E731
+                             for k, a in A.items())
+    base_of = lambda k: BE.base_key_for(BE.key_date(k))                            # noqa: E731
+
+    def grow(A0, S0, A1, S1):
+        # дельта возможна, когда строки только ПРИБАВИЛИСЬ (приобретения и/или
+        # вычитания); снятая строка - сборка от основы
+        if set(A0) <= set(A1) and set(S0) <= set(S1):
+            return ([A1[t] for t in sorted(set(A1) - set(A0))],
+                    [S1[t] for t in sorted(set(S1) - set(S0))])
+        return None
+    sets_new = {k: active_sets(new, k, BE) for k in early_all}
+    for k in early_all:
+        if k in renamed or not os.path.exists(os.path.join(YEARS, f'{k}.geojson')) or k not in old_keys:
+            continue
+        A0, S0 = active_sets(old, k, BE)
+        A1, S1 = sets_new[k]
+        if k in sig_touched:
+            g = grow(A0, S0, A1, S1)
+            if g:
+                delta[k] = {'from': k, 'adds': g[0], 'subs': g[1]}
+        elif texts(A0) != texts(A1):
+            meta.append(k)
+    # новый ключ без файла: взять срез снятого ключа с той же основой, у которого
+    # строки - подмножество (ближайший), переименовать и долить дельтой
+    free = [k for k in removed if os.path.exists(os.path.join(YEARS, f'{k}.geojson'))]
+    sets_old = {k: active_sets(old, k, BE) for k in free}
+    for k in added:
+        if k in renamed or k not in sets_new:
+            continue
+        A1, S1 = sets_new[k]
+        best = None
+        for o in free:
+            if base_of(o) != base_of(k):
+                continue
+            g = grow(*sets_old[o], A1, S1)
+            if g and (best is None or len(sets_old[o][0]) + len(sets_old[o][1]) > best[0]):
+                best = (len(sets_old[o][0]) + len(sets_old[o][1]), o, g)
+        if best:
+            _, o, g = best
+            delta[k] = {'from': o, 'adds': g[0], 'subs': g[1]}
+            free.remove(o)
+    consumed = {v['from'] for k, v in delta.items() if v['from'] != k}
+    removed = [k for k in removed if k not in consumed]
 
     def hit(k):
         dk = str(BE.key_date(k))
@@ -463,7 +590,7 @@ def plan(state, BE):
                 return True
         return False
 
-    touched = {k for k in all_keys if hit(k)} | set(added)
+    touched = {k for k in all_keys if hit(k)} | (set(added) - set(renamed)) | sig_touched
     # копии с задетого ключа
     chain = {k: b for k, b, _ in BE.LATE_NEW}
     grew = True
@@ -497,7 +624,8 @@ def plan(state, BE):
             layers[name] = reason
     if 'pact' in layers and 'ww2' not in layers:
         layers['ww2'] = ['пересобран пакт']
-    return dict(diff=diff, why=why, touched=touched, added=added, removed=removed,
+    return dict(diff=diff, why=why, touched=touched, added=added, removed=removed, renamed=renamed,
+                delta=delta, meta=meta,
                 layers=layers, all_keys=all_keys, reg_changed=reg_changed,
                 core_code={f: sha(os.path.join(TOOLS, f)) for f in CORE_CODE},
                 core_code_old=(load(os.path.join(state, 'code.json'))
@@ -548,7 +676,7 @@ def main():
     g.add_argument('--all', action='store_true')
     g.add_argument('--changed', action='store_true')
     ap.add_argument('--dry-run', action='store_true')
-    ap.add_argument('--workers', type=int, default=max(1, (os.cpu_count() or 4) - 2))
+    ap.add_argument('--workers', type=int, default=max(1, min(8, (os.cpu_count() or 4) - 2)))
     a = ap.parse_args()
     os.makedirs(TMP, exist_ok=True)
     T0 = time.perf_counter()
@@ -597,7 +725,9 @@ def main():
                                      or 'нет') +
           (f'; регионов {len(p["reg_changed"])}' if p['reg_changed'] else ''))
     print(f'### задето ключей {len(touched)}: ранних {len(early)}, поздних {len(late)}, '
-          f'новых {len(p["added"])}, снятых {len(p["removed"])}')
+          f'новых {len(p["added"]) - len(p["renamed"])}, снятых {len(p["removed"])}, '
+          f'переименований по подписи {len(p["renamed"])}; из ранних дельтой {len(p["delta"])}, '
+          f'только свойства {len(p["meta"])}')
     for name, reason in p['layers'].items():
         print(f'### слой {name}: ' + '; '.join(reason))
     import coast_osm
@@ -611,6 +741,24 @@ def main():
     if not touched and not p['layers'] and not coast_todo:
         print('### нечего пересобирать')
         return
+    # v4: переименования по подписи - файлы среза и облегчённых уровней
+    for nk, ok in p['renamed'].items():
+        for sub in ('years', 'years_lite', 'years_mid'):
+            src = os.path.join(DATA, sub, f'{ok}.geojson')
+            dst = os.path.join(DATA, sub, f'{nk}.geojson')
+            if os.path.exists(src) and not os.path.exists(dst):
+                os.replace(src, dst)
+    if p['renamed']:
+        print(f'### переименовано по подписи: {len(p["renamed"])} '
+              f'({", ".join(f"{o}->{n}" for n, o in list(p["renamed"].items())[:6])}…)', flush=True)
+
+    for k, v in p['delta'].items():           # срез снятого ключа -> под новым именем, потом дельта
+        if v['from'] != k:
+            for sub in ('years', 'years_lite', 'years_mid'):
+                src = os.path.join(DATA, sub, f'{v["from"]}.geojson')
+                dst = os.path.join(DATA, sub, f'{k}.geojson')
+                if os.path.exists(src) and not os.path.exists(dst):
+                    os.replace(src, dst)
     area_before = {}
     if not a.all:
         with ctx.Pool(a.workers) as pool:
@@ -618,12 +766,25 @@ def main():
 
     per_key = {}
     t = time.perf_counter()
-    if early:
+    if p['meta']:
+        with ctx.Pool(min(a.workers, 4)) as pool:
+            pool.map(meta_key, p['meta'], chunksize=4)
+        print(f'### свойства обновлены без геометрии: {len(p["meta"])}', flush=True)
+    delta = {k: v for k, v in p['delta'].items() if k in early}
+    full = [k for k in early if k not in delta]
+    if delta:
         with ctx.Pool(a.workers) as pool:
-            res = pool.map(early_key, early, chunksize=1)
+            res = pool.map(delta_key, sorted(delta.items(), key=lambda kv: BE.key_date(kv[0])), chunksize=1)
         for k, n, dt in res:
             per_key[k] = dt
-        times.append((f'ранние даты ({len(early)})', time.perf_counter() - t))
+        times.append((f'ранние даты дельтой ({len(delta)})', time.perf_counter() - t))
+        t = time.perf_counter()
+    if full:
+        with ctx.Pool(a.workers) as pool:
+            res = pool.map(early_key, full, chunksize=1)
+        for k, n, dt in res:
+            per_key[k] = dt
+        times.append((f'ранние даты от основы ({len(full)})', time.perf_counter() - t))
 
     # 1922 и слои войн
     t = time.perf_counter()
@@ -643,7 +804,9 @@ def main():
             rewritten.add(ww2_base)
         if name in p['layers']:
             b0 = mtimes()
-            times.append((label, run(label, LAYERS[name][0])))
+            # --all: слои войн тоже собирают все срезы, а не по подписям
+            times.append((label, run(label, LAYERS[name][0],
+                                     *(['--all'] if a.all and name != 'pact' else []))))
             w = {k for k, mt in mtimes().items() if b0.get(k) != mt}
             rewritten |= w
             if name in ('pact', 'ww2'):
@@ -689,8 +852,13 @@ def main():
     # ранние даты окна ПМВ (строки таблиц 1914-1917) не строятся ранним окном -
     # их строит слой ПМВ по манифесту; без записи сюда полная сборка их теряла
     # (03.09.1914 и 22.06.1915, --all 24.09.2026)
+    # v4: старые имена переименованных и «съеденных» дельтой ключей - вон из
+    # манифеста (их файлы уже переехали под новые имена, в build/removed не идут)
+    gone_names = list(p['renamed'].values()) + [v['from'] for k, v in p['delta'].items()
+                                                if v['from'] != k]
     set_manifest(BE, [k for k in early if os.path.exists(os.path.join(YEARS, f'{k}.geojson'))]
-                 + [k for k in e_all if ww1_window(BE, k)], p['removed'])
+                 + [k for k in p['renamed'] if os.path.exists(os.path.join(YEARS, f'{k}.geojson'))]
+                 + [k for k in e_all if ww1_window(BE, k)], p['removed'] + gone_names)
 
     t = time.perf_counter()
     clip = sorted((set(early) | set(late_todo) | rewritten
@@ -703,14 +871,15 @@ def main():
     times.append((f'обрезка ({len(clip)})', time.perf_counter() - t))
 
     if 'ww1' in p['layers']:
-        times.append(('ПМВ', run('ПМВ', 'build_ww1.py', '--workers', str(a.workers))))
+        times.append(('ПМВ', run('ПМВ', 'build_ww1.py', '--workers', str(a.workers),
+                                 *(['--all'] if a.all else []))))
     if 'sphere' in p['layers']:
         times.append(('сфера', run('сфера', 'build_sphere.py')))
     # берег OSM - после обрезки и ПМВ; переписанные им срезы идут в производные
     b0 = mtimes()
     times.append(('берег OSM', run('берег OSM', 'coast_osm.py', '--workers', str(a.workers))))
     coast = {k for k, mt in mtimes().items() if b0.get(k) != mt}
-    lite_keys = sorted(set(clip) | set(p['added']) | coast | (
+    lite_keys = sorted(set(clip) | (set(p['added']) - set(p['renamed'])) | coast | (
         {k for k in mtimes() if ww1_window(BE, k)} if 'ww1' in p['layers'] else set()),
         key=BE.key_date)
     lsig_path = os.path.join(STATE, 'losses.json')
@@ -730,7 +899,8 @@ def main():
                                  ('пакеты mid', 'build_mid_packs.py'),
                                  ('ячейки', 'build_fine_cells.py'),
                                  ('пакет старта', 'build_start_bundle.py'),
-                                 ('восстания', 'build_uprisings.py')]:
+                                 ('восстания', 'build_uprisings.py'),
+                                 ('тексты', 'build_texts.py')]:
         if a.all:
             args = [x for x in args if x != '--keys' and x != ','.join(lite_keys)]
         times.append((label, run(label, script, *args)))

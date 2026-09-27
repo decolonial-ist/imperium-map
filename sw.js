@@ -74,7 +74,9 @@ const isPage = (req, url) => req.mode === 'navigate' || url.pathname.endsWith('/
 const isVersion = url => url.pathname.endsWith('/' + VERSION_URL) || url.pathname.endsWith(VERSION_URL);
 // Что кладём в кэш: данные - по версии; библиотеки и шим - с обновлением следом.
 const isData = url => /\/data\//.test(url.pathname) && !isVersion(url);
-const isCode = url => /\/vendor\/|\/ee-shim\.js$/.test(url.pathname);
+// data/text.js (тексты витрины, tools/build_texts.py) идёт как код: правка слов
+// доезжает со второго открытия без пересборки данных и смены версии.
+const isCode = url => /\/vendor\/|\/ee-shim\.js$|\/data\/text\.js$/.test(url.pathname);
 
 self.addEventListener('fetch', e => {
   const req = e.request;
