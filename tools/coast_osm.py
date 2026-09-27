@@ -367,7 +367,13 @@ def _clip(g, x0, y0, x1, y1):
     try:
         return shapely.clip_by_rect(g, x0, y0, x1, y1)
     except shapely.errors.GEOSException:
-        return g.buffer(0).intersection(box(x0, y0, x1, y1))
+        # честное пересечение; buffer(0) всей геометрии - только если она и
+        # впрямь невалидна (профиль 27.09: 21 буфер по 3,9 с на срезе 1886 -
+        # буферился весь срез при каждом отказе clip_by_rect)
+        try:
+            return g.intersection(box(x0, y0, x1, y1))
+        except shapely.errors.GEOSException:
+            return g.buffer(0).intersection(box(x0, y0, x1, y1))
 
 
 def coast_fc(fc, key, foreign=True, cells=None):
@@ -388,6 +394,8 @@ def coast_fc(fc, key, foreign=True, cells=None):
     if not live:
         return 0.0, 0.0, 0.0
     red = unary_union(live)
+    if not red.is_valid:
+        red = red.buffer(0)                    # один раз, а не при каждой вырезке
     # 1) снять красное над морем OSM
     hit = tree.query(red, predicate='intersects')
     seacells = [i for i in hit if kind[i] in ('S', 'C')]
@@ -452,6 +460,18 @@ def coast_fc(fc, key, foreign=True, cells=None):
                 ne_c[i] = (unary_union([ne_sea[k] for k in q]).intersection(boxes[i])
                            if len(q) else None)
             return ne_c[i]
+        ne_u = {}
+
+        def ne_union(cells_c):
+            """Море NE вокруг набора клеток - раз на набор, а не на кандидата
+            (профиль 27.09: 16 тыс. объединений по кандидатам на срезе 1886)."""
+            k = tuple(sorted(int(i) for i in cells_c))
+            if k not in ne_u:
+                nes = [ne_of(i) for i in k]
+                nes = [g for g in nes if g is not None and not g.is_empty]
+                ne_u[k] = unary_union(nes) if nes else None
+            return ne_u[k]
+
         def within(c, r, d, ne=None):
             """Весь кусок ближе d к красному r (или в море NE): по точкам контура
             и внутренней точке - буфер красного на кусок стоил минуты на срез."""
@@ -470,8 +490,14 @@ def coast_fc(fc, key, foreign=True, cells=None):
             return float((shapely.distance(P, r) > d).mean()) <= 0.01
 
         live_j = [j for j, g in enumerate(geoms) if g is not None and not g.is_empty]
+        far = 2 * max(G, G_ISLE)
         for c in parts(cand):
             if c.area < 1e-9 or km2(c) > CAP_KM2:
+                continue
+            # дальше 2·G от красного кусок не зальётся ни по одному правилу:
+            # отсекаем до вырезок и объединений (профиль 27.09: заливка швов
+            # на срезе 1886 - 105 с, почти всё в объединениях по кандидатам)
+            if not shapely.dwithin(red, c, far):
                 continue
             cells_c = tree.query(c, predicate='intersects')
             if not red.intersects(c):
@@ -484,9 +510,7 @@ def coast_fc(fc, key, foreign=True, cells=None):
                         live_j, key=lambda j: geoms[j].distance(c))
                     add.setdefault(j, []).append(c)
                 continue
-            nes = [ne_of(i) for i in cells_c]
-            nes = [g for g in nes if g is not None and not g.is_empty]
-            ne = unary_union(nes) if nes else None
+            ne = ne_union(cells_c)
             touch = SEAn is not None and SEAn.intersects(c)
             in_ne = ne is not None and ne.intersection(c).area >= 0.5 * c.area
             if not (touch or in_ne):

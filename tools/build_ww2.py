@@ -160,6 +160,7 @@ EXTRA_SRC = w2t.load('EXTRA_SRC')
 # geom - функция, frm - дата входа войск, until - дата вывода (или None).
 
 _g = {}
+import preclip   # noqa: E402  (куски с готовым берегом, v4, 27.09.2026)
 
 
 def ne(admin, names=None):
@@ -203,7 +204,8 @@ def extra_geom(eid):
                              for f in json.load(fh)['features']])
     else:
         raise SystemExit(f'неизвестный кусок {eid}')
-    _g[eid] = g.buffer(0)
+    # берег один раз (v4): кусок театра режется маской суши OSM и кэшируется
+    _g[eid] = preclip.piece('reg', f'ww2:{eid}', g.buffer(0))
     return _g[eid]
 
 
@@ -224,7 +226,9 @@ def abroad_mask():
         with open(os.path.join(DATA, 'borders', 'memelland_ohm_1920-1923.geojson'),
                   encoding='utf-8') as fh:
             parts += [shape(f['geometry']).buffer(0) for f in json.load(fh)['features']]
-        _g['abroad'] = unary_union(parts).buffer(0)
+        # берег один раз (v4, 27.09.2026): маска режется маской суши OSM и
+        # кэшируется куском - занятое за границей идёт с готовым берегом
+        _g['abroad'] = preclip.piece('reg', 'ww2:abroad', unary_union(parts).buffer(0))
     return _g['abroad']
 
 
@@ -421,10 +425,19 @@ def build(key, field, verbose=True):
     for e in ex:
         parts.append(extra_geom(e['id']))
     geom = unary_union([p for p in parts if not p.is_empty]).buffer(0)
-    geom = geom.simplify(SIMPLIFY).buffer(0)
+    # куски (основа, маска за границей, театры) несут берег OSM с допуском
+    # preclip.SIMP; растр внутри них. Упрощение среза - не грубее кусков
+    geom = geom.simplify(min(SIMPLIFY, preclip.SIMP)).buffer(0)
     keep = [g for g in (geom.geoms if geom.geom_type == 'MultiPolygon'
                         else [geom]) if g.area > SPECK]
     geom = unary_union(keep)
+    # щели растра до берега - только в клетках, которых касается занятое за
+    # границей и театры; чистки по суше NE (gc.finish) больше нет: она резала
+    # бы берег OSM
+    geom = preclip.polys(geom)
+    cells = preclip.seam_cells([g for g in [abroad] + [extra_geom(e['id']) for e in ex]
+                                if not g.is_empty], any_piece=True)
+    geom, _fill = preclip.fill_seams(geom, key, cells)
 
     lost = inside.area - core.area               # сколько своей земли под врагом
     props = {
@@ -443,14 +456,13 @@ def build(key, field, verbose=True):
         'added': [], 'removed': [],
         'source': SOURCE,
     }
-    fin = gc.finish(geom, be.CACHE)
-    # Соловки: курируемая точная береговая линия, общая чистка её снимает
-    # (22.09.2026, см. EARLY_PROTECT в build_expansion.py). Острова всю войну
-    # советские - возвращаем их после чистки
+    fin = geom if geom.is_valid else geom.buffer(0)
+    # Соловки и прочие заповедники (EARLY_PROTECT): куски с курируемым берегом,
+    # острова всю войну советские - добавляем всегда
     prot = [be.reg_geom(r) for r in sorted(be.EARLY_PROTECT)]
     if prot:
         fin = unary_union([fin] + prot).buffer(0)
-    fc = {'type': 'FeatureCollection', 'features': [{
+    fc = {'type': 'FeatureCollection', 'coast': 'pieces', 'features': [{
         'type': 'Feature',
         'geometry': be._round(mapping(fin)),
         'properties': props}]}
@@ -464,8 +476,12 @@ def front_feat(field, key):
         _g['inside'] = base.intersection(theatre_box())
     inside = _g['inside']
     red = field.red(be.key_date(key))
-    line = inside.intersection(red).boundary.difference(inside.boundary.buffer(0.02))
-    if line.is_empty:
+    # пересечение с кусками даёт и коллекции (линии, точки): boundary у них None
+    core = preclip.polys(inside.intersection(red))
+    if core.is_empty:
+        return None
+    line = core.boundary.difference(preclip.polys(inside).boundary.buffer(0.02))
+    if line is None or line.is_empty:
         return None
     return {'type': 'Feature',
             'geometry': be._round(mapping(line.simplify(0.02))),
@@ -485,7 +501,8 @@ def slice_sig(key, anchors):
         base = ss.sha_file(os.path.join(DATA, 'years', BASE_PRE + '.geojson'))
     return ss.sha_obj({
         'code': [ss.sha_file(os.path.abspath(__file__)),
-                 ss.sha_file(os.path.join(tools, 'geoclean.py'))],
+                 ss.sha_file(os.path.join(tools, 'geoclean.py')),
+                 ss.sha_file(os.path.join(tools, 'preclip.py')), preclip.rules()],
         'key': key, 'base': base,
         'ne': ss.sha_file(os.path.join(be.CACHE, 'ne_admin1.geojson')),
         'inputs': ss.named_inputs(os.path.abspath(__file__),

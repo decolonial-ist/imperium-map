@@ -759,9 +759,45 @@ def alaska():
     return _cache['__ak']
 
 
+_REG_SIMPLE = {'ne', 'ne_region', 'ne_box', 'ne_minus', 'file', 'and_file', 'minus_file',
+               'file_where'}
+
+
+def _reg_spec_sig(name):
+    """Подпись входов региона для кэша кусков (без сборки геометрии): сама
+    спецификация, файл NE и курируемые файлы. None - вид спецификации
+    зависит от другого (hb_name, alaska, ne_az_no_nakh): тогда кусок ищется
+    по хешу готовой геометрии."""
+    import slice_sigs as ss
+    import preclip
+    files = []
+    for spec in REG[name]:
+        if spec[0] not in _REG_SIMPLE:
+            return None
+        if spec[0] in ('file', 'and_file', 'minus_file', 'file_where'):
+            files.append(spec[1])
+        elif spec[0] == 'ne_minus':
+            files += list(spec[3])
+    return ['reg', name, repr(REG[name]), preclip.ne_sha(),
+            [[p, ss.sha_file(os.path.join(DATA, p))] for p in files]]
+
+
 def reg_geom(name):
+    """Регион кусками с готовым берегом (v4): кусок ищется по подписи входов
+    (piece_sig) - сырая геометрия из NE строится только при промахе кэша."""
     if name in _cache:
         return _cache[name]
+    import preclip
+    sig = _reg_spec_sig(name)
+    if sig is not None:
+        g = preclip.piece_sig('reg', name, sig, lambda: _reg_raw(name))
+    else:
+        g = preclip.piece('reg', name, _reg_raw(name))
+    _cache[name] = g
+    return g
+
+
+def _reg_raw(name):
     parts = []
     for spec in REG[name]:
         kind = spec[0]
@@ -809,9 +845,6 @@ def reg_geom(name):
             g = g.difference(file_geom(spec[1])).buffer(0)
     if g.is_empty:
         raise SystemExit(f'пустая геометрия региона {name}')
-    import preclip
-    g = preclip.piece('reg', name, g)          # берег один раз, v4 27.09.2026
-    _cache[name] = g
     return g
 
 
@@ -845,10 +878,20 @@ def src_geom(key):
     суши OSM (tools/preclip.py). Кэш - cache/preclipped/src__<ключ>__<хеш>.wkb."""
     tag = '__src_' + key
     if tag not in _cache:
+        import hashlib
         import preclip
+        from shapely import wkb
         kind, val = SRC[key]
         raw = hb_core(val) if kind == 'hb' else cs_core(*val)
-        _cache[tag] = preclip.piece('src', key, fill_coast(raw, key_date(key)))
+        day = key_date(key)
+        # подпись входов заливки: сырой контур, правила каймы, единицы NE и
+        # регионы, которые таблица датирует позже дня контура (coast_later) -
+        # кусок ищется по ней, и fill_coast (80 с) идёт только при промахе
+        later = sorted({a['reg'] for a in ADDS if d(a['frm']) > day})
+        sig = ['src', key, hashlib.sha1(wkb.dumps(raw)).hexdigest(),
+               COAST_X, COAST_SHARE, sorted(COAST_COUNTRIES), preclip.ne_sha(),
+               [[r, _reg_spec_sig(r) or repr(REG[r])] for r in later]]
+        _cache[tag] = preclip.piece_sig('src', key, sig, lambda: fill_coast(raw, day))
     return _cache[tag]
 
 

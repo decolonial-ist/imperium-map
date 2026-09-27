@@ -64,7 +64,7 @@ LAYERS = {
     'zones': ('build_zones_1917_1921.py', ['build_ww1.py'], []),
     'pact': ('build_pact_1939.py', ['build_border_1939.py'], ['1922']),
     'ww2': ('build_ww2.py', [], []),                  # основа - вывод пакта
-    'ww1': ('build_ww1.py', ['build_ww2.py'], ['1914-04-04']),
+    'ww1': ('build_ww1.py', ['build_ww2.py'], ['1914-04-17']),   # основа ПМВ; до 27.09 - 1914-04-04
     'sphere': ('build_sphere.py', [], []),
 }
 
@@ -325,10 +325,17 @@ def clip_key(key):
 
 
 def area_of(key):
+    """Площадь среза для отчёта «контур изменился на N км²» - без исправления
+    валидности: union_fc с buffer(0) на срезах с берегом OSM стоил минуты на
+    срез, и первый прогон v4 27.09 простоял 17 минут на «площади до» четырьмя
+    процессами, не собрав ни одного среза. Сумма площадей фич (перекрытий у
+    фич среза почти нет) для отчёта достаточна."""
     path = os.path.join(YEARS, f'{key}.geojson')
     if not os.path.exists(path):
         return key, None
-    return key, union_fc(load(path)).area
+    m = mods()
+    return key, sum(abs(m['shape'](f['geometry']).area) for f in load(path)['features']
+                    if f.get('geometry'))
 
 
 # ---- состояние и дифф -------------------------------------------------------

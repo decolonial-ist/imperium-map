@@ -689,9 +689,15 @@ class Map {
           };
           return;
         }
-        if (def.type === 'fill')
-          rec.style = new ol.Style({fill: new ol.Fill({color: hex(pt['fill-color'] || '#000', pt['fill-opacity'] === undefined ? 1 : pt['fill-opacity'])})});
-        else {
+        if (def.type === 'fill') {
+          // Прозрачность - СЛОЮ, а не каждой фиче (27.09.2026, куратор: «куски
+          // границ склеены, при наложении цвет темнее» - Южная Осетия, Абхазия,
+          // Ичкерия, Украина). Полупрозрачная заливка по фиче складывается там,
+          // где две фичи лежат друг на друге; слой с opacity рисуется на своём
+          // холсте целиком, и нахлёст внутри слоя не темнеет.
+          rec.opacity = pt['fill-opacity'] === undefined ? 1 : pt['fill-opacity'];
+          rec.style = new ol.Style({fill: new ol.Fill({color: hex(pt['fill-color'] || '#000', 1)})});
+        } else {
           const w = pt['line-width'];
           const dash = pt['line-dasharray'];
           const col = hex(pt['line-color'] || '#000', pt['line-opacity'] === undefined ? 1 : pt['line-opacity']);
@@ -712,6 +718,7 @@ class Map {
         return rec.style(widthAt(rec.width, self2.getZoom()));
       }});
       layer._rec = rec; layer._rebuild = build;
+      if (rec.opacity !== undefined) layer.setOpacity(rec.opacity);
     }
     if (layout.visibility === 'none') layer.setVisible(false);
     this._layers[def.id] = layer; this._layerList.push(def.id);
@@ -723,7 +730,11 @@ class Map {
   setPaintProperty(id, prop, v) {
     const l = this._layers[id]; if (!l) return this;
     if (prop === 'raster-opacity') { l.setOpacity(v); return this; }
-    if (l._rec) { l._rec.paint[prop] = v; l._rebuild(); l.changed(); }
+    if (l._rec) {
+      l._rec.paint[prop] = v; l._rebuild();
+      if (l._rec.opacity !== undefined) l.setOpacity(l._rec.opacity);   // fill-opacity - слою
+      l.changed();
+    }
     return this;
   }
   getPaintProperty(id, prop) { const l = this._layers[id]; return l && l._rec ? l._rec.paint[prop] : undefined; }

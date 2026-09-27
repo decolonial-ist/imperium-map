@@ -101,6 +101,7 @@ from shapely.ops import unary_union
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_data as bd            # noqa: E402
 import build_expansion as be       # noqa: E402  (d, key_date, ne_pick, _round)
+import preclip                     # noqa: E402  (куски с готовым берегом, v4)
 import geoclean as gc              # noqa: E402
 from build_ww2 import smooth       # noqa: E402  (снятие растровой лестницы)
 
@@ -120,7 +121,8 @@ HALO = 0.1                      # град: полоса у фронта, где
 
 WAR = '1914-07-19'              # 19.07 (01.08) 1914: Германия объявила войну
 END = '1917-12-25'              # с этого среза - tools/build_zones_1917_1921.py
-BASE_KEY = '1914-04-04'         # довоенный контур, tools/build_expansion.py
+BASE_KEY = '1914-04-17'         # довоенный контур, tools/build_expansion.py (до 27.09.2026 - 1914-04-04,
+                                # ст. ст.; канон дат теперь новый стиль, срез переименован)
 EVENT_KEYS = ['1915-07-23',     # Варшава: в ночь 22/23.07 войска ушли за Вислу
               '1917-08-21']     # Рига оставлена в ночь на 21.08
 
@@ -313,12 +315,15 @@ def abroad_mask(th):
                 raise SystemExit(f'{path}: нет контуров чужой земли театра')
             with open(path, encoding='utf-8') as f:
                 fc = json.load(f)
-            _g[k] = unary_union([shape(x['geometry']).buffer(0)
-                                 for x in fc['features']
-                                 if x.get('geometry')]).buffer(0)
+            g = unary_union([shape(x['geometry']).buffer(0)
+                             for x in fc['features']
+                             if x.get('geometry')]).buffer(0)
         else:
-            _g[k] = unary_union([be.ne_pick(a, n) for a, n in th['abroad']]
-                                ).buffer(0)
+            g = unary_union([be.ne_pick(a, n) for a, n in th['abroad']]).buffer(0)
+        # берег один раз (v4, 27.09.2026): чужая земля театра режется маской
+        # суши OSM и кэшируется куском - занятое за границей идёт с готовым
+        # берегом, и срез на шаг берега не идёт
+        _g[k] = preclip.piece('reg', f"ww1:abroad:{th['id']}", g)
     return _g[k]
 
 
@@ -428,14 +433,19 @@ def build(key, fields):
     geom = base.difference(lost).buffer(0) if not lost.is_empty else base
     if not occ.is_empty:
         geom = unary_union([geom, occ]).buffer(0)
-    front = unary_union([g for g in (lost, occ) if not g.is_empty])
-    if not front.is_empty:
-        geom = local_finish(geom, front.buffer(HALO))
+    # Чистки по суше NE у фронта (local_finish) больше нет: основа и чужая
+    # земля - куски с берегом OSM, растр внутри них; заливаются только щели
+    # растра до берега в клетках, которых касается занятое за границей
     # Персия (22.09.2026): районы городов с русскими гарнизонами на дату -
     # окна PERSIA_* таблицы ADDS tools/build_expansion.py
     pers = be.occupation_geom(day, 'PERSIA_')
     if not pers.is_empty:
         geom = unary_union([geom, pers]).buffer(0)
+    geom = preclip.polys(geom)
+    cells = preclip.seam_cells([g for g in (occ, pers) if not g.is_empty], any_piece=True)
+    geom, _fill = preclip.fill_seams(geom, key, cells)
+    if not geom.is_valid:
+        geom = geom.buffer(0)
     abroad = geom.difference(base).area
 
     props = {'year': key, 'role': 'core', 'name': 'Российская империя',
@@ -449,7 +459,7 @@ def build(key, fields):
              'added': [], 'removed': [], 'source': SOURCE}
     feats = [{'type': 'Feature', 'geometry': be._round(mapping(geom)),
               'properties': props}]
-    return ({'type': 'FeatureCollection', 'features': feats},
+    return ({'type': 'FeatureCollection', 'coast': 'pieces', 'features': feats},
             lost.area, abroad)
 
 
@@ -482,8 +492,12 @@ def front_feats(fields, key):
             red = red.difference(fl.to_geom(lost_m))
         if occ_m.any():
             red = unary_union([red, fl.to_geom(occ_m).intersection(area)])
+        # пересечения с кусками дают и коллекции (линии, точки): boundary у них None
+        red, area = preclip.polys(red), preclip.polys(area)
+        if red.is_empty or area.is_empty:
+            continue
         line = red.boundary.difference(area.boundary.buffer(0.02))
-        if line.is_empty:
+        if line is None or line.is_empty:
             continue
         feats.append({'type': 'Feature',
                       'geometry': be._round(mapping(line.simplify(0.02))),
@@ -536,7 +550,8 @@ def slice_sig(key, anchors):
     day = be.key_date(key)
     return ss.sha_obj({
         'code': [ss.sha_file(os.path.abspath(__file__)),
-                 ss.sha_file(os.path.join(tools, 'geoclean.py'))],
+                 ss.sha_file(os.path.join(tools, 'geoclean.py')),
+                 ss.sha_file(os.path.join(tools, 'preclip.py')), preclip.rules()],
         'key': key,
         'base': ss.sha_file(os.path.join(DATA, 'years', BASE_KEY + '.geojson')),
         'ne': ss.sha_file(os.path.join(be.CACHE, 'ne_admin1.geojson')),

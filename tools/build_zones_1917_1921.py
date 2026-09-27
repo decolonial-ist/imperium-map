@@ -70,6 +70,7 @@ from shapely.ops import polygonize, unary_union
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 import geoclean as gc
+import preclip                  # noqa: E402  (куски с готовым берегом, v4)
 import build_expansion as be   # noqa: E402  (EARLY_PROTECT, reg_geom - Соловки)
 import build_ww1 as w1         # noqa: E402  (модель якорей западного театра)
 
@@ -369,8 +370,8 @@ def ne_union(group):
             fc = json.load(fh)
         g = unary_union([shape(f['geometry']).buffer(0)
                          for f in fc['features']])
-        _ne_cache[group] = g
-        return g
+        _ne_cache[group] = preclip.piece('reg', f'zones:{group}', g)
+        return _ne_cache[group]
     if group == 'CRIMEA':
         sel = [f for f in ne_feats()
                if f['properties'].get('iso_3166_2') in CRIMEA_ISO]
@@ -381,13 +382,16 @@ def ne_union(group):
         sel = ne_pick(spec[0], spec[1], spec[2] if len(spec) > 2 else None)
     g = unary_union([shape(f['geometry']).buffer(0) for f in sel])
     if group == 'BASHKIR_SMALL':
+        # (кусок с берегом режется ниже, после рамки)
         # рамка «Малой Башкирии»: юго-восток республики, Уфа (54.74 с.ш.,
         # 55.97 в.д.) остаётся вне вычитания - её держали Комуч и Колчак,
         # то есть имперская фракция. Рамка координатная, как вычитания
         # Кавказа в tools/build_expansion.py, а не историческая граница.
         g = g.intersection(box(55.5, 50.5, 61.0, 54.5))
-    _ne_cache[group] = g
-    return g
+    # берег один раз (v4, 27.09.2026): регион режется маской суши OSM и
+    # кэшируется куском - срез из таких кусков на шаг берега не идёт
+    _ne_cache[group] = preclip.piece('reg', f'zones:{group}', g)
+    return _ne_cache[group]
 
 
 def adds_geom(base):
@@ -402,8 +406,10 @@ def adds_geom(base):
     khiva_box = unary_union(
         [shape(f['geometry']).buffer(0)
          for f in ne_pick(*KHIVA_REG) + ne_pick(*KHIVA_TM)])
-    _ne_cache['KHIVA'] = hole.intersection(khiva_box)
-    _ne_cache['BUKHARA'] = hole.difference(khiva_box)
+    # дыры считаются по СЫРОЙ основе (у резаной основы разность с NE дала бы
+    # прибрежные полосы Каспия и Арала), а в срез идут кусками с берегом
+    _ne_cache['KHIVA'] = preclip.piece('reg', 'zones:KHIVA', hole.intersection(khiva_box))
+    _ne_cache['BUKHARA'] = preclip.piece('reg', 'zones:BUKHARA', hole.difference(khiva_box))
 
 
 def extended(line, poly, step=3.0, tries=6):
@@ -488,10 +494,17 @@ def active_windows(day):
     return out
 
 
-def build(sl, base):
+def build(sl, base, base_raw):
+    """Срез из кусков с готовым берегом (v4, 27.09.2026): base - основа CShapes,
+    резаная маской суши OSM; base_raw - она же сырая (по ней считаются маски
+    западного театра и дыры Хивы/Бухары, как раньше). Вычитания режут кусками
+    (лишнее над морем снять нечего), добавления - куски, растровый запад
+    режется морем маски и заливается до берега в своих клетках. Чистка по
+    суше NE (gc.finish) не нужна и вредна: она резала бы берег OSM."""
     log = []
     day = d(sl['key'])
     geom = base
+    unions = []                                 # что приливается: для швов
     for group in sl.get('minus', []):
         before = geom.area
         geom = geom.difference(ne_union(group).buffer(0.02))
@@ -513,7 +526,7 @@ def build(sl, base):
         fronts_why.append({'group': w['group'], 'who': w['who'], 'kind': w['kind'],
                            'frm': w['frm'], 'to': w['to'], 'why': w['why']})
     if day < WW1_HANDOFF:
-        occ = ww1_occupied(base)
+        occ = ww1_occupied(base_raw)
         if not occ.is_empty:
             before = geom.area
             geom = geom.difference(occ).buffer(0)
@@ -522,12 +535,14 @@ def build(sl, base):
     added = []
     for a in ADDS:
         if day >= d(a['frm']):
-            adds_geom(base)
+            adds_geom(base_raw)
             geom = unary_union([geom, _ne_cache[a['name']]])
+            unions.append(_ne_cache[a['name']])
             added.append(a['name'])
     if added:
         log.append(f'добавлены {", ".join(added)}: площадь {geom.area:.0f} град²')
-    west, west_in = west_geom(day, base)
+    west, west_in = west_geom(day, base_raw)
+    west = preclip.cut_sea(west)                # растр и маски NE лезут в море
     if not west_in.is_empty:
         # землю основы в WEST_IN решают якоря: сперва она снимается целиком
         before = geom.area
@@ -536,19 +551,39 @@ def build(sl, base):
                    f'{before:.0f} -> {geom.area:.0f} град²')
     if not west.is_empty:
         geom = unary_union([geom, west]).buffer(0)
+        unions.append(west)
         log.append(f'западный театр по якорям: +{west.area:.2f} град²')
     # Персия (22.09.2026): русские гарнизоны до эвакуации 01.03.1918 - окна
     # PERSIA_* таблицы ADDS tools/build_expansion.py
     pers = be.occupation_geom(day, 'PERSIA_')
     if not pers.is_empty:
         geom = unary_union([geom, pers]).buffer(0)
+        unions.append(pers)
         log.append(f'Персия, районы гарнизонов: +{pers.area:.2f} град²')
-    geom = geom.simplify(0.02).buffer(0)
+    geom = preclip.polys(geom)
+    # швы: клетки маски, где сходятся границы приливаемых кусков и основы, и все
+    # береговые клетки растрового запада (его клетки не доходят до берега)
+    cells = preclip.seam_cells([base] + unions)
+    if not west.is_empty:
+        cells |= preclip.seam_cells([west], any_piece=True)
+    geom, filled = preclip.fill_seams(geom, sl['key'], cells)
+    if filled:
+        log.append(f'швы и берег запада: залито {filled:.0f} км² в {len(cells)} клетках')
+    if not geom.is_valid:
+        geom = geom.buffer(0)
+    # Части мельче 0,05 град² - крошки вычитаний, их отбрасываем; но маска OSM
+    # режет дельты протоками на мелкие острова (дельта Лены: 22 426 км² на пробе
+    # 27.09.2026), и такие острова - части ОСНОВЫ - надо оставить. Правило:
+    # мелкая часть остаётся, если она лежит внутри мелкой части основы
+    from shapely.strtree import STRtree
+    base_parts = list(base.geoms) if base.geom_type == 'MultiPolygon' else [base]
+    small_base = STRtree([g for g in base_parts if g.area <= 0.05])
     geoms = [g for g in (list(geom.geoms) if geom.geom_type == 'MultiPolygon'
-                         else [geom]) if g.area > 0.05]
-    fc = {'type': 'FeatureCollection', 'features': [{
+                         else [geom])
+             if g.area > 0.05 or len(small_base.query(g, predicate='within'))]
+    fc = {'type': 'FeatureCollection', 'coast': 'pieces', 'features': [{
         'type': 'Feature',
-        'geometry': gc.clean_rings(mapping(gc.finish(g, CACHE))),
+        'geometry': gc.clean_rings(mapping(g)),
         'properties': {
             'name': 'зона империи',
             'year': sl['key'],
@@ -673,7 +708,8 @@ def slice_sig(sl, day):
     return ss.sha_obj({
         'code': [ss.sha_file(os.path.abspath(__file__)),
                  ss.sha_file(os.path.join(tools, 'build_ww1.py')),
-                 ss.sha_file(os.path.join(tools, 'geoclean.py'))],
+                 ss.sha_file(os.path.join(tools, 'geoclean.py')),
+                 ss.sha_file(os.path.join(tools, 'preclip.py')), preclip.rules()],
         'base': [BASE, ss.sha_file(os.path.join(CACHE, 'cshapes20.geojson'))],
         'ne': ss.sha_file(os.path.join(CACHE, 'ne_admin1.geojson')),
         'slice': sl, 'windows': wins,
@@ -701,9 +737,10 @@ def main():
                     help='собрать все срезы, не глядя на подписи прошлой сборки')
     ap.add_argument('--only', help='собрать один срез (для отладки; подписи не пишутся)')
     args = ap.parse_args()
-    base = cshapes(*BASE)
+    base_raw = cshapes(*BASE)
+    base = preclip.piece('src', 'cshapes_%d-%02d-%02d' % BASE, base_raw)
     print(f'основа: CShapes {BASE[0]}-{BASE[1]:02d}-{BASE[2]:02d}, '
-          f'площадь {base.area:.0f} град²')
+          f'площадь {base_raw.area:.0f} град² (кусок с берегом {base.area:.0f})')
     sigs = ss.Sigs('zones', use_old=not (args.all or args.only))
     for sl in sorted(SLICES, key=lambda s: d(s['key'])):
         if args.only and sl['key'] != args.only:
@@ -712,7 +749,7 @@ def main():
         path = os.path.join(DATA, 'years', sl['key'] + '.geojson')
         if not args.only and sigs.fresh(sl['key'], sig, path):
             continue
-        n, area, log = build(sl, base)
+        n, area, log = build(sl, base, base_raw)
         sigs.put(sl['key'], sig)
         print(f'OK data/years/{sl["key"]}.geojson: фич {n}, площадь {area:.0f} град²')
         for line in log:

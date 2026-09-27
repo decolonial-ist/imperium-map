@@ -370,8 +370,12 @@ def active(key):
 
 
 def build(key):
+    import preclip                              # куски с готовым берегом (v4)
     base_fn, base_txt = BASE[key]
-    geom = base_fn()
+    # берег один раз (27.09.2026): основа и каждое приобретение режутся маской
+    # суши OSM и кэшируются кусками; срез из них на шаг берега не идёт
+    geom = preclip.piece('src', f'pact:{key}', base_fn())
+    pieces = [geom]
     # Мемельский край (22.09.2026): контур источника на 02.06.1940 и 28.06.1940
     # держит край внутри Литвы, хотя с 22.03.1939 он германский и советским
     # стал только взятием Мемеля 28.01.1945 - это уже слой ВМВ. Режем саму
@@ -381,7 +385,8 @@ def build(key):
         geom = geom.difference(memelland()).buffer(0)
     added, log = [], []
     for a in active(key):
-        g = a['geom']()
+        g = preclip.piece('reg', f"pact:{a['id']}", a['geom']())
+        pieces.append(g)
         before = geom.area
         geom = unary_union([geom, g]).buffer(0)
         added.append({'name': a['name'], 'id': a['id'], 'from': a['frm'],
@@ -394,7 +399,10 @@ def build(key):
             log.append(f'+ {a["name"]} ({a["frm"]}): '
                        f'{before:.0f} -> {geom.area:.0f} град² '
                        f'(кусок {g.area:.1f})')
-    geom = geom.simplify(SIMPLIFY).buffer(0)
+    geom = preclip.polys(geom)
+    geom, _fill = preclip.fill_seams(geom, key, preclip.seam_cells(pieces))
+    if not geom.is_valid:
+        geom = geom.buffer(0)
     parts = [g for g in (geom.geoms if geom.geom_type == 'MultiPolygon'
                          else [geom]) if g.area > 0.002]
     geom = unary_union(parts)
@@ -407,7 +415,7 @@ def build(key):
         'removed': [],
         'source': SOURCE,
     }
-    fc = {'type': 'FeatureCollection', 'features': [{
+    fc = {'type': 'FeatureCollection', 'coast': 'pieces', 'features': [{
         'type': 'Feature', 'geometry': be._round(mapping(geom)),
         'properties': props}]}
     return fc, log, len(parts)

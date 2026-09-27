@@ -45,23 +45,59 @@ def rules():
     return _sig['r']
 
 
+def _path(kind, ident, h):
+    safe = ''.join(ch if ch.isalnum() or ch in '-_.' else '_' for ch in str(ident))
+    return os.path.join(OUT, f'{kind}__{safe}__{h}.wkb')
+
+
+def ne_sha():
+    """Хеш файла Natural Earth admin-1 (часть подписи регионов), раз на процесс."""
+    import slice_sigs as ss
+    return ss.sha_file(os.path.join(ROOT, 'cache', 'ne_admin1.geojson'))
+
+
+def piece_sig(kind, ident, sig, make):
+    """Кусок по ПОДПИСИ ВХОДОВ: sig - JSON-представимое описание того, из чего
+    кусок строится (спецификация региона и хеши файлов, хеш сырого контура и
+    список более поздних регионов для заливки). Есть файл - сырая геометрия не
+    строится вовсе; нет - make() её строит, и она режется как в piece().
+    Профиль 27.09.2026: без этого 81 с из 101 на срез уходили на fill_coast
+    контура источника ради хеша уже готового куска, ещё 23 с - на сборку
+    регионов из NE."""
+    from shapely import wkb
+    os.makedirs(OUT, exist_ok=True)
+    h = hashlib.sha1((json.dumps(sig, sort_keys=True, ensure_ascii=False, default=str)
+                      + rules()).encode('utf-8')).hexdigest()[:16]
+    path = _path(kind, ident, h)
+    if os.path.exists(path):
+        with open(path, 'rb') as f:
+            return wkb.loads(f.read())
+    return _cut_save(make(), path)
+
+
 def piece(kind, ident, geom):
     """Кусок с готовым берегом для сырой геометрии geom (shapely).
 
     kind - 'src' (контур источника) или 'reg' (регион), ident - ключ/имя.
+    Кэш - по хешу самой геометрии; если сырую геометрию строить дорого,
+    берите piece_sig.
     """
     from shapely import wkb
-    from shapely.geometry import mapping, shape
-    from shapely.ops import unary_union
-    import coast_osm as co
     os.makedirs(OUT, exist_ok=True)
     raw = wkb.dumps(geom)
     h = hashlib.sha1(raw + rules().encode('utf-8')).hexdigest()[:16]
-    safe = ''.join(ch if ch.isalnum() or ch in '-_.' else '_' for ch in str(ident))
-    path = os.path.join(OUT, f'{kind}__{safe}__{h}.wkb')
+    path = _path(kind, ident, h)
     if os.path.exists(path):
         with open(path, 'rb') as f:
             return wkb.loads(f.read())
+    return _cut_save(geom, path)
+
+
+def _cut_save(geom, path):
+    """Срезать морем маски, залить щели до берега, упростить, записать."""
+    from shapely import wkb
+    from shapely.geometry import mapping, shape
+    import coast_osm as co
     g = geom if geom.is_valid else geom.buffer(0)
     fc = {'type': 'FeatureCollection',
           'features': [{'type': 'Feature', 'properties': {}, 'geometry': mapping(g)}]}
@@ -102,31 +138,48 @@ def seam_cells(pieces, any_piece=False):
 
 
 def fill_seams(geom, key, cells):
-    """Залить щели до берега в клетках cells на готовом объединении."""
-    from shapely.geometry import mapping, shape
+    """Залить щели до берега в клетках cells на готовом объединении.
+
+    Поклеточно (27.09.2026, профиль среза 1886: общее окно на все клетки шва
+    давало 14,6 тыс. объединений по 4 мс и буферы по 3 с на геометрии всего
+    окна - 100+ с на срез). Каждой клетке - своя вырезка среза с запасом
+    3·G_ISLE (coast_fc смотрит на красное в соседних клетках в пределах
+    2·G_ISLE), заливка считается на ней, а приращения вливаются в срез одним
+    объединением."""
+    from shapely.geometry import box, mapping, shape
+    from shapely.ops import unary_union
+    import shapely
     import coast_osm as co
     if not cells:
         return geom, 0.0
-    # заливка идёт по клеткам cells, но coast_fc объединяет и готовит ВЕСЬ
-    # срез - режем ему только окрестность этих клеток (по 2*G_ISLE вокруг),
-    # а результат вливаем обратно
-    from shapely.geometry import box
-    from shapely.ops import unary_union
     meta, keys, boxes, tree, kind, land, sea = co.mask()
-    pad = 2 * co.G_ISLE
-    win = unary_union([box(boxes[i].bounds[0] - pad, boxes[i].bounds[1] - pad,
-                           boxes[i].bounds[2] + pad, boxes[i].bounds[3] + pad) for i in cells])
-    local = polys(geom.intersection(win))
-    if local.is_empty:
+    pad = 3 * co.G_ISLE
+    total = 0.0
+    incs = []
+    for i in sorted(cells):
+        b = boxes[i].bounds
+        try:
+            local = shapely.clip_by_rect(geom, b[0] - pad, b[1] - pad, b[2] + pad, b[3] + pad)
+        except shapely.errors.GEOSException:
+            local = geom.intersection(box(b[0] - pad, b[1] - pad, b[2] + pad, b[3] + pad))
+        local = polys(local)
+        if local.is_empty:
+            continue
+        if not local.is_valid:
+            local = local.buffer(0)
+        fc = {'type': 'FeatureCollection',
+              'features': [{'type': 'Feature', 'properties': {}, 'geometry': mapping(local)}]}
+        _, fill, _ = co.coast_fc(fc, key, foreign=False, cells={i})
+        if fill > 0 and fc['features']:
+            g = shape(fc['features'][0]['geometry'])
+            inc = polys((g if g.is_valid else g.buffer(0)).difference(local))
+            if not inc.is_empty:
+                incs.append(inc)
+                total += fill
+    if not incs:
         return geom, 0.0
-    fc = {'type': 'FeatureCollection',
-          'features': [{'type': 'Feature', 'properties': {}, 'geometry': mapping(local)}]}
-    _, fill, _ = co.coast_fc(fc, key, foreign=False, cells=cells)
-    if fill > 0 and fc['features']:
-        g = shape(fc['features'][0]['geometry'])
-        g = polys(unary_union([geom, g if g.is_valid else g.buffer(0)]))
-        return (g if g.is_valid else g.buffer(0)), fill
-    return geom, 0.0
+    g = polys(unary_union([geom, unary_union(incs)]))
+    return (g if g.is_valid else g.buffer(0)), total
 
 
 def polys(g):
