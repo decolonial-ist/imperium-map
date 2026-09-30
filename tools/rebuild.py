@@ -3,6 +3,10 @@
   python -u tools/rebuild.py --changed      правка таблиц: задетые даты целиком
   python -u tools/rebuild.py --all          полная сборка с нуля (около часа)
   python -u tools/rebuild.py --changed --dry-run   только показать, что задето
+  python -u tools/rebuild.py --changed --keys K1,K2   правка кода: пересобрать только
+                                            эти ключи (и то, что задели таблицы)
+  python -u tools/rebuild.py --resume       дособрать хвост упавшей сборки
+                                            (шаги после берега, build/state/tail.json)
 
 Таблицы - data/core/*.csv (tools/core_tables.py). Состояние последней сборки -
 build/state/: копия таблиц, отпечатки входов слоёв войн и производных, список
@@ -64,7 +68,7 @@ LAYERS = {
     'zones': ('build_zones_1917_1921.py', ['build_ww1.py'], []),
     'pact': ('build_pact_1939.py', ['build_border_1939.py'], ['1922']),
     'ww2': ('build_ww2.py', [], []),                  # основа - вывод пакта
-    'ww1': ('build_ww1.py', ['build_ww2.py'], ['1914-04-17']),   # основа ПМВ; до 27.09 - 1914-04-04
+    'ww1': ('build_ww1.py', ['build_ww2.py'], ['1914']),   # основа ПМВ; до 27.09 - 1914-04-04, до 30.09 - 1914-04-17
     'sphere': ('build_sphere.py', [], []),
 }
 
@@ -185,7 +189,7 @@ def source_base(key):
     if os.path.exists(war_raw(key)):
         return load(war_raw(key))
     if key == '1922':
-        return simp_fc(load(FROZEN_1922))
+        return base_1922()
     if 'ru' not in _CS:
         d = load(bd.fetch_cshapes())
         _CS['ru'] = [f for f in d['features'] if f['properties'].get('gwcode') == 365]
@@ -196,6 +200,54 @@ def source_base(key):
         'properties': {'name': hit['properties']['cntry_name'], 'year': key,
                        'role': 'core', 'source': 'CShapes 2.0'}}]}
     return simp_fc(gc.sanitize_obj(fc))
+
+
+def source_root(key):
+    """Корень цепочки копий позднего окна."""
+    chain = {k: b for k, b, _ in mods()['BE'].LATE_NEW if b != 'ww2'}
+    while key in chain:
+        key = chain[key]
+    return key
+
+
+def base_1922():
+    """Основа окна 1922..1930-12-10 куском с берегом (29.09.2026).
+
+    Замороженный срез по атласу (FROZEN_1922) нарисован грубым берегом: у
+    Кольского и Белого моря, в Крыму, у Херсона и на Каспии некрасные полосы
+    суши до 20-30 км; восточная Чукотка за 180° и север Новой Земли западнее
+    65° в. д. выпали рамками tools/atlas_rozd44_compose.py. Береговые клетки
+    маски OSM (C, LN и соседние) берутся из CShapes: граница СССР 1921-1940,
+    сухопутные границы остаются по атласу. Дальше - обрезка маской суши OSM, как
+    у всех кусков, и флаг coast=pieces (копии окна не чистятся заново)."""
+    m = mods()
+    BE, bd, preclip = m['BE'], m['bd'], __import__('preclip')
+    import coast_osm as co
+    import slice_sigs as ss
+    from shapely.geometry import box as _box
+    csh = bd.fetch_cshapes()
+    sig = ['1922atlas', ss.sha_file(FROZEN_1922), ss.sha_file(csh), co.mask_sig()]
+
+    def make():
+        fz = union_fc(load(FROZEN_1922))
+        if 'ru' not in _CS:
+            d = load(csh)
+            _CS['ru'] = [f for f in d['features'] if f['properties'].get('gwcode') == 365]
+        cs = m['shape'](bd.cshapes_at(_CS['ru'], (1922, 12, 30))[-1]['geometry']).buffer(0)
+        _, keys, _, _, kind, _, _ = co.mask()
+        coastal = {keys[i] for i in range(len(keys)) if kind[i] in ('C', 'LN')}
+        near = {(x + dx, y + dy) for x, y in coastal for dx in (-1, 0, 1) for dy in (-1, 0, 1)}
+        b0 = cs.bounds
+        cells = [_box(x, y, x + 1, y + 1) for x, y in near
+                 if b0[0] - 1 <= x <= b0[2] and b0[1] - 1 <= y <= b0[3]]
+        return m['uu']([fz, cs.intersection(m['uu'](cells))]).buffer(0)
+    g = preclip.piece_sig('src', '1922atlas', sig, make)
+    return {'type': 'FeatureCollection', 'coast': 'pieces', 'features': [{
+        'type': 'Feature', 'geometry': g.__geo_interface__,
+        'properties': {'name': 'СССР', 'year': '1922', 'role': 'core',
+                       'source': 'атлас 1922 (tools/atlas_rozd44_compose.py, заморожен '
+                                 '24.09.2026) + береговые клетки по CShapes 2.0 (СССР '
+                                 '1921-1940), берег - маска суши OSM'}}]}
 
 
 def late_kind(key):
@@ -223,10 +275,15 @@ def late_key(args):
         shutil.copyfile(war_raw(key), path)
     elif kind == 'copy':
         chain = {k: b for k, b, _ in BE.LATE_NEW}
-        g = union_fc(source_base(chain[key]))
-        save(path, gc.sanitize_obj({'type': 'FeatureCollection', 'features': [{
+        src = source_base(chain[key])
+        g = union_fc(src)
+        # основа-кусок (1922 с 29.09.2026) уже с берегом: полная чистка снимала
+        # бы острова, а шаг берега такой срез не трогает
+        pieces = src.get('coast') == 'pieces' and source_root(chain[key]) == '1922'
+        save(path, gc.sanitize_obj({'type': 'FeatureCollection',
+                                    **({'coast': 'pieces'} if pieces else {}), 'features': [{
             'type': 'Feature',
-            'geometry': BE._round_n(gc.finish(g, BE.CACHE).__geo_interface__,
+            'geometry': BE._round_n((g if pieces else gc.finish(g, BE.CACHE)).__geo_interface__,
                                     BE.LATE_DIGITS),
             'properties': {'name': 'Российская империя', 'year': key, 'role': 'core',
                            'reconstruction': True, 'approximate': True,
@@ -297,6 +354,13 @@ def clip_key(key):
     if cut.is_empty or cut.area < 1e-6:
         return key, 0.0, time.perf_counter() - t
     feats = []
+    _kz = []
+
+    def keep_zone():
+        if not _kz:
+            _kz.append(uu([protected()] + ([allowed] if allowed is not None else [])))
+        return _kz[0]
+
     for x in fc['features']:
         if not x.get('geometry'):
             feats.append(x)
@@ -307,13 +371,41 @@ def clip_key(key):
         gg = g0.difference(cut)
         if gg.is_empty:
             continue
-        gg, _ = gc.drop_thin_parts(gg)
-        gg, _, _ = gc.despeckle(gg, BE.CACHE)
-        # buffer(0) оставляет только площади: на касаниях пересечение даёт линии,
-        # и difference падал в GEOS (первый прогон --all 24.09.2026)
-        keep = g0.intersection(protected()).buffer(0).difference(cut.buffer(0))
-        if not keep.is_empty:
-            gg = uu([gg, keep]).buffer(0)
+        if fc.get('coast') == 'pieces':
+            # срез из кусков (v4): берег OSM уже готов, шаг берега срез не
+            # трогает и снятое не вернёт. Чистка ободков и крапинок - только
+            # у линии обрезки; иначе despeckle снимал сотни островов по всему
+            # срезу (28.09.2026: Свеаборг, Аланды, Котлин на 1770-1917)
+            import preclip
+            zone = cut.buffer(0.02)
+            ps = preclip.polys_list(gg)
+            near = [p for p in ps if p.intersects(zone)]
+            far = [p for p in ps if not p.intersects(zone)]
+            if near:
+                nn0 = uu(near)
+                nn, _ = gc.drop_thin_parts(nn0)
+                nn, _, _ = gc.despeckle(nn, BE.CACHE)
+                # защищённое и приобретения по актам (см. ниже) возвращаются только
+                # из снятого чисткой у линии обрезки: дальние части она не трогает.
+                # Прежняя склейка всего среза с keep стоила 200 минут обрезки
+                # вместо 59 (прогон 28-29.09.2026)
+                lost = nn0.difference(nn)
+                if not lost.is_empty and lost.area > 0:
+                    back = lost.intersection(keep_zone()).buffer(0)
+                    if not back.is_empty and back.area > 0:
+                        nn = uu([nn, back]).buffer(0)
+                gg = uu([nn] + far) if far else nn
+        else:
+            gg, _ = gc.drop_thin_parts(gg)
+            gg, _, _ = gc.despeckle(gg, BE.CACHE)
+            # buffer(0) оставляет только площади: на касаниях пересечение даёт линии,
+            # и difference падал в GEOS (первый прогон --all 24.09.2026)
+            # и действующие приобретения по актам за чужой границей (allowed): чистка у
+            # линии обрезки снимала их как ленты - Квантун 1898-1904 (компактность
+            # с берегом OSM 0,075 при пороге 0,08; разбор чекеров 28.09.2026)
+            keep = g0.intersection(keep_zone()).buffer(0).difference(cut.buffer(0))
+            if not keep.is_empty:
+                gg = uu([gg, keep]).buffer(0)
         if gg.is_empty:
             continue
         y = dict(x)
@@ -685,13 +777,27 @@ def main():
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument('--all', action='store_true')
     g.add_argument('--changed', action='store_true')
+    g.add_argument('--resume', action='store_true',
+                   help='дособрать хвост сборки, упавшей после берега (build/state/tail.json)')
     ap.add_argument('--dry-run', action='store_true')
+    ap.add_argument('--keys', help='с --changed: пересобрать и эти ключи (через запятую) - '
+                                   'после правки кода, которую подписи не видят')
     ap.add_argument('--workers', type=int, default=max(1, min(8, (os.cpu_count() or 4) - 2)))
     a = ap.parse_args()
     os.makedirs(TMP, exist_ok=True)
     T0 = time.perf_counter()
     times = []
     ctx = get_context('spawn')
+    if a.resume:
+        if not os.path.exists(TAIL):
+            sys.exit('нет build/state/tail.json - дособирать нечего')
+        run_tail(mods()['BE'], times)
+        print(f'### СБОРКА ДОСОБРАНА {time.strftime("%H:%M:%S")}, '
+              f'{(time.perf_counter() - T0) / 60:.1f} мин', flush=True)
+        return
+    if os.path.exists(TAIL) and not a.all and not a.dry_run:
+        sys.exit('прошлая сборка не дошла до конца (build/state/tail.json): '
+                 'сначала rebuild.py --resume')
 
     r = subprocess.run([PY, os.path.join(TOOLS, 'core_tables.py')], cwd=ROOT,
                        capture_output=True, text=True)
@@ -719,6 +825,17 @@ def main():
     p = plan(state, BE)
     if a.all:
         p['touched'] = set(p['all_keys'])
+    if a.keys:
+        extra = [k for k in a.keys.split(',') if k]
+        bad = [k for k in extra if k not in p['all_keys']]
+        if bad:
+            sys.exit('--keys: нет в манифесте: ' + ', '.join(bad))
+        p['touched'] |= set(extra)
+        # названные ключи - от основы: правка кода, дельта её не видит
+        for k in extra:
+            p['delta'].pop(k, None)
+        p['meta'] = [k for k in p['meta'] if k not in set(extra)]
+        print(f'### --keys: добавлено к задетым {len(extra)}', flush=True)
     if 'pact' in p['layers']:
         # пакт читает срез 1922 до обрезки - собрать его заново перед пактом
         p['touched'].add('1922')
@@ -816,7 +933,8 @@ def main():
             b0 = mtimes()
             # --all: слои войн тоже собирают все срезы, а не по подписям
             times.append((label, run(label, LAYERS[name][0],
-                                     *(['--all'] if a.all and name != 'pact' else []))))
+                                     *(['--all'] if a.all and name != 'pact' else []),
+                                     *(['--workers', str(a.workers)] if name == 'ww2' else []))))
             w = {k for k, mt in mtimes().items() if b0.get(k) != mt}
             rewritten |= w
             if name in ('pact', 'ww2'):
@@ -900,7 +1018,7 @@ def main():
                    or load(lsig_path).get('sig') != lsig)
     print('### потери: ' + ('полностью' if full_losses else
                             '--pre20 (срезы после 1991 и входы потерь не задеты)'), flush=True)
-    for label, script, *args in [('потери', 'build_losses.py',
+    steps = [list(x) for x in [('потери', 'build_losses.py',
                                   *([] if full_losses else ['--pre20'])),
                                  ('остроги', 'build_ostrogs.py'),
                                  ('lite', 'build_lite.py', '--keys', ','.join(lite_keys)),
@@ -910,18 +1028,57 @@ def main():
                                  ('ячейки', 'build_fine_cells.py'),
                                  ('пакет старта', 'build_start_bundle.py'),
                                  ('восстания', 'build_uprisings.py'),
-                                 ('тексты', 'build_texts.py')]:
+                                 ('тексты', 'build_texts.py')]]
+    for st in steps:
         if a.all:
-            args = [x for x in args if x != '--keys' and x != ','.join(lite_keys)]
-        times.append((label, run(label, script, *args)))
-    save(lsig_path, {'sig': lsig})
+            st[2:] = [x for x in st[2:] if x != '--keys' and x != ','.join(lite_keys)]
+        if st[1] in ('build_lite.py', 'build_mid_packs.py', 'build_fine_cells.py'):
+            st += ['--workers', str(a.workers)]
+    # хвост после берега - с отметкой шагов: упавший шаг дособирается
+    # rebuild.py --resume, геометрия заново не строится (28.09.2026: ночью
+    # прогон упал на острогах после 4 часов геометрии и хвост пришлось
+    # собирать отдельным скриптом)
+    os.makedirs(STATE, exist_ok=True)
+    save(TAIL, {'steps': steps, 'done': [], 'lsig': lsig, 'mode': '--all' if a.all else '--changed',
+                'started': time.strftime('%d.%m.%Y %H:%M')})
+    run_tail(BE, times)
 
     with ctx.Pool(a.workers) as pool:
         area_after = dict(pool.map(area_of, sorted(touched | rewritten), chunksize=1))
-    save_state(BE, {name: layer_inputs(name) for name in LAYERS})
     total = time.perf_counter() - T0
     write_summary(a, p, times, total, per_key, area_before, area_after, rewritten, BE)
     print(f'### СБОРКА ГОТОВА {time.strftime("%H:%M:%S")}, {total / 60:.1f} мин', flush=True)
+
+
+TAIL = os.path.join(STATE, 'tail.json')
+
+
+def run_tail(BE, times):
+    """Шаги после берега по отметке build/state/tail.json; в конце - состояние."""
+    tl = load(TAIL)
+    for label, script, *args in tl['steps']:
+        if label in tl['done']:
+            continue
+        # пустой --keys у build_lite.py значит «все срезы»: правка одной точки
+        # реестра гнала облегчённые и средние уровни всех 538 срезов (29.09.2026)
+        if '--keys' in args and not args[args.index('--keys') + 1]:
+            print(f'### {label}: срезы не задеты, шаг пропущен', flush=True)
+            tl['done'].append(label)
+            save(TAIL, tl)
+            continue
+        times.append((label, run(label, script, *args)))
+        tl['done'].append(label)
+        save(TAIL, tl)
+    save(os.path.join(STATE, 'losses.json'), {'sig': tl['lsig']})
+    save_state(BE, {name: layer_inputs(name) for name in LAYERS})
+    # штампы канона (tools/check_build_order.py) - все шаги по порядку: порядок
+    # держит сама эта сборка, а шаг, пропущенный по подписям, иначе оставался
+    # со старым штампом и чекер падал «прогнан РАНЬШЕ» (28.09.2026)
+    import check_build_order as cbo
+    for name in cbo.CANON:
+        mods()['gc'].write_stamp(name)
+    # отметка хвоста не удаляется, а уходит в историю: видно, чем кончилась сборка
+    os.replace(TAIL, os.path.join(STATE, 'tail_last.json'))
 
 
 def late_job(args):

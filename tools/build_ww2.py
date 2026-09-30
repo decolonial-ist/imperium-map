@@ -116,6 +116,12 @@ def _slice_keys():
              '1945-08-20',    # Маньчжурия взята
              '1945-09-03']    # капитуляция Японии: Корея, Сахалин, Курилы
     keys += ['1941-08-25']    # ввод советских войск в Иран (22.09.2026)
+    # смены зон после капитуляции (28.09.2026, kb-steps/ww2_1945/REPORT.md):
+    keys += ['1945-07-06',    # западная Саксония и Тюрингия переданы в советскую зону (25.06-06.07)
+             '1945-07-24',    # Штирия - британская зона
+             '1945-08-08',    # Мюльфиртель - советская зона с 01.08
+             '1945-09-25',    # уход из Финнмарка
+             '1945-12-01']    # вывод войск из Чехословакии (FRUS 1945, т. IV, d504-d505)
     return sorted(set(keys))
 
 
@@ -150,10 +156,18 @@ ABROAD_UNTIL = be.d('1946-01-01')
 # ABROAD (маска «куда входила Красная армия») и EXTRA_SRC (изолированные
 # театры) живут в CSV - tools/ww2_tables.py читает и проверяет их. Имена
 # файлов строками: по ним tools/rebuild.py и подпись среза видят вход слоя.
-CSV_FILES = ('ww2_abroad.csv', 'ww2_extra.csv')
+CSV_FILES = ('ww2_abroad.csv', 'ww2_extra.csv', 'ww2_cuts.csv')
 import ww2_tables as w2t   # noqa: E402
 ABROAD = w2t.load('ABROAD')
 EXTRA_SRC = w2t.load('EXTRA_SRC')
+# ВЫЧИТАНИЯ (28.09.2026): куски, которые снимаются с ГОТОВОГО среза в окне
+# [frm; until) - западные сектора Берлина (с 04.07.1945) и Вены (с 01.09.1945),
+# Сербия после ухода войск (с 15.05.1945). Геометрия - файл в data/ww2/ или
+# 'NE:<страна>[:<области через ;>]'. Файлы названы строками, чтобы подпись
+# среза (slice_sigs.named_inputs) видела их правку.
+CUTS = w2t.load('CUTS')
+CUT_FILES = ('cut_west_berlin_1945.geojson', 'cut_west_vienna_1945.geojson',
+             'cut_muehlviertel_1945.geojson')
 
 # ---- куски, которые считаются не полем, а прямым списком -------------------
 # Изолированные театры, где якорей мало, а границы известны точно.
@@ -194,6 +208,10 @@ def extra_geom(eid):
                   encoding='utf-8') as fh:
             g = unary_union([shape(f['geometry']).buffer(0)
                              for f in json.load(fh)['features']])
+    elif eid.startswith('NE:'):
+        # страна или области Natural Earth admin-1 целиком (28.09.2026):
+        # 'NE:Romania', 'NE:Austria:Niederösterreich;Burgenland'
+        g = ne_spec(eid)
     elif eid == 'KURILS':
         # Гряду берём из курируемого файла, а не из Сахалинской области
         # Natural Earth: административный регион включает акваторию, и гряда
@@ -207,6 +225,33 @@ def extra_geom(eid):
     # берег один раз (v4): кусок театра режется маской суши OSM и кэшируется
     _g[eid] = preclip.piece('reg', f'ww2:{eid}', g.buffer(0))
     return _g[eid]
+
+
+def ne_spec(spec):
+    """'NE:<admin>[:<области через ;>]' -> геометрия Natural Earth admin-1."""
+    _, admin, *rest = spec.split(':', 2)
+    names = [x for x in rest[0].split(';') if x] if rest and rest[0] else None
+    return ne(admin, names)
+
+
+def cuts_at(day):
+    return [c for c in CUTS if be.d(c['frm']) <= day
+            and (not c['until'] or day < be.d(c['until']))]
+
+
+def cut_geom(c):
+    """Геометрия вычитания: сырая суша, без обрезки берегом (снимается с готового среза)."""
+    key = ('cut', c['id'])
+    if key not in _g:
+        f = c['file']
+        if f.startswith('NE:'):
+            g = ne_spec(f)
+        else:
+            with open(os.path.join(DATA, 'ww2', f), encoding='utf-8') as fh:
+                g = unary_union([shape(x['geometry']).buffer(0)
+                                 for x in json.load(fh)['features']])
+        _g[key] = g.buffer(0)
+    return _g[key]
 
 
 def theatre_box():
@@ -236,7 +281,11 @@ def base_geom(key):
     """Контур-основа: контур СССР, поверх которого рисуется фронт."""
     if be.key_date(key) >= BASE_SWITCH:
         if 'post' not in _g:
-            _g['post'] = be.cs_core(*POSTWAR).buffer(0)
+            # кусок с берегом OSM, а не сырой CShapes: срез помечен coast=pieces,
+            # шаг берега его не трогает, и на сыром контуре пропадали Котлин и
+            # мелкие острова (28.09.2026) - как основа tools/build_zones_1917_1921.py
+            raw = be.cs_core(*POSTWAR).buffer(0)
+            _g['post'] = preclip.piece('src', 'cshapes_%d-%02d-%02d' % POSTWAR, raw)
         return _g['post'], ('послевоенный контур CShapes 2.0 на 08.05.1945 '
                             '(Закарпатье и Кёнигсберг уже в нём; акты - '
                             'data/pact1939.geojson)')
@@ -428,8 +477,16 @@ def build(key, field, verbose=True):
     # куски (основа, маска за границей, театры) несут берег OSM с допуском
     # preclip.SIMP; растр внутри них. Упрощение среза - не грубее кусков
     geom = geom.simplify(min(SIMPLIFY, preclip.SIMP)).buffer(0)
+    # мелкие части - шум растра, но мелкие ОСТРОВА основы (Котлин, Моонзунд,
+    # шхеры) - земля: при сборке из кусков шаг берега их больше не
+    # возвращает (28.09.2026: Котлин пропал со всех срезов ВМВ). Мелкая часть
+    # остаётся, если её точка лежит в мелкой части основы
+    from shapely.strtree import STRtree
+    small_base = STRtree([g for g in preclip.polys_list(base) if g.area <= 0.05])
     keep = [g for g in (geom.geoms if geom.geom_type == 'MultiPolygon'
-                        else [geom]) if g.area > SPECK]
+                        else [geom])
+            if g.area > SPECK or len(small_base.query(g.representative_point(),
+                                                      predicate='within'))]
     geom = unary_union(keep)
     # щели растра до берега - только в клетках, которых касается занятое за
     # границей и театры; чистки по суше NE (gc.finish) больше нет: она резала
@@ -438,6 +495,12 @@ def build(key, field, verbose=True):
     cells = preclip.seam_cells([g for g in [abroad] + [extra_geom(e['id']) for e in ex]
                                 if not g.is_empty], any_piece=True)
     geom, _fill = preclip.fill_seams(geom, key, cells)
+    # вычитания (западные сектора Берлина и Вены, Сербия после 15.05.1945)
+    cuts = cuts_at(day)
+    for c in cuts:
+        geom = geom.difference(cut_geom(c))
+    if cuts:
+        geom = preclip.polys(geom.buffer(0))
 
     lost = inside.area - core.area               # сколько своей земли под врагом
     props = {
@@ -453,6 +516,8 @@ def build(key, field, verbose=True):
         'extra': [{'id': e['id'], 'name': e['name'], 'from': e['frm'],
                    'until': e['until'], 'act': e['act'],
                    'geometry_source': e['geom_note']} for e in ex],
+        'cuts': [{'id': c['id'], 'name': c['name'], 'from': c['frm'],
+                  'until': c['until'], 'act': c['act']} for c in cuts],
         'added': [], 'removed': [],
         'source': SOURCE,
     }
@@ -509,8 +574,27 @@ def slice_sig(key, anchors):
                                   exclude=(os.path.basename(ANCHORS), 'ww2_front.geojson')),
         'anchors': [[a['city'], side_at(a, day)] for a in anchors],
         'extras': [[e['id'], e['frm'], e['until']] for e in extras_at(day)],
+        'cuts': [[c['id'], c['frm'], c['until'], c['file']] for c in cuts_at(day)],
         'protect': {r: ss.reg_sig(be, r) for r in sorted(be.EARLY_PROTECT)},
     })
+
+
+_W = {}
+
+
+def _w_init(anchors):
+    _W['field'] = Field(anchors)
+
+
+def _w_one(key):
+    """Один срез в процессе пула: собрать, записать, вернуть линию фронта."""
+    field = _W['field']
+    fc, nparts, lost, abroad = build(key, field, verbose=False)
+    path = os.path.join(DATA, 'years', key + '.geojson')
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(gc.sanitize_obj(fc), f, ensure_ascii=False)
+    return (key, nparts, os.path.getsize(path) // 1024, lost, abroad,
+            fc['features'][0]['properties']['phase'], front_feat(field, key))
 
 
 def write_front_line(feats):
@@ -551,6 +635,8 @@ def main():
                     help='считать, но не писать файлы')
     ap.add_argument('--all', action='store_true',
                     help='собрать все срезы, не глядя на подписи прошлой сборки')
+    ap.add_argument('--workers', type=int, default=1,
+                    help='процессов на срезы (tools/rebuild.py - 4)')
     args = ap.parse_args()
     import slice_sigs as ss
 
@@ -565,10 +651,29 @@ def main():
     live = not (args.dry_run or args.only)
     sigs = ss.Sigs('ww2', use_old=live and not args.all)
     written, total = [], 0
+    todo = []
     for key in keys:
         sig = slice_sig(key, anchors)
         if live and sigs.fresh(key, sig, os.path.join(DATA, 'years', key + '.geojson')):
             continue
+        todo.append((key, sig))
+    if args.workers > 1 and live and len(todo) > 1:
+        # срезы независимы: основа и якоря на свой день (28.09.2026: полная
+        # сборка слоя шла по одному срезу 2 часа - 21:35-23:36 27.09)
+        from multiprocessing import get_context
+        with get_context('spawn').Pool(min(args.workers, len(todo)), initializer=_w_init,
+                                       initargs=(anchors,)) as pool:
+            res = pool.map(_w_one, [k for k, _ in todo], chunksize=1)
+        sig_of = dict(todo)
+        for key, nparts, kb, lost, abroad, ph, ff in res:
+            total += kb
+            written.append(key)
+            sigs.put(key, sig_of[key], front=[ff] if ff else [])
+            print(f'OK data/years/{key}.geojson: частей {nparts:3d}, {kb:4d} КБ, '
+                  f'оккупировано {lost:7.1f} град², за границей {abroad:6.1f} '
+                  f'град²  [{ph}]')
+        todo = []
+    for key, sig in todo:
         fc, nparts, lost, abroad = build(key, field)
         if args.dry_run:
             print(f'   {key}  частей {nparts:3d}  оккупировано {lost:7.1f} '

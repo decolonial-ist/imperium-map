@@ -66,6 +66,7 @@ NORTH_NOT_YET,file:north/not_yet.geojson,"Север, которым на 1917-1
 Эвенкия, Туруханск, Ямал и Гыдан. В tools/build_expansion.py красное
 приходит сюда 10.12.1930, одним постановлением об организации
 национальных объединений. Геометрия - тот же файл, что и там."
+CHUKOTKA_NOT_YET,"('Russia', ['Chukchi Autonomous Okrug'])","Чукотка: на 1917-1921 империя землёй не распоряжается, только точки; в tools/build_expansion.py и позднем окне земля краснеет 10.12.1930 (синхронизация 29.09.2026)"
 CHECHNYA_MTN_1925,file:chechnya/mountains_1920_1925.geojson,"горная Чечня южнее Шатоя и за Шаро-Аргуном: советской власти нет до
 разоружения 1925 г. (03.09.2026, F1_chechnya_shagi.md)"
 NORTHCAUC_EMIRATE,"('Russia', ['Chechnya', 'Ingush'])","--- субъекты, реально вышедшие из империи (окна kind='out') ------------
@@ -81,3 +82,4 @@ SIBERIA_INDEP,"[('Russia', [""Tyumen'""]), ('Russia', ['Kurgan']), ('Russia', ['
 VOLGA_MID,"('Russia', ['Tatarstan', ""Ul'yanovsk"", 'Samara', 'Penza', 'Udmurt', 'Mariy-El', 'Chuvash', 'Mordovia', 'Nizhegorod', 'Kirov'])",--- группы для ВОЗВРАТА после резки атласными линиями (резка убрана) ---
 NORTH_RU,"('Russia', ['Komi', 'Karelia'])",
 TURKESTAN,"[('Uzbekistan', None), ('Kyrgyzstan', None), ('Kazakhstan', ['Qyzylorda', 'South Kazakhstan', 'Zhambyl', 'Almaty', 'Almaty City'])]",
+TUVA_SOUTH,file:tuva/tuva_south.geojson,"Урянхай к югу от Танну-Ола - тот же файл, что regions.csv TUVA_SOUTH ядра"

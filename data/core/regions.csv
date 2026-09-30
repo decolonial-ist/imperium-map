@@ -169,6 +169,7 @@ UA_GALICIA_1914,"[('ne', 'Ukraine', [""L'viv"", ""Ivano-Frankivs'k"", ""Ternopil
 своя администрация — генерал-губернаторство Галиции и Буковины"
 UA_CRIMEA,"[('ne', 'Russia', ['Crimea', 'Sevastopol'])]","Крым: в Natural Earth он приписан к России, поэтому берётся явно —
 иначе выпадает из любой выборки «областей Украины»"
+UA_CRIMEA_KHANATE,"[('ne', 'Russia', ['Crimea', 'Sevastopol']), ('minus_file', 'ukraine/kerch_enikale_1774_zone.geojson')]","Крымское ханство 1771-1783 без земли Керчи и Еникале (вычитание UA_CRIMEA_KHANATE); минус - анклав с морем на 3 км вокруг, иначе запас вычитания срезал мыс Еникале; 29.09.2026"
 BALT_1721,"[('ne', 'Estonia', None), ('ne_region', 'Latvia', ['Vidzeme', 'Riga']), ('ne', 'Russia', ['Leningrad', 'City of St. Petersburg', 'Pskov'])]","--- страны Балтии (Латвия в NE нарезана на волости - режем рамками) --------
 Псковская область здесь НЕ ради Пскова (он в контуре с 1510 года), а
 ради гдовской полосы восточнее Чудского озера: до 1721 года это шведская
@@ -260,6 +261,25 @@ OCC8_PRUSSIA,"[('file', 'occ8/occ8_prussia.geojson')]",
 OCC8_KOLBERG,"[('file', 'occ8/occ8_kolberg.geojson')]",
 OCC9_KWANTUNG_LUSHUN,"[('file', 'occ9/occ9_kwantung_lushun.geojson')]","Илийский край и Квантун (пачка 9, 22.09.2026)"
 OCC9_KWANTUNG_REST,"[('file', 'occ9/occ9_kwantung_rest.geojson')]",
+OCC11_MANCH_HULUNBUIR,"[('file_where', 'manchuria/manchuria_units_osm.geojson', ['Hulunbuir'])]","Маньчжурия 1900-1907: нынешние округа КНР по OSM, файл manchuria/manchuria_units_osm.geojson (пачка 11, 30.09.2026)"
+OCC11_MANCH_AIGUN,"[('file_where', 'manchuria/manchuria_units_osm.geojson', ['Heihe City без Nenjiang'])]",
+OCC11_MANCH_MERGEN,"[('file_where', 'manchuria/manchuria_units_osm.geojson', ['Nenjiang City'])]",
+OCC11_MANCH_QIQIHAR,"[('file_where', 'manchuria/manchuria_units_osm.geojson', ['Qiqihar City', 'Daqing City', 'Suihua City', 'Yichun City', 'Hegang City', ""Daxing'anling Prefecture""])]",
+OCC11_MANCH_HARBIN,"[('file_where', 'manchuria/manchuria_units_osm.geojson', ['Harbin'])]",
+OCC11_MANCH_GIRIN,"[('file_where', 'manchuria/manchuria_units_osm.geojson', ['Jilin City', 'Changchun City без Gongzhuling', 'Songyuan City', 'Yanbian', 'Mudanjiang City', 'Jixi', 'Qitaihe City', 'Shuangyashan City', 'Jiamusi City'])]",
+OCC11_MANCH_GONGZHULING,"[('file_where', 'manchuria/manchuria_units_osm.geojson', ['Gongzhuling City', 'Yitong Manchu Autonomous County'])]",
+OCC11_MANCH_SIPING,"[('file_where', 'manchuria/manchuria_units_osm.geojson', ['Siping City без Yitong', 'Liaoyuan City'])]",
+OCC11_MANCH_TONGHUA,"[('file_where', 'manchuria/manchuria_units_osm.geojson', ['Tonghua City', 'Baishan City'])]",
+OCC11_MANCH_TIELING,"[('file_where', 'manchuria/manchuria_units_osm.geojson', ['Tieling City'])]",
+OCC11_MANCH_MUKDEN,"[('file_where', 'manchuria/manchuria_units_osm.geojson', ['Shenyang City без Xinmin', 'Fushun City'])]",
+OCC11_MANCH_LIAOXI,"[('file_where', 'manchuria/manchuria_units_osm.geojson', ['Jinzhou City', 'Huludao City', 'Panjin City', 'Xinmin City'])]",
+OCC11_MANCH_LIAOYANG,"[('file_where', 'manchuria/manchuria_units_osm.geojson', ['Liaoyang City', 'Benxi City'])]",
+OCC11_MANCH_HAICHENG,"[('file_where', 'manchuria/manchuria_units_osm.geojson', ['Anshan City без Xiuyan'])]",
+OCC11_MANCH_YINGKOU,"[('file_where', 'manchuria/manchuria_units_osm.geojson', ['Yingkou City'])]",
+OCC11_MANCH_XIUYAN,"[('file_where', 'manchuria/manchuria_units_osm.geojson', ['Xiuyan Manchu Autonomous County'])]",
+OCC11_MANCH_ANDONG,"[('file_where', 'manchuria/manchuria_units_osm.geojson', ['Dandong City'])]",
+OCC11_MANCH_FUZHOU,"[('file_where', 'manchuria/manchuria_units_osm.geojson', ['Wafangdian City без Квантуна', 'Pulandian District без Квантуна'])]",
+OCC11_MANCH_ZHUANGHE,"[('file_where', 'manchuria/manchuria_units_osm.geojson', ['Zhuanghe City без Квантуна'])]",
 OCC9_ILI,"[('file', 'occ9/occ9_ili.geojson')]",
 OCC10_MD_W_1769,"[('file', 'occ10/occ10_md_w_1769.geojson')]","Молдавское и Валашское княжества (пачка 10а, 22.09.2026)"
 OCC10_MD_W,"[('file', 'occ10/occ10_md_w.geojson')]",
@@ -291,7 +311,7 @@ OCC10B_TR_KIRKLARELI,"[('file', 'occ10b/occ10b_tr_kirklareli.geojson')]",
 OCC10B_TR_TEKIRDAG,"[('file', 'occ10b/occ10b_tr_tekirdag.geojson')]",
 OCC10B_BG_SHUMEN_VARNA,"[('file', 'occ10b/occ10b_bg_shumen.geojson'), ('file', 'occ10b/occ10b_bg_varna.geojson')]",
 RP_P3,"[('ne', 'Ukraine', None), ('ne', 'Belarus', None), ('ne', 'Lithuania', None), ('ne', 'Latvia', None), ('and_file', 'poland/ohm_rp_1793-1795.geojson'), ('minus_file', 'poland/krolestwo_1815.geojson')]",
-GALICIA_AUSTRIA,"[('file', 'borders/galicia_austria_1815_1879.geojson')]","Австрийская сторона российско-австрийской границы 1815-1914. Контур
+GALICIA_AUSTRIA,"[('file', 'borders/galicia_austria_1815_1879.geojson'), ('minus_file', 'ukraine/hotin_raya.geojson')]","Австрийская сторона российско-австрийской границы 1815-1914. Контур
 источника world_1815 проводит эту границу ПРЯМОЙ: один отрезок 285 км
 от 24,26/50,16 под Сокалем до 20,27/49,89 под Краковом и ещё 140 км до
 26,04/49,63 под Тернополем. Тот же отрезок, вершина в вершину, стоит на
@@ -340,6 +360,8 @@ PERSIA_HARSIN,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Ha
 PERSIA_ASADABAD,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Asadabad County'])]",
 PERSIA_DALAHU,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Dalahu County'])]",
 PERSIA_QASR,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Qasr-e-Shirin County'])]",
+PERSIA_MAKU,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Maku County'])]",фича Maku County (OSM relation 6555194) - дописать в файл из WORKFILES/kb-steps/persia_cer_1914/persia_maku_maragheh_counties_osm.geojson
+PERSIA_MARAGHEH,"[('file_where', 'iran/persia_garrison_counties_osm.geojson', ['Maragheh County'])]",фича Maragheh County (OSM relation 6555202) - оттуда же
 ANAT_KARS_1828,"[('file_where', 'turkey/east_anatolia_ilce_osm.geojson', ['Kars Merkez', 'Akyaka', 'Arpaçay', 'Digor', 'Kağızman', 'Sarıkamış', 'Selim', 'Susuz'])]","--- Восточная Анатолия: округа российских оккупаций (22.09.2026) --------
 районы OpenStreetMap; пашалык в документе - нынешний ил, санджак - район"
 ANAT_ARDAHAN_1828,"[('file_where', 'turkey/east_anatolia_ilce_osm.geojson', ['Ardahan Merkez', 'Damal', 'Göle', 'Hanak', 'Posof', 'Çıldır'])]",
@@ -405,7 +427,7 @@ CHECHNYA_WAR,"[('ne_minus', 'Russia', ['Chechnya'], ['chechnya/tersk_stanitsy.ge
 линия с 1735 г.), она у империи была. Теперь то же самое вычитается
 настоящими единицами - Наурский и Шелковской районы, выгрузка
 tools/fetch_osm_units.py."
-DAGESTAN_MTN,"[('ne_minus', 'Russia', ['Dagestan'], ['dagestan/primorskaya_polosa.geojson', 'dagestan/nizovya_tereka.geojson', 'dagestan/kumyk_plain.geojson'])]","Горный Дагестан (ядро имамата): рамка отрезает приморскую полосу с
+DAGESTAN_MTN,"[('ne_minus', 'Russia', ['Dagestan'], ['dagestan/primorskaya_polosa.geojson', 'dagestan/nizovya_tereka.geojson', 'dagestan/kumyk_plain.geojson', 'chechnya/shelkovskoy.geojson'])]","Горный Дагестан (ядро имамата): рамка отрезает приморскую полосу с
 Дербентом и Петровском (Гюлистан 1813 - там империя была) и низовья
 с Кизляром. Хасавюрт с кумыкской плоскостью рамка тоже отрезала, но с
 29.08.2026 он вычитается своей группой KUMYK_PLAIN - ниже
@@ -444,9 +466,28 @@ KZ_YOUNGER,"[('ne', 'Kazakhstan', ['West Kazakhstan', 'Atyrau', 'Aqtöbe', 'Mang
 KZ_MIDDLE,"[('ne', 'Kazakhstan', ['Aqmola', 'Astana', 'Pavlodar', 'North Kazakhstan', 'Qostanay', 'East Kazakhstan', 'Qaraghandy'])]",
 KZ_SENIOR,"[('ne', 'Kazakhstan', ['Almaty', 'Almaty City'])]",
 TASHKENT,"[('ne', 'Uzbekistan', ['Tashkent', 'Sirdaryo']), ('ne', 'Kazakhstan', ['South Kazakhstan', 'Zhambyl', 'Qyzylorda']), ('ne', 'Kyrgyzstan', ['Chuy', 'Bishkek', 'Ysyk-Köl', 'Naryn', 'Talas'])]",
-ZERAVSHAN,"[('ne', 'Uzbekistan', ['Samarkand', 'Jizzakh', 'Navoi'])]",
-BUKHARA,"[('ne', 'Uzbekistan', ['Bukhoro', 'Kashkadarya', 'Surkhandarya']), ('ne', 'Tajikistan', ['Khatlon', 'Leninabad', 'Dushanbe', 'Tadzhikistan Territories'])]",
-KHIVA,"[('ne', 'Uzbekistan', ['Khorezm', 'Karakalpakstan']), ('ne', 'Turkmenistan', ['Tashauz'])]",
+BUKHARA_EMIRATE,"[('file', 'central_asia/bukhara_emirate.geojson')]","--- Бухара и Хива: сфера, красное - посёлки точками (решение куратора 30.09.2026) ---
+Бухарский эмират по CShapes 2.0 (gwcode 7020 «Bokhara», 1886-1920) плюс бухарское левобережье Амударьи на Лебапе (CShapes по ошибке отдаёт Чарджуй и Керки Хиве - gwcode 7030 внутри велаята Лебап Natural Earth). Части файла: core, darvaz (Дарваз и Ванч, районы OSM), wpamir (Шугнан, Рошан, Вахан, районы OSM). Нужен вычитанию 1880-1886 (контур world_1880 держит эмират внутри империи) и сфере. С 1886 года основа CShapes эмират не держит - вычитание не нужно. Файл: ~/tmp/WORKFILES/kb-steps/protectorates_rows/geo/bukhara_emirate.geojson, скрипт scripts/make_geo.py"
+KHIVA_KHANATE,"[('file', 'central_asia/khiva_khanate.geojson')]","Хивинское ханство (левобережье) по CShapes 2.0 (gwcode 7030 «Khiva», 1886-1920) минус велаят Лебап (бухарские Чарджуй и Керки). 67,8 тыс. км² (Пален: 54 700 кв. в. = 62,3 тыс.). Файл: ~/tmp/WORKFILES/kb-steps/protectorates_rows/geo/khiva_khanate.geojson"
+AMUDARYA_OTDEL,"[('ne', 'Uzbekistan', ['Karakalpakstan']), ('minus_file', 'central_asia/khiva_khanate.geojson')]","Амударьинский отдел (правобережье, Петро-Александровск) = Каракалпакстан NE минус ханство: 145,8 тыс. км², совпадает с тем, что CShapes 1886-1918 держит в России (145,6). ЭСБЕ: 102 972 кв. км; перепись 1897: 97 960 кв. в. (111,5 тыс. км²) - разница в плато Устюрт, которое CShapes и NE отдают Каракалпакстану"
+SUGHD_1868,"[('ne', 'Tajikistan', ['Leninabad']), ('minus_file', 'central_asia/bukhara_emirate.geojson')]","Ходжент, Ура-Тюбе, верховья Зеравшана (Согд без 1,5 тыс. км² бухарского Матчи по CShapes). До 30.09.2026 шёл в составе строки BUKHARA; вынесен, чтобы Согд не выпал вместе с Бухарой"
+WEST_PAMIR,"[('file', 'central_asia/west_pamir_osm.geojson')]","Западный Памир: Шугнан, Рошан, правобережный Вахан = районы OSM Шугнанский (с Хорогом), Рошткалинский, Рушанский, Ишкашимский, 18,6 тыс. км². Дарваз (Дарвазский и Ванчский районы) - бухарское бекство, не входит"
+TUVA_KHEMCHIK,"[('ne', 'Russia', ['Tuva']), ('and_file', 'tuva/tuva_khemchik.geojson')]","--- Урянхай (Тува) по контролю на земле (решение куратора 30.09.2026) ---
+Хемчик: кожууны OSM Бай-Тайгинский, Барун-Хемчикский, Дзун-Хемчикский, Сут-Хольский и Ак-Довурак, 27,3 тыс. км². Два хемчикских хошуна (правители М. Буян-Бадыргы и К. Чымба)"
+TUVA_NORTH,"[('ne', 'Russia', ['Tuva']), ('minus_file', 'tuva/tuva_south.geojson'), ('minus_file', 'tuva/tuva_khemchik.geojson')]","Урянхай к северу от Танну-Ола без Хемчика: Тува NE минус TUVA_SOUTH и TUVA_KHEMCHIK (Каа-Хемский, Тандинский, Тере-Хольский, Тоджинский, Улуг-Хемский, Чаа-Хольский, Чеди-Хольский, Пий-Хемский, Кызылский кожууны и Кызыл), 115,2 тыс. км²"
+TUVA_SOUTH,"[('ne', 'Russia', ['Tuva']), ('and_file', 'tuva/tuva_south.geojson')]","Урянхай к югу от водораздела Танну-Ола (бассейны Убсу-Нура и Ачит-Нура): кожууны OSM Овюрский, Монгун-Тайгинский, Тес-Хемский, Эрзинский, 26,6 тыс. км². Граница по р. Тес (лето 1916) режет Тес-Хемский и Эрзинский кожууны - нынешними единицами не проводится"
+TM_BALKAN,"[('file', 'central_asia/tm_balkan.geojson')]","--- Закаспий по дням занятия (разбор брака 1880-х, 30.09.2026) ---
+Балканский велаят: Красноводск, Кизил-Арват, Атрек: этрапы OSM Этрекский этрап, Эсенкулийский этрап, Балканабад, Туркменбаши, Гызыларватский этрап, Махтумкулийский этрап, Берекетский этрап, Туркменбашийский этрап; 154.5 тыс. км²"
+TM_AKHAL_TEKE,"[('file', 'central_asia/tm_akhal_teke.geojson')]","Ахал-Теке: Геок-Тепе, Бами, Бахарден: этрапы OSM Гёкдепинский этрап, Бахерденский этрап, Аркадаг; 30.8 тыс. км²"
+TM_ASHGABAT,"[('file', 'central_asia/tm_ashgabat.geojson')]","Асхабад и Анау: этрапы OSM Ашхабад, Ак-Бугдайский этрап; 23.5 тыс. км²"
+TM_TEJEN_ATEK,"[('file', 'central_asia/tm_tejen_atek.geojson')]","Теджен и Атек: этрапы OSM Тедженский этрап, Бабадайханский этрап, Какинский этрап, Алтын-Асырский этрап; 36.9 тыс. км²"
+TM_MERV,"[('file', 'central_asia/tm_merv.geojson')]","Мервский оазис: этрапы OSM город Мары, Каракумский этрап, Байрамали, Туркменкалинский этрап, Байрамалинский этрап, Мургапский этрап, Огузханский этрап, Векилбазарский этрап, Сакарчагинский этрап, Марыйский этрап; 50.6 тыс. км²"
+TM_YOLOTAN,"[('file', 'central_asia/tm_yolotan.geojson')]",Иолотань (сарыки): этрапы OSM Ёлётенский этрап; 8.4 тыс. км²
+TM_SARAKHS,"[('file', 'central_asia/tm_sarakhs.geojson')]",Серахс: этрапы OSM Сарахский этрап; 6.3 тыс. км²
+TM_PENDE,"[('file', 'central_asia/tm_pende.geojson')]",Пенде и Кушка: этрапы OSM Тагтабазарский этрап; 28.0 тыс. км²
+TM_LEBAP_DESERT,"[('ne', 'Turkmenistan', ['Chardzhou']), ('minus_file', 'central_asia/bukhara_emirate.geojson')]",Каракумы к западу от бухарского Лебапа: NE Chardzhou минус бухарский Лебап; 50.1 тыс. км²
+TM_DASHOGUZ_DESERT,"[('ne', 'Turkmenistan', ['Tashauz']), ('minus_file', 'central_asia/khiva_khanate.geojson')]",Каракумы к югу от Хивинского ханства: NE Tashauz минус ханство; 31.0 тыс. км²
+ZERAVSHAN,"[('ne', 'Uzbekistan', ['Samarkand', 'Jizzakh', 'Navoi']), ('minus_file', 'central_asia/bukhara_emirate.geojson')]","Зеравшанский округ без бухарских бекств: Кермине, Нурата, Хатырчи (часть Навои 20,2 тыс. км² и Самарканда 4,5 тыс.) - бухарские по CShapes 2.0 (Bokhara, gwcode 7020). Минус добавлен 30.09.2026 вместе со сферой Бухары: иначе резиденция эмира Кермине красная с 1868 года"
 FERGHANA,"[('ne', 'Uzbekistan', ['Ferghana', 'Andijon', 'Namangan']), ('ne', 'Kyrgyzstan', ['Osh', 'Jalal-Abad', 'Batken'])]",
 TRANSCASPIA,"[('ne', 'Turkmenistan', ['Ahal', 'Balkan', 'Mary', 'Chardzhou'])]",
 PAMIR,"[('ne', 'Tajikistan', ['Gorno-Badakhshan'])]",
@@ -479,9 +520,11 @@ MOLDOVA,"[('ne', 'Moldova', None)]",
 SAKHALIN,"[('ne', 'Russia', ['Sakhalin'])]",
 TUVA,"[('ne', 'Russia', ['Tuva'])]",
 ALASKA,"[('alaska',)]",
+ALEUTIANS,"[('ne_box', 'United States of America', ['Alaska'], (-180.0, 50.5, -162.3, 55.6)), ('ne_box', 'United States of America', ['Alaska'], (-171.5, 56.4, -169.3, 57.4)), ('ne_box', 'United States of America', ['Alaska'], (172.0, 50.5, 180.0, 53.8))]","Алеутские острова (с западными за 180°) и острова Прибылова по Natural Earth admin-1 Alaska: контур источника 1815 г. их не несёт (Уналашка в 2,3°, Атка в 10° от красного); рамки только выбирают острова, берег - OSM. 29.09.2026"
 AMUR_LEFT,"[('ne', 'Russia', ['Amur', 'Yevrey']), ('ne_box', 'Russia', ['Khabarovsk'], (128.0, 40.0, 145.0, 54.5))]",
 PRIMORYE,"[('ne', 'Russia', [""Primor'ye""])]",
 KINBURN,"[('file', 'ukraine/kinburn_peninsula.geojson')]","Кинбурнский полуостров по OpenStreetMap (отношение 8698667, natural=peninsula), 26.09.2026"
+KERCH_ENIKALE,"[('file', 'ukraine/kerch_enikale_1774.geojson')]","Керчь и Еникале с уездом по межевому ходу Томилова 1774 г. (ЗООИД т. 7, с. 193-194): Кадырылес (Войково) и Бугак (Бондаренково) по OSM, остальные узлы обратным ходом; 156 км² (градоначальство по ЭСБЕ 163,8); розыск 29.09.2026, WORKFILES/kb-steps/kerch_1774"
 TAMAN,"[('file', 'kuban/taman_temryuk.geojson')]","Таманский полуостров: Темрюкский район по OpenStreetMap (отношение 364171), 26.09.2026 - отдельного контура полуострова в OSM нет"
 BUG_DNIPRO_CORNER,"[('file', 'ukraine/bug_dnipro_corner.geojson')]","Междуречье Южного Буга и Днепра: линии рек OSM (waterway=river), через Днепро-Бугский лиман - прямые по воде; земля - Николаевская и Херсонская области OSM (rel 72635, 71022), 26.09.2026. Сборка файла - WORKFILES/newbuild_2026-09-24/corner/build_corner.py"
 HOTIN_RAYA,"[('file', 'ukraine/hotin_raya.geojson')]","Хотинская райя: Днестровский район Черновицкой области по OSM (rel 11905201), приближение; в Молдавское княжество восточнее Прута (OCC10_MD_E) не входит, в Natural Earth Молдовы её нет. 27.09.2026"
@@ -494,3 +537,31 @@ FRANZ_JOSEF_LAND,"[('file', 'arctic/franz_josef_land.geojson')]","Земля Ф�
 SEVERNAYA_ZEMLYA,"[('file', 'arctic/severnaya_zemlya.geojson')]",Северная Земля: контур архипелага OSM (rel 3718999). 27.09.2026
 WRANGEL,"[('file', 'arctic/wrangel.geojson')]",Остров Врангеля с Геральдом: OSM rel 1866564 (через 180°). 27.09.2026
 RATMANOV,"[('file', 'arctic/ratmanov.geojson')]","Остров Ратманова (Большой Диомид): OSM rel 2283488, 29 км². 27.09.2026"
+MSK15_MOSCOW_CORE,"[('file', 'moscow15/MOSCOW_CORE.geojson')]","Москва, Коломна, Звенигород, Руза, Дмитров, Серпухов, Подмосковье. Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_MOZHAYSK_VEREYA,"[('file', 'moscow15/MOZHAYSK_VEREYA.geojson')]","Можайск, Верея, Боровск, Волок Ламский. Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_VLADIMIR_GRAND,"[('file', 'moscow15/VLADIMIR_GRAND.geojson')]","Великое княжение Владимирское: Владимир, Суздаль, Юрьев, Муром, Стародуб, Гороховец, Мещера (Гусь). Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_IVANOVO_LANDS,"[('file', 'moscow15/IVANOVO_LANDS.geojson')]","Суздальские и костромские волости: Шуя, Кинешма, Юрьевец, Лух, Плёс. Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_PERESLAVL_UGLICH,"[('file', 'moscow15/PERESLAVL_UGLICH.geojson')]","Переславль-Залесский, Углич, Мышкин, Некоуз. Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_ROSTOV,"[('file', 'moscow15/ROSTOV.geojson')]","Ростов (московская половина и княжеская половина). Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_KOSTROMA_GALICH,"[('file', 'moscow15/KOSTROMA_GALICH.geojson')]","Кострома, Галич, Чухлома, Солигалич, Унжа, Нерехта. Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_NIZHNY_MUROM,"[('file', 'moscow15/NIZHNY_MUROM.geojson')]","Нижний Новгород, Городец, Балахна, Муромские волости на Оке. Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_BELOOZERO,"[('file', 'moscow15/BELOOZERO.geojson')]","Белоозеро с Кирилловом, Череповцом, Судой; Шексна. Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_VOLOGDA_MOSCOW,"[('file', 'moscow15/VOLOGDA_MOSCOW.geojson')]","Вологда, Кубена, Заозерье, Обнора, Комела, Тотьма. Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_USTYUG,"[('file', 'moscow15/USTYUG.geojson')]","Устюг с волостями по Сухоне, Югу и нижней Вычегде. Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_USTYUZHNA,"[('file', 'moscow15/USTYUZHNA.geojson')]","Устюжна (Углицкий удел) и Молога. Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_BEZHETSKY_VERH,"[('file', 'moscow15/BEZHETSKY_VERH.geojson')]","Бежецкий Верх (Городецко-Бежецк), Красный Холм, Весьегонск. Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_RZHEVA,"[('file', 'moscow15/RZHEVA.geojson')]","Ржева (Ржев, Оленино). Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_KALUGA_MOSCOW,"[('file', 'moscow15/KALUGA_MOSCOW.geojson')]","Калуга, Медынь, Малоярославец, Таруса, Боровск - левый берег Угры. Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_TULA_NORTH,"[('file', 'moscow15/TULA_NORTH.geojson')]","Алексин и серпуховское Заочье. Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_MESHCHERA_KASIMOV,"[('file', 'moscow15/MESHCHERA_KASIMOV.geojson')]","Мещера и Касимовское ханство (Городец Мещерский). Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_VYCHEGDA_PERM,"[('file', 'moscow15/VYCHEGDA_PERM.geojson')]","Вычегодская Пермь: Вычегда (без низовья), Вымь, Сысола. Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_ROMANOV_SHEKSNA,"[('file', 'moscow15/ROMANOV_SHEKSNA.geojson')]","Романов и Усть-Шексна (купли великой княгини Марии Ярославны). Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_TULA_KUPLYA,"[('file', 'moscow15/TULA_KUPLYA.geojson')]","«Купля» Василия II у Рязани: Тула, Венёв, Тешилов, правобережье Каширы. Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_YAROSLAVL_1463,"[('file', 'moscow15/YAROSLAVL_1463.geojson')]","Ярославское великое княжество (с Шехонским и Моложским уделами). Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_VAGA_1471,"[('file', 'moscow15/VAGA_1471.geojson')]","Важская земля с Кокшенгой; часть Двины (Шиленьга). Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_PERM_VELIKAYA,"[('file', 'moscow15/PERM_VELIKAYA.geojson')]","Пермь Великая (Чердынь, Искор, Покча, Соликамск). Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_NOVGOROD_1478,"[('file', 'moscow15/NOVGOROD_1478.geojson')]","Новгородская земля: город, пятины, Порхов, Великие Луки, Торжок, Корела, Обонежье. Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_NOVGOROD_NORTH_1478,"[('file', 'moscow15/NOVGOROD_NORTH_1478.geojson')]","Новгородский Север: Двина (Холмогоры), Поморье, Онега, Каргополь, Пинега, Мезень, Удора. Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_TVER_1485,"[('file', 'moscow15/TVER_1485.geojson')]","Великое княжество Тверское (Тверь, Кашин, Старица, Зубцов, Микулин, Клин). Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_VYATKA_1489,"[('file', 'moscow15/VYATKA_1489.geojson')]","Вятская земля (Хлынов, Слободской, Орлов, Котельнич). Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"
+MSK15_RYAZAN_NAMESTNIKI,"[('file', 'moscow15/RYAZAN_NAMESTNIKI.geojson')]","Рязанское великое княжество под московскими наместниками. Районы OSM, окно 1450-1492; розыск WORKFILES/kb-steps/geom_1450/REPORT.md"

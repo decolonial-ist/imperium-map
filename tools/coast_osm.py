@@ -599,7 +599,9 @@ def load_state(full=False):
             st = json.load(f)
     except (OSError, ValueError):
         st = {}
-    sig = {'params': PARAMS, 'mask': mask_sig()}
+    # через JSON: в файле кортежи становятся списками, и сравнение «как есть»
+    # не совпадало никогда - каждый запуск проверял все срезы (28.09.2026)
+    sig = json.loads(json.dumps({'params': PARAMS, 'mask': mask_sig()}))
     if full or st.get('sig') != sig:
         st = {'sig': sig, 'stamps': {}}
     return st

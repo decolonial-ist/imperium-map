@@ -66,3 +66,8 @@ VEN,cs:101,
 PER,cs:135,
 CHL,cs:155,
 GUY,cs:110,
+BKH,file:central_asia/bukhara_emirate.geojson#core,"Российская империя, протектораты"
+BKH-DZ,file:central_asia/bukhara_emirate.geojson#darvaz,
+BKH-WP,file:central_asia/bukhara_emirate.geojson#wpamir,
+KHV,file:central_asia/khiva_khanate.geojson,
+URY,ne1:Russia:Tuva,

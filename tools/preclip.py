@@ -194,6 +194,14 @@ def polys(g):
     return unary_union(parts) if parts else GeometryCollection()
 
 
+def polys_list(g):
+    """Список отдельных полигонов геометрии (для отбора мелких частей)."""
+    g = polys(g)
+    if g.is_empty:
+        return []
+    return list(g.geoms) if g.geom_type == 'MultiPolygon' else [g]
+
+
 def cut_sea(g):
     """Снять с геометрии море маски OSM (клетки S целиком, C - их морем).
     Нужно приращениям заливок: fill_water/fill_source_gaps смыкают кольцо

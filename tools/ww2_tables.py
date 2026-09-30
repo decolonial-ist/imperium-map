@@ -31,6 +31,7 @@ TABLES = {
     'ABROAD': ('ww2_abroad.csv', ['admin', 'names', 'comment'], ()),
     'EXTRA_SRC': ('ww2_extra.csv', ['id', 'frm', 'until', 'name', 'act', 'geom_note',
                                     'comment'], ('until',)),
+    'CUTS': ('ww2_cuts.csv', ['id', 'frm', 'until', 'file', 'name', 'act', 'comment'], ('until',)),
 }
 
 
@@ -46,6 +47,9 @@ def load(name, d=None):
     if name == 'EXTRA_SRC':
         return [dict(id=r['id'], frm=r['frm'], until=r['until'], name=r['name'], act=r['act'],
                      geom_note=r['geom_note']) for r in rows]
+    if name == 'CUTS':
+        return [dict(id=r['id'], frm=r['frm'], until=r['until'], file=r['file'], name=r['name'],
+                     act=r['act']) for r in rows]
     raise KeyError(name)
 
 
@@ -72,6 +76,22 @@ def validate(d=None):
             err.append(f'ww2_extra.csv {r["id"]}: дата не разбирается')
         if not r['act'].strip():
             err.append(f'ww2_extra.csv {r["id"]}: без акта')
+    ids = set()
+    for r in read_rows('CUTS', d):
+        if r['id'] in ids:
+            err.append(f'ww2_cuts.csv: id {r["id"]} дважды')
+        ids.add(r['id'])
+        try:
+            _d(r['frm'])
+            if r['until'] and _d(r['until']) <= _d(r['frm']):
+                err.append(f'ww2_cuts.csv {r["id"]}: окно пустое')
+        except ValueError:
+            err.append(f'ww2_cuts.csv {r["id"]}: дата не разбирается')
+        f = r['file']
+        if not f.startswith('NE:') and not os.path.exists(os.path.join(d or DIR, f)):
+            err.append(f'ww2_cuts.csv {r["id"]}: нет файла {f}')
+        if not r['act'].strip():
+            err.append(f'ww2_cuts.csv {r["id"]}: без акта')
     return err
 
 

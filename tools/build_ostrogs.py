@@ -177,70 +177,107 @@ _slices = None
 _table = None
 # кэш попаданий точек в срезы (24.09.2026): правка строки переписывает 4-5
 # срезов из 505, а сборщик читал все 2 ГБ заново (2,5 мин из 5,6 на правку).
-# Для каждого среза помним его отметку (mtime, размер) и номера точек внутри;
-# перечитываются только срезы с новой отметкой. Сменился набор точек - кэш с нуля.
+# С 29.09.2026 ответ хранится ПО ТОЧКЕ (ключ - координаты), а не по номеру в
+# наборе: сдвиг одной точки прежде сбрасывал весь кэш и перечитывал 538 срезов
+# (11 мин на правку координат Еникале). Теперь новая точка проверяется только
+# сама, а срез берётся из двоичной копии геометрии (build/cache/ostrog_geom,
+# numpy: в 40 раз быстрее JSON); JSON читается только у срезов с новой отметкой.
 HITS = os.path.join(ROOT, 'build', 'cache', 'ostrog_hits.json')
+WKB = os.path.join(ROOT, 'build', 'cache', 'ostrog_geom')
 WORKERS = max(1, min(8, (os.cpu_count() or 4) - 2))
 
 
+def _pk(lon, lat):
+    return f'{lon!r},{lat!r}'
+
+
 def _hits_one(job):
-    """(ключ, путь, отметка, точки) -> (ключ, [отметка, номера точек внутри среза])."""
+    """(ключ, путь, отметка, точки, есть ли WKB) -> (ключ, отметка, {точка: внутри})."""
+    import shapely
     from shapely.geometry import Point, shape
     from shapely.prepared import prep
-    k, path, stamp, pts = job
-    with open(path, encoding='utf-8') as f:
-        fc = json.load(f)
-    feats = [prep(shape(ft['geometry']).buffer(0)) for ft in fc['features']]
-    return k, [stamp, [i for i, (lon, lat) in enumerate(pts)
-                       if any(g.contains(Point(lon, lat)) for g in feats)]]
+    k, path, stamp, pts, from_wkb = job
+    import numpy as np
+    wkb = os.path.join(WKB, k + '.npz')
+    if from_wkb:
+        z = np.load(wkb)
+        n = int(z['n'])
+        geoms = list(shapely.from_ragged_array(
+            shapely.GeometryType.MULTIPOLYGON, z['coords'].astype(np.float64),
+            tuple(z[f'o{i}'] for i in range(n))))
+    else:
+        with open(path, encoding='utf-8') as f:
+            fc = json.load(f)
+        geoms = [shape(ft['geometry']).buffer(0) for ft in fc['features']]
+        geoms = [g if g.geom_type == 'MultiPolygon' else shapely.MultiPolygon(
+            [g] if g.geom_type == 'Polygon' else
+            [x for x in getattr(g, 'geoms', []) if x.geom_type == 'Polygon'])
+            for g in geoms if not g.is_empty]
+        # копия: координаты float32 (около метра), сжато - 0,7 МБ на срез 1919 г.
+        # против 31 МБ JSON; в JSON-копии WKB весь кэш весил 2,2 ГБ
+        _, coords, offs = shapely.to_ragged_array(geoms)
+        os.makedirs(WKB, exist_ok=True)
+        np.savez_compressed(wkb + '.tmp.npz', coords=coords.astype(np.float32),
+                            n=len(offs), **{f'o{i}': o for i, o in enumerate(offs)})
+        os.replace(wkb + '.tmp.npz', wkb)
+    feats = [prep(g) for g in geoms]
+    return k, stamp, {_pk(lon, lat): any(g.contains(Point(lon, lat)) for g in feats)
+                      for lon, lat in pts}
 
 
 def red_table(points):
     """Точка -> ключ первого среза, в котором она внутри (или None), для всех разом."""
-    from shapely.geometry import Point, shape
-    from shapely.prepared import prep
     pts = sorted(set(points))
-    sig = hashlib.sha1(json.dumps(pts).encode()).hexdigest()
     try:
         with open(HITS, encoding='utf-8') as f:
             cache = json.load(f)
     except (OSError, ValueError):
         cache = {}
-    old = cache.get('slices', {}) if cache.get('sig') == sig else {}
+    old = cache.get('slices', {}) if cache.get('v') == 3 else {}
     with open(os.path.join(DATA, 'manifest.json'), encoding='utf-8') as f:
         keys = [str(k) for k in json.load(f)['years']]
     keys = sorted((k for k in keys
                    if os.path.exists(os.path.join(DATA, 'years', k + '.geojson'))),
                   key=key_date)
-    hits, todo = {}, []
+    hits, todo, n_json = {}, [], 0
     for k in keys:
         path = os.path.join(DATA, 'years', k + '.geojson')
         st = os.stat(path)
         stamp = [st.st_mtime_ns, st.st_size]
-        if k in old and old[k][0] == stamp:
-            hits[k] = old[k]
+        o = old.get(k)
+        if o and o['stamp'] == stamp:
+            known = o['pts']
+            need = [p for p in pts if _pk(*p) not in known]
+            hits[k] = {'stamp': stamp, 'pts': {_pk(*p): known[_pk(*p)] for p in pts
+                                               if _pk(*p) in known}}
+            if need:
+                todo.append((k, path, stamp, need,
+                             os.path.exists(os.path.join(WKB, k + '.npz'))))
         else:
-            todo.append((k, path, stamp, pts))
+            hits[k] = {'stamp': stamp, 'pts': {}}
+            todo.append((k, path, stamp, pts, False))
+    n_json = sum(1 for j in todo if not j[4])
     # срезы читаются параллельно (26.09.2026: в один процесс 505 срезов шли 73 мин)
     if len(todo) > 1 and WORKERS > 1:
         from multiprocessing import get_context
         with get_context('spawn').Pool(min(WORKERS, len(todo))) as pool:
-            for k, h in pool.imap_unordered(_hits_one, todo):
-                hits[k] = h
+            for k, stamp, h in pool.imap_unordered(_hits_one, todo):
+                hits[k]['pts'].update(h)
     else:
         for job in todo:
-            k, h = _hits_one(job)
-            hits[k] = h
-    read = len(todo)
+            k, stamp, h = _hits_one(job)
+            hits[k]['pts'].update(h)
     os.makedirs(os.path.dirname(HITS), exist_ok=True)
     with open(HITS + '.tmp', 'w', encoding='utf-8') as f:
-        json.dump({'sig': sig, 'slices': hits}, f)
+        json.dump({'v': 3, 'slices': hits}, f)
     os.replace(HITS + '.tmp', HITS)
     first = dict.fromkeys(pts)
     for k in reversed(keys):
-        for i in hits[k][1]:
-            first[pts[i]] = k
-    print(f'   срезов перечитано: {read} из {len(keys)} (остальные из кэша)')
+        for p in pts:
+            if hits[k]['pts'].get(_pk(*p)):
+                first[p] = k
+    print(f'   срезов перечитано: {n_json} из {len(keys)} JSON, '
+          f'{len(todo) - n_json} по двоичной копии (новые точки), остальные из кэша')
     return first
 
 

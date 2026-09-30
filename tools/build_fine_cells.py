@@ -231,6 +231,49 @@ def build_base(args):
     return cell_id(c), out
 
 
+def _nonempty(path):
+    # пустой кусок пишется как FeatureCollection без фич (43 байта)
+    return os.path.exists(path) and os.path.getsize(path) > 60
+
+
+def build_leaves(args):
+    """Ячейка, поделённая прошлой сборкой: пересобрать только её листья, где кусок
+    изменённой даты сменился (28.09.2026). Раньше правка 10 дат XV века заново
+    резала ячейки Карелии и Новой Земли по всем 538 датам на каждом уровне
+    деления - 13 из 15 минут правки."""
+    c, leaves, changed, keys = args
+    import shapely
+    from shapely.geometry import box
+    cid = cell_id(c)
+    base = {k: read_geom(os.path.join(CLIP, cid, k + '.geojson')) for k in changed}
+    keep, dirty = [], []
+    for x in leaves:
+        lb = tuple(x['box'])
+        lid = cell_id(lb)
+        hit = False
+        for k in changed:
+            g = base[k]
+            piece = polys_only(shapely.intersection(g, box(*lb))) if g is not None and not g.is_empty else None
+            path = os.path.join(CLIP, lid, k + '.geojson')
+            old = read_geom(path) if _nonempty(path) else None
+            new_empty = piece is None or piece.area < 1e-9
+            old_empty = old is None or old.is_empty
+            if new_empty and old_empty:
+                continue
+            if not new_empty and not old_empty and \
+                    old.buffer(0).symmetric_difference(piece).area < SAME:
+                continue
+            write_fc(path, None if new_empty else piece)
+            hit = True
+        (dirty if hit else keep).append(x)
+    out = list(keep)
+    for x in dirty:
+        lb = tuple(x['box'])
+        lid = cell_id(lb)
+        build_cell(lb, [k for k in keys if _nonempty(os.path.join(CLIP, lid, k + '.geojson'))], out)
+    return cid, out, len(dirty), len(leaves)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--all', action='store_true')
@@ -262,6 +305,7 @@ def main():
         for cid in st['key_cells'].get(k, []):
             write_fc(os.path.join(CLIP, cid, k + '.geojson'), None)
     twins = {}                                  # ячейка -> {новая дата: двойник}
+    changed_in = {}                             # ячейка -> изменённые даты в ней (до или после)
     if changed:
         # двойник - предыдущая дата; где её кусок сменился, ячейка и так
         # пересобирается целиком (touched), и правка готовой топологии её не трогает
@@ -275,6 +319,8 @@ def main():
                     touched.add(cid)
                 key_cells[k] = hit
                 touched |= set(moved)
+                for cid in set(st['key_cells'].get(k, [])) | set(hit):
+                    changed_in.setdefault(cid, set()).add(k)
                 for cid, p in twin.items():
                     twins.setdefault(cid, {})[k] = p
     if fresh:                                   # с нуля - все ячейки, где есть куски
@@ -313,12 +359,23 @@ def main():
         for cid in key_cells.get(k, []):
             by_cell.setdefault(cid, []).append(k)
     boxes = {cell_id(c): c for c in BASE_CELLS}
-    jobs = [(boxes[cid], by_cell.get(cid, [])) for cid in sorted(touched) if cid in boxes]
+    # поделённые ячейки - по листьям; целиком - новые, неподелённые и --all
+    leafy = {cid for cid in touched if not fresh and cid in boxes and cid in changed_in
+             and len(st['cells'].get(cid, [])) > 1}
+    jobs = [(boxes[cid], by_cell.get(cid, [])) for cid in sorted(touched - leafy) if cid in boxes]
+    ljobs = [(boxes[cid], st['cells'][cid], sorted(changed_in[cid], key=key_date),
+              by_cell.get(cid, [])) for cid in sorted(leafy)]
     cells = {cid: v for cid, v in st['cells'].items() if cid not in touched}
-    if jobs:
+    if jobs or ljobs:
         with get_context('spawn').Pool(a.workers) as pool:
             for cid, out in pool.imap_unordered(build_base, jobs):
                 cells[cid] = out
+            nd = nl = 0
+            for cid, out, d, n in pool.imap_unordered(build_leaves, ljobs):
+                cells[cid] = out
+                nd, nl = nd + d, nl + n
+        if ljobs:
+            print(f'поделённых ячеек {len(ljobs)}: пересобрано листьев {nd} из {nl}', flush=True)
     cells = {cid: v for cid, v in cells.items() if v}
 
     # файлы ячеек, которых больше нет в описи, - в build/removed (не удаляются)
@@ -342,7 +399,7 @@ def main():
     import geoclean as gc
     gc.write_stamp('fine_cells')            # версия данных для service worker
     gzs = sorted(x['gz'] for x in flat)
-    print(f'ячеек {len(flat)} (пересобрано базовых {len(jobs)}), всего {sum(gzs) / 1048576:.1f} МБ '
+    print(f'ячеек {len(flat)} (пересобрано базовых {len(jobs)}, по листьям {len(ljobs)}), всего {sum(gzs) / 1048576:.1f} МБ '
           f'сжатых; медиана {gzs[len(gzs) // 2] // 1024} КБ, крупнейшая {gzs[-1] // 1024} КБ')
 
 

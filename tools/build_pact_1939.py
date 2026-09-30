@@ -403,8 +403,14 @@ def build(key):
     geom, _fill = preclip.fill_seams(geom, key, preclip.seam_cells(pieces))
     if not geom.is_valid:
         geom = geom.buffer(0)
+    # мелкие части - заусенцы, но мелкие острова основы (Котлин) - земля: шаг
+    # берега срезы из кусков больше не трогает (28.09.2026)
+    from shapely.strtree import STRtree
+    small_base = STRtree([g for g in preclip.polys_list(pieces[0]) if g.area <= 0.05])
     parts = [g for g in (geom.geoms if geom.geom_type == 'MultiPolygon'
-                         else [geom]) if g.area > 0.002]
+                         else [geom])
+             if g.area > 0.002 or len(small_base.query(g.representative_point(),
+                                                       predicate='within'))]
     geom = unary_union(parts)
     props = {
         'name': 'СССР', 'year': key, 'role': 'core',

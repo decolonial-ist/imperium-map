@@ -580,7 +580,13 @@ def build(sl, base, base_raw):
     small_base = STRtree([g for g in base_parts if g.area <= 0.05])
     geoms = [g for g in (list(geom.geoms) if geom.geom_type == 'MultiPolygon'
                          else [geom])
-             if g.area > 0.05 or len(small_base.query(g, predicate='within'))]
+             # точка части, а не часть целиком: швы и упрощение сдвигают край
+             # острова, и Котлин переставал лежать «внутри» (28.09.2026)
+             if g.area > 0.05 or len(small_base.query(g.representative_point(),
+                                                      predicate='within'))
+             # гарнизоны в Персии - отдельные мелкие части (Энзели 0,032 град²,
+             # 1920-1921): не крошки вычитаний (разбор чекеров 28.09.2026)
+             or (not pers.is_empty and pers.contains(g.representative_point()))]
     fc = {'type': 'FeatureCollection', 'coast': 'pieces', 'features': [{
         'type': 'Feature',
         'geometry': gc.clean_rings(mapping(g)),
@@ -614,7 +620,7 @@ def build(sl, base, base_raw):
     # снимает острова - курируемую береговую линию добавляем отдельной фичей
     # (Северная область белых - тоже империя, правило «империя, а не
     # фракции»). Остров от материка отделён, шва обводки не даёт
-    for r in sorted(be.EARLY_PROTECT):
+    for r in sorted(be.EARLY_PROTECT) + list(ZONE_ISLANDS):
         pg = be.reg_geom(r)
         f0 = dict(fc['features'][0])
         f0['properties'] = dict(f0['properties'], protected=r)
@@ -624,6 +630,12 @@ def build(sl, base, base_raw):
     with open(out, 'w', encoding='utf-8') as f:
         json.dump(gc.sanitize_obj(fc), f, ensure_ascii=False)
     return len(geoms), geom.area, log
+
+
+# Острова империи, которых нет в основе CShapes 1917 г.: добавляются отдельной
+# фичей, как Соловки (29.09.2026: остров Ратманова, империя с 1867 г. по
+# конвенции с США, пустовал на всех 72 срезах 1917-12-25..1921-02-25)
+ZONE_ISLANDS = ()   # Ратманов с 29.09.2026 краснеет вместе с Чукоткой 10.12.1930
 
 
 ATTR_TOL = 0.05      # упрощение слоя атрибуции, как в tools/build_attribution.py
@@ -726,6 +738,7 @@ def slice_sig(sl, day):
                    if a['reg'].startswith('PERSIA_') and be.d(a['frm']) <= day
                    and not (a['to'] and be.d(a['to']) <= day)],
         'protect': {r: ss.reg_sig(be, r) for r in sorted(be.EARLY_PROTECT)},
+        'islands': {r: ss.reg_sig(be, r) for r in ZONE_ISLANDS},
     })
 
 

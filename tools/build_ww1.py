@@ -121,8 +121,13 @@ HALO = 0.1                      # град: полоса у фронта, где
 
 WAR = '1914-07-19'              # 19.07 (01.08) 1914: Германия объявила войну
 END = '1917-12-25'              # с этого среза - tools/build_zones_1917_1921.py
-BASE_KEY = '1914-04-17'         # довоенный контур, tools/build_expansion.py (до 27.09.2026 - 1914-04-04,
-                                # ст. ст.; канон дат теперь новый стиль, срез переименован)
+BASE_KEY = '1914'               # довоенный контур, tools/build_expansion.py (до 27.09.2026 - 1914-04-04,
+                                # ст. ст.; с 27.09 - 1914-04-17; с 30.09.2026 - '1914': Урянхай
+                                # краснеет с 1915, среза 17.04.1914 больше нет, между 1914-01-01 и
+                                # войной в ядре перемен нет)
+# окна ядра, которые идут поверх основы по датам (30.09.2026: к Персии добавлены
+# Урянхай с 1915 и Хива с 1916 - протектораты красные с контроля на земле)
+DATED = ('PERSIA_', 'TUVA_', 'KHIVA_KHANATE')
 EVENT_KEYS = ['1915-07-23',     # Варшава: в ночь 22/23.07 войска ушли за Вислу
               '1917-08-21']     # Рига оставлена в ночь на 21.08
 
@@ -438,9 +443,15 @@ def build(key, fields):
     # растра до берега в клетках, которых касается занятое за границей
     # Персия (22.09.2026): районы городов с русскими гарнизонами на дату -
     # окна PERSIA_* таблицы ADDS tools/build_expansion.py
-    pers = be.occupation_geom(day, 'PERSIA_')
+    pers = be.occupation_geom(day, DATED)
     if not pers.is_empty:
         geom = unary_union([geom, pers]).buffer(0)
+        # шов основы и окна (30.09.2026): основа режется вычитанием с припуском
+        # SUB_BUF, и между ней и Урянхаем оставалась щель по старой границе -
+        # закрываем её только в полосе у кусков окон
+        zone = pers.buffer(0.02)
+        loc = geom.intersection(zone).buffer(0.008).buffer(-0.008)
+        geom = unary_union([geom, loc.intersection(zone)]).buffer(0)
     geom = preclip.polys(geom)
     cells = preclip.seam_cells([g for g in (occ, pers) if not g.is_empty], any_piece=True)
     geom, _fill = preclip.fill_seams(geom, key, cells)
@@ -560,7 +571,7 @@ def slice_sig(key, anchors):
         'anchors': [[a['city'], a['theatre'], side_at(a, day)] for a in anchors],
         'persia': [[a['reg'], a['frm'], a['to'], a['kind'], a.get('clip'),
                     ss.reg_sig(be, a['reg'])] for a in be.ADDS
-                   if a['reg'].startswith('PERSIA_') and be.d(a['frm']) <= day
+                   if a['reg'].startswith(DATED) and be.d(a['frm']) <= day
                    and not (a['to'] and be.d(a['to']) <= day)],
     })
 

@@ -750,7 +750,11 @@ def alaska():
     """Русская Америка: западное полушарие среза источника 1815 г.
     восточнее линии конвенции 1867 г. (восточная Чукотка не входит)."""
     if '__ak' not in _cache:
-        g = hb_core(1815)
+        # контур источника 1815 г. С БЕРЕГОМ (src_geom): сырой hb_core(1815) не
+        # доходил до берега, и срезы 1799-1813, где Аляску несёт эта строка, а
+        # не контур, были без островов архипелага Александра и кромки суши
+        # (регрессия v4, разбор check_geometry 29.09.2026)
+        g = src_geom('1815')
         parts = list(g.geoms) if g.geom_type == 'MultiPolygon' else [g]
         west = [p for p in parts if is_russian_america(p)]
         if not west:
@@ -793,6 +797,13 @@ def reg_geom(name):
         g = preclip.piece_sig('reg', name, sig, lambda: _reg_raw(name))
     else:
         g = preclip.piece('reg', name, _reg_raw(name))
+    # вырезанное файлом (minus_file, ne_minus) вырезать и из куска: достройка
+    # берега заливала выемку, выходящую к морю, - кусок GEO_MEGRELIA на 99 %
+    # покрывал Поти, и город не краснел 1828-1856 (разбор чекеров 28.09.2026)
+    minus = [file_geom(sp[1]) for sp in REG[name] if sp[0] == 'minus_file']
+    minus += [file_geom(x) for sp in REG[name] if sp[0] == 'ne_minus' for x in sp[3]]
+    if minus:
+        g = preclip.polys(g.difference(unary_union(minus).buffer(0)))
     _cache[name] = g
     return g
 
@@ -864,7 +875,12 @@ SRC.update({k: ('cs', v) for k, v in bd.CSHAPES_SLICES.items()
 # до 12.09.1485, Вятка до 16.08.1489 (SUBS выше). Приобретения этого окна
 # обрезаны контуром 1492 г. (clip='1492'), поэтому срезы 1492 и 1500 годов от
 # правки не поменялись ни на градус.
-SRC['1450'] = ('hb', 1492)
+SRC['1450'] = ('none', None)
+# 28.09.2026: окно 1450-1500 собирается ТОЛЬКО из земель Москвы по районам OSM
+# (MSK15_* в adds.csv, data/moscow15/, розыск ~/tmp/WORKFILES/kb-steps/geom_1450/
+# REPORT.md): контур 1492 года давал 0,77 млн км² на 1462 при 0,45-0,52 у историков.
+# С 1500 года основа - снова контур источника.
+SRC['1492'] = ('none', None)
 SRC_ORDER = sorted(SRC, key=key_date)
 # дальше 25.12.1917 начинается реконструкция зоны контроля 1917-1921 - её
 # срезы собирает другой билдер, сюда мы не лезем
@@ -882,6 +898,10 @@ def src_geom(key):
         import preclip
         from shapely import wkb
         kind, val = SRC[key]
+        if kind == 'none':
+            from shapely.geometry import Polygon
+            _cache[tag] = Polygon()
+            return _cache[tag]
         raw = hb_core(val) if kind == 'hb' else cs_core(*val)
         day = key_date(key)
         # подпись входов заливки: сырой контур, правила каймы, единицы NE и
@@ -897,6 +917,9 @@ def src_geom(key):
 
 def src_geom_raw(key):
     kind, val = SRC[key]
+    if kind == 'none':
+        from shapely.geometry import Polygon
+        return Polygon()
     return hb_core(val) if kind == 'hb' else cs_core(*val)
 
 
@@ -907,7 +930,7 @@ def base_year(key):
     формате нет, и щели там не заливаем - только сообщаем о них.
     """
     kind, val = SRC[key]
-    return val if kind == 'hb' else None
+    return val if kind == 'hb' else None     # 'none' - тоже None
 
 
 def base_key_for(day):
@@ -1054,6 +1077,9 @@ def build(key):
     # маски): мельче только обрезки упрощения и вычитаний.
     geoms = [g for g in (list(geom.geoms) if geom.geom_type == 'MultiPolygon'
                          else [geom]) if g.area > 1e-5]
+    geoms, crumbs = drop_sub_crumbs(geoms, cuts, occ, adds)
+    if crumbs:
+        log.append(f'- крошки между вычитаниями: {crumbs}')
     geom = unary_union(geoms)
     sea = wet = thin = specks = pinholes = 0
     # Курируемые точные береговые линии общая чистка не трогает (22.09.2026):
@@ -1075,9 +1101,8 @@ def build(key):
         'reconstruction': True,
         'approximate': True,
         'expansion': True,
-        'base': (('контур источника 1492 г. (historical-basemaps) - своего '
-                  'среза на 1450 у источника нет, окно 1450-1492 собрано '
-                  'вычитаниями из контура 1492 года') if bkey == '1450' else
+        'base': (('земли Москвы по районам OSM (MSK15_* в adds.csv, 28.09.2026), '
+                  'без контура источника') if SRC[bkey][0] == 'none' else
                  f'контур источника {bkey} ('
                  + ('historical-basemaps' if SRC[bkey][0] == 'hb'
                     else 'CShapes 2.0') + ')'),
@@ -1107,6 +1132,38 @@ def build(key):
     fc = {'type': 'FeatureCollection', 'coast': 'pieces',
           'features': [{'type': 'Feature', 'geometry': gj, 'properties': props}]}
     return fc, log, len(geoms)
+
+
+def drop_sub_crumbs(parts, cuts, occ, adds, small=0.05, ring=0.03):
+    """Крошки красного в щелях между соседними вычитаниями (28.09.2026): куски
+    вычитаний режутся берегом и упрощаются порознь, и между YAMAL_NENETS,
+    EVENKIA_TURUKHANSK и TAIMYR оставалось ~390 км² красного на 346 срезах. До
+    v4 их снимал despeckle по всему срезу - вместе с островами. Здесь мелкая
+    часть снимается, только если её кайму больше чем наполовину занимают
+    вычитания: у острова в море кайма - вода. Не трогаются части в окнах
+    оккупации и в мелких приобретениях (Поти, крепости, города)."""
+    if not cuts:
+        return parts, 0
+    from shapely.strtree import STRtree
+    tree = STRtree(cuts)
+    small_adds = [g for g in (reg_geom(a['reg']) for a in adds) if g.area < 1.0]
+    keep, n = [], 0
+    for p in parts:
+        if p.area >= small:
+            keep.append(p)
+            continue
+        pt = p.representative_point()
+        if (occ is not None and occ.intersects(p)) or any(g.contains(pt) for g in small_adds):
+            keep.append(p)
+            continue
+        rg = p.buffer(ring).difference(p)
+        idx = tree.query(rg, predicate='intersects')
+        cov = sum(cuts[i].intersection(rg).area for i in idx) if len(idx) else 0.0
+        if cov >= 0.5 * rg.area:
+            n += 1
+            continue
+        keep.append(p)
+    return keep, n
 
 
 def _add_meta(a):
@@ -1255,8 +1312,10 @@ USSR_END_ACT = (
 # правки уже лежащих на диске срезов: ('sub'|'add', провайдер, с, по, что,
 # почему). Провайдер: ('reg', имя из REG) | ('cs', gwcode)
 # Регионы поздних правок, которые чистка контура не трогает: мелкая
-# курируемая геометрия, меньше порогов крапинок (см. patch_slice)
-LATE_PROTECT = {'DDR_1953_13', 'DDR_1953_3', 'SOLOVKI'}
+# курируемая геометрия, меньше порогов крапинок (см. patch_slice).
+# DDR_1953_CHP - округа ЧП 17.06.1953: drop_thin_parts снимал изрезанный
+# Рюген (0,134 град²) на срезе-копии основы 1946 (29.09.2026)
+LATE_PROTECT = {'DDR_1953_CHP', 'DDR_1953_13', 'DDR_1953_3', 'SOLOVKI'}
 
 # строки - data/core/late_edits.csv (с 24.09.2026; комментарии строк - колонка comment)
 LATE_EDITS = core_tables.load('LATE_EDITS')
@@ -1323,11 +1382,47 @@ def late_edits_for(day):
     return adds, subs
 
 
+def only_within(raw, cleaned, zone):
+    """Из чистки raw -> cleaned принять только то, что лежит в zone (28.09.2026).
+    Срез из кусков (v4, fc['coast'] == 'pieces') шаг берега больше не трогает и
+    снятое чисткой не вернёт: чистка ВСЕГО среза при вычитании Тувы снимала
+    Котлин со всех срезов ВМВ и пакта. Тот же приём - build_ww1.local_finish."""
+    rem = raw.difference(cleaned).intersection(zone)
+    add = cleaned.difference(raw).intersection(zone)
+    out = raw
+    if not rem.is_empty:
+        out = out.difference(rem)
+    if not add.is_empty:
+        out = out.union(add)
+    return out.buffer(0)
+
+
+def clean_local(g, zone, fn, pad=0.3):
+    """Чистка fn только в окрестности zone (срезы из кусков, 28.09.2026): кусок
+    среза в zone+pad чистится fn, из результата берётся лишь то, что внутри zone
+    (края выреза остаются вне её). Чистка всего среза стоила 60-150 с на срез ВМВ."""
+    from shapely.geometry import box
+    zb = zone.buffer(pad)
+    loc = g.intersection(zb).buffer(0)
+    if loc.is_empty:
+        return g
+    cl = fn(loc)
+    rem = loc.difference(cl).intersection(zone)
+    add = cl.difference(loc).intersection(zone)
+    out = g
+    if not rem.is_empty and rem.area > 0:
+        out = out.difference(rem)
+    if not add.is_empty and add.area > 0:
+        out = out.union(add)
+    return out.buffer(0)
+
+
 def patch_slice(key, adds, subs, extra_note=None):
     """Наложить правки на файл среза. -> список строк лога."""
     path = years_path(key)
     with open(path, encoding='utf-8') as f:
         fc = json.load(f)
+    pieces = fc.get('coast') == 'pieces'
     log, touched = [], False
     sub_geom = unary_union([late_geom(s[0]) for s in subs]).buffer(LATE_SUB_BUF) \
         if subs else None
@@ -1355,7 +1450,8 @@ def patch_slice(key, adds, subs, extra_note=None):
         if g2.is_empty:
             continue
         feat = dict(feat)
-        g2 = gc.finish(g2, CACHE)
+        g2 = (clean_local(g2, sub_geom.buffer(0.05), lambda x: gc.finish(x, CACHE)) if pieces
+              else gc.finish(g2, CACHE))
         feat['geometry'] = _round_n(mapping(g2), LATE_DIGITS)
         feats.append(feat)
     if subs and touched:
@@ -1391,6 +1487,11 @@ def patch_slice(key, adds, subs, extra_note=None):
             closed = new.buffer(0.03).buffer(-0.03)
             if not closed.is_empty:
                 new = unary_union([new, closed.intersection(gc.land_mask(CACHE))]).buffer(0)
+            if pieces:
+                # срез из кусков: лента и швы добавления - по маске суши OSM, а
+                # не NE (крошка 4 км² в море у Ямала на 1939-09-17, 28.09.2026)
+                import preclip
+                new = preclip.polys(preclip.cut_sea(preclip.polys(new)))
             # кусок ВСЕГДА сливается с ядром в одну фичу. Раньше при
             # нескольких фичах он дописывался отдельной фичей, и обводка
             # рисовала его границу как границу империи - красные линии внутри
@@ -1410,13 +1511,38 @@ def patch_slice(key, adds, subs, extra_note=None):
             merged = gc.merge_core_features({'type': 'FeatureCollection', 'features': feats})
             feats = merged['features']
             g = shape(feats[0]['geometry']).buffer(0)
-            # карманы воды, замкнутые лентой шва (устья, губы до пары сотен км²),
-            # заливаются как вода, а не остаются дырками с красной обводкой
-            g = fill_water(g)
-            g, _ = gc.fill_sea_holes(g, CACHE)
-            g, _ = gc.clip_to_land(g, CACHE)
-            g, _ = gc.drop_thin_parts(g)
-            g, _, _ = gc.despeckle(g, CACHE)
+
+            def _clean(g):
+                # карманы воды, замкнутые лентой шва (устья, губы до пары сотен км²),
+                # заливаются как вода, а не остаются дырками с красной обводкой
+                g = fill_water(g)
+                g, _ = gc.fill_sea_holes(g, CACHE)
+                g, _ = gc.clip_to_land(g, CACHE)
+                g, _ = gc.drop_thin_parts(g)
+                g, _, _ = gc.despeckle(g, CACHE)
+                return g
+            # срез из кусков: чистка только у добавленного
+            if pieces:
+                zone = new.buffer(0.15)
+                g1 = clean_local(g, zone, _clean)
+                # чистка снимает только своё - обрезки ленты и швов. Сами куски
+                # добавления по суше OSM и то, что было в срезе до правки,
+                # возвращаются: despeckle и drop_thin снимали Соловки, базу
+                # Ханко и Порккалу как крапинки (чекеры 29.09.2026)
+                lost = g.intersection(zone).difference(g1)
+                if not lost.is_empty and lost.area > 0:
+                    own = unary_union([have.intersection(zone.buffer(0.01)),
+                                       preclip.polys(preclip.cut_sea(preclip.polys(
+                                           unary_union([late_geom(a[0]) for a in adds]))))])
+                    # возвращается только суша OSM: крошку моря из сырой основы
+                    # чистка снимала верно (Колгуев на 1945-06-29..12-01)
+                    back = preclip.polys(preclip.cut_sea(preclip.polys(
+                        lost.intersection(own).buffer(0))))
+                    if not back.is_empty and back.area > 0:
+                        g1 = unary_union([g1, back]).buffer(0)
+                g = g1
+            else:
+                g = _clean(g)
             # Курируемая мелкая геометрия чисткой не снимается (22.09.2026):
             # города ГДР 1953 года меньше порога крапинки (200 км²), и
             # despeckle снял бы Галле, Йену, Мерзебург как обрезки. Возвращаем

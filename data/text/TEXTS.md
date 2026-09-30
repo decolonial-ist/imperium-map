@@ -417,7 +417,7 @@
 {source} · достоверность: {conf}
 
 ## sphere.note_head - подвал: сфера влияния
-<b style="color:#f08a72">{name}</b> в советской сфере влияния — эпизоды отношений:
+<b style="color:#f08a72">{name}</b> в сфере влияния империи — эпизоды отношений:
 
 ## ep.end - эпизод: конец
 ; конец: {event}
@@ -559,6 +559,9 @@
 ## sphere.kind.intervention - вид зависимости в сфере влияния (tools/build_sphere.py)
 прямая военная интервенция
 
+## sphere.kind.protectorate - вид зависимости в сфере влияния (tools/build_sphere.py)
+протекторат: внутреннее управление у местного правителя, внешние сношения у империи
+
 ## uprising.kind.national - вид выступления (tools/build_uprisings.py)
 антиколониальное национальное выступление
 
@@ -594,6 +597,9 @@
 
 ## point.kind.krepost - слово для типа точки (tools/build_ostrogs.py)
 крепость
+
+## point.kind.ukreplenie - слово для типа точки (tools/build_ostrogs.py)
+укрепление
 
 ## point.kind.zavod - слово для типа точки (tools/build_ostrogs.py)
 завод
