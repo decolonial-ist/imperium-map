@@ -257,6 +257,13 @@ def chechnya_outline():
     return ne('Russia', ['Chechnya'])
 
 
+def chechnya_file(name):
+    """Район Чечни из data/chechnya/ (контур OpenStreetMap)."""
+    with open(os.path.join(DATA, 'chechnya', name), encoding='utf-8') as f:
+        fc = json.load(f)
+    return unary_union([shape(x['geometry']).buffer(0) for x in fc['features']])
+
+
 def geometries():
     pmr = terr("Придністров'я")
     so = terr('Окупований Цхінвальський район')
@@ -279,6 +286,9 @@ def geometries():
     _ch = chechnya_outline()
     _south = box(44.5, 41.9, 47.0, 42.8)
     chechnya = unary_union([_ch, _ch.buffer(0.04).intersection(_south)]).intersection(core())
+    _naur = chechnya_file('naursky.geojson')
+    _shelk = chechnya_file('shelkovskoy.geojson')
+    _north_all = unary_union([_naur, _shelk, chechnya_file('opposition_1993_1994.geojson')])
     g = {
         'transnistria': (pmr, 'DeepStateMAP, статичный контур '
                               'data/deepstate/territories.geojson', False),
@@ -302,6 +312,20 @@ def geometries():
                   True),
         'chechnya': (chechnya, 'Natural Earth admin-1 (Chechnya), обрезана '
                                'контуром ядра', False),
+        # 1994-1996 (12.10.2026, данные домена Нохчи, WORKFILES/kb-steps/
+        # ichkeria_1012/): северные районы оккупанты держали с первых недель
+        # вторжения - Наурский и Шелковской за Тереком (боёв там не было),
+        # Надтеречный (марионеточная оппозиция с 1993 года). Они не вырезаются,
+        # пока там стоят российские войска; юг вырезан, гарнизоны оккупантов в
+        # нём - точки слоя острогов (kind=garrison). Куски режутся из одного
+        # контура, края совпадают - щелей между ними нет.
+        'chechnya_south': (chechnya.difference(_north_all), 'контур Чечни '
+                           '(OpenStreetMap) минус Наурский, Шелковской и '
+                           'Надтеречный районы (OpenStreetMap)', True),
+        'chechnya_naursky': (chechnya.intersection(_naur), 'Наурский район, '
+                             'OpenStreetMap relation 1749736', True),
+        'chechnya_shelkovskoy': (chechnya.intersection(_shelk), 'Шелковской '
+                                 'район, OpenStreetMap relation 1749743', True),
         'chechnya_mountains': (chechnya.intersection(box(*CHECHNYA_MTN_BOX)),
                                'Natural Earth admin-1 (Chechnya) южнее 43.05° '
                                'с.ш. - горные районы', True),

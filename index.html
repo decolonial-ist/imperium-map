@@ -107,6 +107,10 @@
   #hdr h1 { font-size:15px; margin:0 0 2px; }
   #hdr .sub { font-size:11.5px; color:#9aa4ad; }
   #hdr h1 { padding-right:22px; }
+  /* Кнопки масштаба OpenLayers (Equal Earth) стоят слева вверху и уходили под
+     шапку - видна была одна белая полоска (12.10.2026). Ставим их справа
+     вверху, как у MapLibre. */
+  .ol-zoom { left:auto; right:.5em; top:.5em; }
   #hdrToggle { position:absolute; top:7px; right:8px; width:20px; height:20px;
     line-height:18px; padding:0; text-align:center; font-size:13px; color:#9aa4ad;
     background:#22272e; border:1px solid #39424e; border-radius:5px; cursor:pointer; }
@@ -515,18 +519,19 @@ window.addEventListener('unhandledrejection', e => {
     btn.textContent = folded ? '?' : '–';
     btn.title = folded ? T('hdr.unfold') : T('hdr.fold');
   };
-  // На телефоне пояснение открывается СВЁРНУТЫМ: развёрнутое оно занимает
-  // пол-экрана и закрывает карту (втык куратора 31.08.2026).
-  let folded = window.matchMedia('(max-width: 640px)').matches;
+  // Пояснение открывается СВЁРНУТЫМ на любом экране (решение куратора
+  // 12.10.2026; до того - только на телефоне, 31.08.2026). Ключ хранилища
+  // новый: старый «hdrFolded» у прежних читателей держал шапку развёрнутой.
+  let folded = true;
   try {
-    const saved = localStorage.getItem('hdrFolded');
+    const saved = localStorage.getItem('hdrFolded2');
     if (saved !== null) folded = saved === '1';
   } catch (e) {}
   apply(folded);
   btn.onclick = () => {
     folded = !folded;
     apply(folded);
-    try { localStorage.setItem('hdrFolded', folded ? '1' : '0'); } catch (e) {}
+    try { localStorage.setItem('hdrFolded2', folded ? '1' : '0'); } catch (e) {}
   };
 })();
 
@@ -819,7 +824,7 @@ function renderEmbed(t, fromPicker) {
   // дату среза, который лежит под началом окна.
   const yearOnly = /-01-01$/.test(step.d) && EMBED.from === null && EMBED.to === null;
   $('date').textContent = yearOnly ? String(new Date(t).getUTCFullYear()) : dmy(t);
-  $('date').title = T('embed.slice_title', {d: step.d, why: step.why});
+  $('date').title = T('embed.slice_title', {d: dmy(dayMs(step.d))});
   curT = t;
   urlSetDate(curT);
   $('slider').value = tToSlider(curT);
@@ -2038,7 +2043,7 @@ async function render(t, fromPicker) {
   $('entity').textContent = ENTITY(y) + (
     l.kind === 'day' ? ' ' + T('entity.front')
       + (cuts.length ? T('entity.front_days') : '') :
-    String(l.key).includes('-') ? ' ' + T('entity.slice', {key: l.key}) :
+    String(l.key).includes('-') ? ' ' + T('entity.slice', {key: dmy(dayMs(l.key))}) :
     yearOf(l.t) !== y ? ' ' + T('entity.slice_year', {year: yearOf(l.t)}) : '');
 
   // 26.08.2026, баг куратора «30 апреля и 22 мая 2023 зависли в цикле»:
@@ -2752,7 +2757,7 @@ async function renderHistory() {
         T('resist.until', {when: dmy(t1), event: p.event}), proof);
     else
       notes.push(T('resist.note', {name: p.name, when: dmy(t1), event: p.event,
-                                   proof, painted: p.painted}));
+                                   proof}));
   }
 
   // приобретения 1939-1945: называем дату и акт, которым участок взят.
@@ -2770,8 +2775,7 @@ async function renderHistory() {
     html += rowHTML('', T('row.act'), T('pact.row', {name: p.name, win, act: p.act}),
                     p.act_full, p.source);
     notes.push('<b style="color:#ff8a72">' + p.name + '</b>: ' + p.pact
-      + (p.note ? '<br>' + p.note : '')
-      + (p.approximate ? T('pact.geom', {src: p.geometry_source}) : ''));
+      + (p.note ? '<br>' + p.note : ''));
   }
 
   // сфера влияния: КОГДА, КТО, ЧТО и ПОЧЕМУ. Строка называет тип зависимости,
@@ -2783,6 +2787,8 @@ async function renderHistory() {
     if (!spEps.has(f.properties.ep)) spEps.set(f.properties.ep, f.properties);
   const spAll = [...spEps.values()]
     .sort((a, b) => parseKey(a.from) - parseKey(b.from));
+  // достоверность в таблице сферы - high/medium/low: подпись по-русски из event.conf.*
+  const confRu = c => ({high: 1, medium: 1, low: 1})[c] ? T('event.conf.' + c) : c;
   const spTxt = p => T('hist.since', {when: dmy(parseKey(p.from))}) + ' '
     + (p.to ? T('hist.till', {when: dmy(parseKey(p.to))}) : T('until_today'));
   for (const p of spAll) {
@@ -2790,14 +2796,13 @@ async function renderHistory() {
     if (p.to && t > parseKey(p.to) + 86399999) continue;
     html += rowHTML('', T('row.sphere'), T('sphere.row', {name: p.name_ru, kind: p.kind_ru}),
       spTxt(p) + ' · ' + p.event_from + (p.event_to ? ' → ' + p.event_to : ''),
-      T('conf', {source: p.source, conf: p.confidence}));
+      T('conf', {source: p.source, conf: confRu(p.confidence)}));
   }
   if (spAll.length)
     notes.push(T('sphere.note_head', {name: spAll[0].name_ru}) + '<br>'
       + spAll.map(p => spTxt(p) + ' — ' + p.kind_ru + ' (' + p.event_from
           + (p.event_to ? T('ep.end', {event: p.event_to}) : '') + ')'
-          + (p.note ? '. ' + p.note : '')).join('<br>')
-      + T('sphere.table', {geom: spAll[0].geometry_source}));
+          + (p.note ? '. ' + p.note : '')).join('<br>'));
 
   // постсоветские эпизоды: КОГДА, ЧТО и ЧЕМ ПОДТВЕРЖДЕНО. Строка называет
   // эпизод, его даты, событие на входе и выходе и пруф - всё из курируемой
@@ -2812,7 +2817,7 @@ async function renderHistory() {
     const p = f.p;
     html += rowHTML('', T('row.episode'), '<b>' + p.name_ru + '</b>: ' + p.kind_ru,
       psWin(p) + ' · ' + p.event_from + (p.event_to ? ' → ' + p.event_to : ''),
-      T('conf', {source: p.source, conf: p.confidence}));
+      T('conf', {source: p.source, conf: confRu(p.confidence)}));
   }
   // В подвале серия датированных срезов (`series`) сворачивается в ОДНУ
   // строку. С 26.08.2026 Донбасс апреля 2014 - февраля 2015 и первые недели
@@ -2836,8 +2841,9 @@ async function renderHistory() {
       lines.push(psWin({from: all[0].p.from, to: last.to}) + ' '
         + T('ps.series', {n: all.length, series: last.series_ru}));
     }
-    notes.push(T('ps.note_head') + '<br>' + lines.join('<br>')
-      + T('ps.table', {geom: psAll[0].p.geometry_source}));
+    // строки «Геометрия: …» и «Таблица: data/… (tools/…)» в подвалах сняты
+    // решением куратора 24.10.2026 («Убрать обе строки»)
+    notes.push(T('ps.note_head') + '<br>' + lines.join('<br>'));
   }
 
   // сопротивление: КОГДА, КТО и ЧЕМ ПОДТВЕРЖДЕНО. Выступление, удержавшее
@@ -2863,7 +2869,7 @@ async function renderHistory() {
       '<b>' + p.name_ru + '</b>' + (p.people ? ' · ' + p.people : ''),
       T('hist.since', {when: dmy(t0)}) + ' ' + T('hist.till', {when: dmy(parseKey(p.to))})
         + ' · ' + p.kind_ru + ': ' + p.event + held,
-      T('conf', {source: p.source, conf: p.confidence}));
+      T('conf', {source: p.source, conf: confRu(p.confidence)}));
   }
   if (uprAll.length)
     notes.push(T('upr.note_head', {n: uprAll.length}) + '<br>'
@@ -2894,8 +2900,7 @@ async function renderHistory() {
           return dmy(parseKey(p.date)) + ' — ' + p.people_ru
             + (p.people_count ? ', ' + p.people_count : '')
             + '<br><span style="color:#7d8791">' + p.decree + '</span>';
-        }).join('<br>')
-      + T('dep.table'));
+        }).join('<br>'));
 
   // ликвидированные автономии: у народа отняли не землю, а субъектность
   for (const f of (hist.aut || [])) {
@@ -2918,8 +2923,7 @@ async function renderHistory() {
                                  : T('aut.not_restored'))
             + (p.note ? '<br><span style="color:#7d8791">' + p.note + '</span>'
                       : '');
-        }).join('<br>')
-      + T('aut.table'));
+        }).join('<br>'));
 
   for (const r of [prev, cur, next])
     if (r && r.loss) {

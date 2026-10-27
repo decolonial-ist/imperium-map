@@ -69,6 +69,9 @@ CITY_LANG = {'Ukraine': 'NAME_UK', 'Russia': 'NAME_RU', 'Belarus': 'NAME_RU',
 
 def build(domain_id):
     dom = json.load(open(os.path.join(DOM, domain_id + '.json'), encoding='utf-8'))
+    if dom.get('manual_stops'):
+        print('%-11s подписи не нужны (шаги заданы руками) - пропуск' % domain_id)
+        return
     b = dom['bbox']
     pw = min((b[2] - b[0]) * CLIP_PAD, CLIP_MAX_DEG)
     ph = min((b[3] - b[1]) * CLIP_PAD, CLIP_MAX_DEG)

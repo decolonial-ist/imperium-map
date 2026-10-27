@@ -18,9 +18,11 @@
   Балтия, Польша, Грузия, Армения, Азербайджан, Горская республика и эмират
   Узун-Хаджи, Алаш-Орда, Хива и Бухара, Танну-Тува, Крымская народная
   республика, Башкирское правительство, Бессарабия у Румынии, Кубанская
-  народная республика (01.1918-07.11.1919) и Сибирь в окно самостоятельности
-  (04.07-18.11.1918), а также германская оккупация (это не империя, а другая
-  держава). Такие окна ВЫЧИТАЮТСЯ из контура - чёрное на карте;
+  народная республика (01.1918-07.11.1919), а также германская оккупация (это
+  не империя, а другая держава). Такие окна ВЫЧИТАЮТСЯ из контура - чёрное на
+  карте. Сибирь в «окно самостоятельности» 04.07-03.11.1918 сюда больше НЕ
+  входит (куратор, 30.09.2026): Временное сибирское правительство - белые,
+  декларация сама ставит целью «воссоздание российской государственности»;
 - `in` - территорию держала другая ФРАКЦИЯ ИМПЕРИИ: Комуч, Колчак, Деникин и
   ВСЮР, Врангель, Краснов, Северная область, Семёнов, ДВР, Дутов, интервенция
   с русской белой администрацией. Геометрию такие окна НЕ режут (красное
@@ -130,6 +132,7 @@ SLICES = zt.load('SLICES')
 # НСР - 08.10.1920 (Бухара взята 02.09.1920). В CShapes с 18.03.1921 обе внутри.
 KHIVA_REG = ('Uzbekistan', ['Khorezm', 'Karakalpakstan'])
 KHIVA_TM = ('Turkmenistan', ['Tashauz'])
+KHIVA_LAP = 0.005   # нахлёст Хивы на основу, градусы (шаг упрощения кусков preclip.SIMP)
 CENTRAL_ASIA_ADMINS = ['Uzbekistan', 'Turkmenistan', 'Tajikistan', 'Kyrgyzstan',
                        'Kazakhstan']
 
@@ -184,7 +187,7 @@ WEST_IN_WINDOWS = [(('Ukraine', ['Volyn', 'Rivne', "Khmel'nyts'kyy",
 # Занятое противником считается той же моделью по той же таблице якорей
 # (data/crosscheck/ww1_cities.csv) на день перемирия и вычитается из основы
 WW1_HANDOFF = date(1918, 2, 18)
-WW1_FRONT_DAY = date(1917, 12, 2)      # ст. ст.: перемирие, фронт стоит
+WW1_FRONT_DAY = date(1917, 12, 15)     # перемирие 15.12.1917 (02.12 ст. ст.); якоря ww1_cities.csv - в новом стиле с 30.09.2026
 _west = {}
 
 
@@ -381,17 +384,54 @@ def ne_union(group):
     else:
         sel = ne_pick(spec[0], spec[1], spec[2] if len(spec) > 2 else None)
     g = unary_union([shape(f['geometry']).buffer(0) for f in sel])
-    if group == 'BASHKIR_SMALL':
-        # (кусок с берегом режется ниже, после рамки)
-        # рамка «Малой Башкирии»: юго-восток республики, Уфа (54.74 с.ш.,
-        # 55.97 в.д.) остаётся вне вычитания - её держали Комуч и Колчак,
-        # то есть имперская фракция. Рамка координатная, как вычитания
-        # Кавказа в tools/build_expansion.py, а не историческая граница.
-        g = g.intersection(box(55.5, 50.5, 61.0, 54.5))
     # берег один раз (v4, 27.09.2026): регион режется маской суши OSM и
     # кэшируется куском - срез из таких кусков на шаг берега не идёт
     _ne_cache[group] = preclip.piece('reg', f'zones:{group}', g)
     return _ne_cache[group]
+
+
+CUT_BUF = 0.02   # припуск вычитания: щели основы CShapes у границ Natural Earth
+CUT_IN = 0.005   # припуск вычитания внутрь той же страны
+
+
+def _admin_union(admin):
+    k = '__admin:' + admin
+    if k not in _ne_cache:
+        _ne_cache[k] = unary_union([shape(f['geometry']).buffer(0) for f in ne_feats()
+                                    if f['properties'].get('admin') == admin])
+    return _ne_cache[k]
+
+
+def cut_geom(group):
+    """Что вычитает окно: регион с припуском CUT_BUF наружу.
+
+    Припуск снимает щели основы CShapes вдоль границ стран Natural Earth. Внутрь
+    той же страны он не заходит (10.10.2026): иначе вычитание остатка германской
+    зоны Беларуси откусывало 2 км от уже освобождённой Дриссы (check_cities,
+    Верхнедвинск 1918-11-29), и такая полоса шла по каждой границе между
+    ступенями ухода и по каждому окну, которое режет часть страны."""
+    k = '__cut:' + group
+    if k in _ne_cache:
+        return _ne_cache[k]
+    g = ne_union(group)
+    c = g.buffer(CUT_BUF)
+    if '__tree' not in _ne_cache:
+        from shapely.strtree import STRtree
+        gs = [shape(f['geometry']).buffer(0) for f in ne_feats()]
+        _ne_cache['__tree'] = (STRtree(gs), gs, [f['properties'].get('admin') for f in ne_feats()])
+    tree, gs, adm = _ne_cache['__tree']
+    hosts = sorted({adm[i] for i in tree.query(g, predicate='intersects')
+                    if gs[i].intersection(g).area > 0.01 * g.area})
+    rest = [_admin_union(a).difference(g) for a in hosts]
+    rest = [r for r in rest if not r.is_empty]
+    if rest:
+        c = c.difference(unary_union(rest).buffer(-1e-6)).buffer(0)
+        # внутри страны - малый припуск CUT_IN: щели между сельсоветами и
+        # городами куска (Рыльск, Коренево в KURSK_OCC_1918) закрываются, в
+        # соседний кусок он заходит на 0,3-0,5 км, а не на 2 км
+        c = unary_union([c, g.buffer(CUT_IN)]).buffer(0)
+    _ne_cache[k] = c
+    return c
 
 
 def adds_geom(base):
@@ -407,8 +447,14 @@ def adds_geom(base):
         [shape(f['geometry']).buffer(0)
          for f in ne_pick(*KHIVA_REG) + ne_pick(*KHIVA_TM)])
     # дыры считаются по СЫРОЙ основе (у резаной основы разность с NE дала бы
-    # прибрежные полосы Каспия и Арала), а в срез идут кусками с берегом
-    _ne_cache['KHIVA'] = preclip.piece('reg', 'zones:KHIVA', hole.intersection(khiva_box))
+    # прибрежные полосы Каспия и Арала), а в срез идут кусками с берегом.
+    # Хива - с нахлёстом KHIVA_LAP на основу внутри своих областей (24.10.2026):
+    # тонкие полоски сырой основы у границы ханства кусок основы теряет при
+    # нарезке берегом, в дыру они не входят, и между основой и Хивой оставались
+    # клинья до 40 км (61,2/41,4 и 60,2/40,8, срезы 02-08.1920). Нахлёст ложится
+    # на красное основы, нового красного - только сами клинья (11 км²)
+    kh = hole.intersection(khiva_box).buffer(KHIVA_LAP, join_style=2).intersection(khiva_box)
+    _ne_cache['KHIVA'] = preclip.piece('reg', 'zones:KHIVA', kh)
     _ne_cache['BUKHARA'] = preclip.piece('reg', 'zones:BUKHARA', hole.difference(khiva_box))
 
 
@@ -505,9 +551,11 @@ def build(sl, base, base_raw):
     day = d(sl['key'])
     geom = base
     unions = []                                 # что приливается: для швов
+    cuts = []                                   # что вычтено: для сирот
     for group in sl.get('minus', []):
         before = geom.area
-        geom = geom.difference(ne_union(group).buffer(0.02))
+        cuts.append(cut_geom(group))
+        geom = geom.difference(cuts[-1])
         log.append(f'минус {group} (посрезово): {before:.0f} -> {geom.area:.0f} град²')
     fronts, fronts_why = [], []
     for w in active_windows(day):
@@ -517,7 +565,8 @@ def build(sl, base, base_raw):
         # их геометрию режет посрезовый `minus` (украинский театр).
         if w['cut']:
             before = geom.area
-            geom = geom.difference(ne_union(w['group']).buffer(0.02))
+            cuts.append(cut_geom(w['group']))
+            geom = geom.difference(cuts[-1])
             if before - geom.area > 0.5:
                 log.append(f'окно {w["group"]} (вне империи): {before:.0f} -> '
                            f'{geom.area:.0f} град²')
@@ -536,8 +585,11 @@ def build(sl, base, base_raw):
     for a in ADDS:
         if day >= d(a['frm']):
             adds_geom(base_raw)
-            geom = unary_union([geom, _ne_cache[a['name']]])
-            unions.append(_ne_cache[a['name']])
+            # Хива и Бухара - дыры основы (adds_geom), прочие - регион таблицы
+            # zones_regions.csv (12.10.2026: Урга 1921, MONG_URGA)
+            g_add = _ne_cache.get(a['name']) or ne_union(a['name'])
+            geom = unary_union([geom, g_add])
+            unions.append(g_add)
             added.append(a['name'])
     if added:
         log.append(f'добавлены {", ".join(added)}: площадь {geom.area:.0f} град²')
@@ -587,6 +639,15 @@ def build(sl, base, base_raw):
              # гарнизоны в Персии - отдельные мелкие части (Энзели 0,032 град²,
              # 1920-1921): не крошки вычитаний (разбор чекеров 28.09.2026)
              or (not pers.is_empty and pers.contains(g.representative_point()))]
+    # острова-сироты (10.10.2026): мелкий остров основы, чей материк ушёл
+    # окном вне империи, оставался красным один в море (островок у Хатанги,
+    # 0,15 км², срезы 1917-12-25..1921) - правило build_expansion.drop_orphans
+    if cuts and geoms:
+        g_, orph = be.drop_orphans(unary_union(geoms), unary_union(cuts),
+                                   [pers] if not pers.is_empty else [])
+        if orph:
+            geoms = preclip.polys_list(g_)
+            log.append(f'острова-сироты у вычитаний: {orph:.1f} км²')
     fc = {'type': 'FeatureCollection', 'coast': 'pieces', 'features': [{
         'type': 'Feature',
         'geometry': gc.clean_rings(mapping(g)),

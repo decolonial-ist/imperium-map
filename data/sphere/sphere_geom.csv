@@ -9,7 +9,7 @@ ALB,cs:339,
 YUG,cs:345,
 FIN,cs:375,
 AUT-SU,ne1:Austria:Niederösterreich|Burgenland|Wien,
-IRN-SU,file:iran/soviet_zone_1941-1946.geojson,"советская зона Ирана 1946 года: вся и без округов Мешхеда, Шахруда,
+IRN-SU,file:iran/soviet_zone_1941-1946.geojson,"советская зона Ирана 1946 года: вся и без Хорасана, Шахруда,
 Семнана (выведены к 25.03.1946)"
 IRN-SU-W,file:iran/soviet_zone_1941-1946.geojson#main,
 MNG,cs:712,Азия
@@ -71,3 +71,5 @@ BKH-DZ,file:central_asia/bukhara_emirate.geojson#darvaz,
 BKH-WP,file:central_asia/bukhara_emirate.geojson#wpamir,
 KHV,file:central_asia/khiva_khanate.geojson,
 URY,ne1:Russia:Tuva,
+MDA-1834,file:occ10/occ10_md_w.geojson,"Молдавское княжество без Бессарабии (регион OCC10_MD_W), 1834-1836"
+WAL-1834,file:occ10/wallachia_1834_1836.geojson,"Валашское княжество: Мунтения, Олтения, Браилов (регионы OCC10_*), 1834-1836"

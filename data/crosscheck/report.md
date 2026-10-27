@@ -15,15 +15,15 @@
 
 | место | дата | ожидание источника | наша карта | вердикт | чем ответили | источник ожидания |
 | --- | --- | --- | --- | --- | --- | --- |
-| Варшава | 1918-06-01 | germans | not_empire | match | реконструкция 1918-04-18: вне империи | факт германской оккупации с 08.1915 + Брестский мир 03.03.1918 |
+| Варшава | 1918-06-01 | germans | not_empire | match | реконструкция 1918-04-22: вне империи | факт германской оккупации с 08.1915 + Брестский мир 03.03.1918 |
 | Варшава | 1940-01-01 | germans | - | no-data | срез ядра 1939-09-17: точка вне контура | оккупация Германией с 09.1939, Генерал-губернаторство |
 | Луцк | 1939-10-15 | bolsheviks | sovrus | match | срез ядра 1939-09-17 | советская оккупация Западной Украины с 17.09.1939, аннексия оформлена 01.11.1939 |
 | Львов | 1940-01-01 | bolsheviks | sovrus | match | срез ядра 1939-09-17 | советская оккупация с 22.09.1939, Львовская область УССР с 04.12.1939 |
 | Харьков | 1917-12-26 | bolsheviks | not_empire | hard-divergence | реконструкция 1917-12-25: вне империи | draft_events.csv 1917-12-25 took_city (confidence high) |
 | Киев | 1918-02-09 | bolsheviks | in_empire | match | реконструкция 1918-02-08 | draft_events.csv 1918-02-08 took_city (confidence high) |
 | Киев | 1918-03-02 | germans | not_empire | match | реконструкция 1918-03-02: вне империи | draft_events.csv 1918-03-01 took_city (confidence high) |
-| Одесса | 1918-12-11 | directory | not_empire | match | реконструкция 1918-11-18: вне империи | draft_events.csv 1918-12-10 took_city (confidence high) |
-| Киев | 1918-12-15 | directory | not_empire | match | реконструкция 1918-11-18: вне империи | draft_events.csv 1918-12-14 took_city (confidence high) |
+| Одесса | 1918-12-11 | directory | not_empire | match | реконструкция 1918-12-09: вне империи | draft_events.csv 1918-12-10 took_city (confidence high) |
+| Киев | 1918-12-15 | directory | not_empire | match | реконструкция 1918-12-09: вне империи | draft_events.csv 1918-12-14 took_city (confidence high) |
 | Харьков | 1919-01-04 | bolsheviks | in_empire | match | реконструкция 1919-01-03 | draft_events.csv 1919-01-03 took_city (confidence high) |
 | Киев | 1919-02-06 | bolsheviks | in_empire | match | реконструкция 1919-02-06 | draft_events.csv 1919-02-05 took_city (confidence high) |
 | Луганск | 1919-05-28 | whites | in_empire | match | реконструкция 1919-05-27 | draft_events.csv 1919-05-27 took_city (confidence high) |

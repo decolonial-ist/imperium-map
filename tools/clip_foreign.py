@@ -131,7 +131,16 @@ def relevant(foreign):
     global _RELEVANT
     if _RELEVANT is None:
         _RELEVANT = []
-        for a in BE.ADDS:
+        # 12.10.2026: кроме приобретений ядра - поздние правки `add` (late_edits.csv)
+        # и добавления слоя зон 1917-1921 (zones_adds.csv) с регионом ядра: иначе
+        # обрезка срезала Ургу 1921 года (Монголия в списке чужих стран)
+        extra = [{'reg': spec[1], 'name': name, 'frm': frm, 'to': to or ''}
+                 for op, spec, frm, to, name, why in BE.LATE_EDITS
+                 if op == 'add' and spec[0] == 'reg']
+        import zones_tables as _zt
+        extra += [{'reg': z['name'], 'name': z['name'], 'frm': z['frm'], 'to': '1921-03-18'}
+                  for z in _zt.load('ADDS') if z['name'] not in ('KHIVA', 'BUKHARA')]
+        for a in list(BE.ADDS) + extra:
             try:
                 g = BE.reg_geom(a['reg'])
             except Exception:                                   # noqa: BLE001

@@ -84,13 +84,28 @@ ART_R = 0.0015         # раскрытие: в зоне уходит суша �
 # часть Днепровско-Бугского лимана, но береговая линия проведена ниже по течению,
 # и маска считала его сушей (рекой): красное легло на воду лимана. Залив берётся
 # морем там, где под ним вода OSM (SEA_EXTRA: отношение залива, отношение воды).
-SEA_EXTRA = [('bug_liman', 9953396, 12380714)]
+# Кара-Богаз-Гол (10.10.2026): залив - море, а маска считала его сушей (клетки
+# LN), и заливка швов возвращала его в красное по клеткам 1° - на срезах
+# 1886-1917 по краям дыры шли оси по 53,0° в. д., 41,0 и 42,0° с. ш.
+# (WORKFILES/kb-steps/geom_1010/g4_1900). Вода - OSM relation 3202653.
+SEA_EXTRA = [('bug_liman', 9953396, 12380714), ('kara_bogaz', 3202653, 3202653)]
 PAD = 0.02             # запас за край клетки при упрощении маски
 G = 0.05               # зазор у красного, градусы (Анадырь - 0,049° по долготе)
 G_ISLE = 0.1           # остров целиком ближе этого к красному - красный (Котлин)
 CAP_KM2 = 1500.0       # кусок крупнее - не зазор
 EPS = 1e-7
-PARAMS = {'simp': SIMP, 'isle': ISLE_KM2, 'g': G, 'g_isle': G_ISLE, 'cap': CAP_KM2, 'v': 4}
+# Швы-щели между красными соседями (10.10.2026): дыра внутри красного, тонкая
+# (компактность 4piA/P^2 < THIN_COMP) и не крупнее THIN_KM2, большей частью на
+# суше OSM, - не граница, а зазор между основами разных эпох: на срезе
+# 1945-09-03 тонкие чёрные нити шли по границе Польши с Беларусью (248 км²) и
+# с Украиной у Устриков (104), между Приморьем и Маньчжурией (425), по Араксу
+# (188); на 1929-1931 - между Коми и Ненецким округом (732). Суша дыры
+# заливается (вода под ней остаётся), чужие границы - как в шаге 3. Озёра NE
+# не трогаются. Розыск: WORKFILES/kb-steps/geom_1010/thin_holes.txt
+THIN_COMP = 0.06
+THIN_KM2 = 3000.0
+PARAMS = {'simp': SIMP, 'isle': ISLE_KM2, 'g': G, 'g_isle': G_ISLE, 'cap': CAP_KM2, 'v': 5,
+          'thin': [THIN_COMP, THIN_KM2]}
 
 _M = {}
 
@@ -565,6 +580,76 @@ def coast_fc(fc, key, foreign=True, cells=None):
     return cut, fill, alien
 
 
+def fill_thin_holes(fc, key):
+    """Залить сушу тонких дыр внутри красного (швы между основами). -> км²."""
+    import math
+    import shapely
+    from shapely.geometry import Polygon, shape
+    from shapely.ops import unary_union
+    meta, keys, boxes, tree, kind, land, sea = mask()
+    if 'lakes' not in _M:
+        import geoclean as gc
+        _M['lakes'] = gc.lakes_mask(os.path.join(ROOT, 'cache'))
+    lakes = _M['lakes']
+    filled = 0.0
+    adds = {}
+    for j, f in enumerate(fc['features']):
+        if not f.get('geometry'):
+            continue
+        g = shape(f['geometry'])
+        for p in parts(g):
+            for r in p.interiors:
+                h = Polygon(r)
+                if not h.is_valid:
+                    h = h.buffer(0)
+                a = km2(h)
+                if a < 5 or a >= THIN_KM2 or not h.length:
+                    continue
+                if 4 * math.pi * h.area / h.length ** 2 >= THIN_COMP:
+                    continue
+                if lakes is not None and lakes.intersection(h).area > 0.3 * h.area:
+                    continue
+                seas = []
+                for i in tree.query(h):
+                    if kind[i] == 'S':
+                        seas.append(boxes[i])
+                    elif kind[i] == 'C' and sea[i] is not None:
+                        seas.append(sea[i])
+                hl = h.difference(unary_union(seas)).buffer(0) if seas else h
+                if hl.is_empty or km2(hl) < 0.5 * a:
+                    continue
+                adds.setdefault(j, []).append(hl)
+    if not adds:
+        return 0.0
+    import clip_foreign as cf
+    if 'f' not in _M:
+        _M['f'] = cf.foreign_geom()
+        cf.relevant(_M['f'])
+    zone = _M['f']
+    ex = cf.foreign_since_geom(cf.key_date(key))
+    if ex is not None:
+        zone = unary_union([zone, ex])
+    allowed, got = None, False
+    for j, cs in adds.items():
+        pc = unary_union(cs)
+        bleed = pc.intersection(zone)
+        if not bleed.is_empty and bleed.area > 1e-9:
+            if not got:
+                allowed, got = cf.allowed_at(cf.key_date(key), _M['f']), True
+            bad = bleed.difference(allowed) if allowed is not None else bleed
+            if not bad.is_empty:
+                pc = pc.difference(bad).buffer(0)
+        if pc.is_empty:
+            continue
+        filled += km2(pc)
+        g = shape(fc['features'][j]['geometry'])
+        g = unary_union([g, pc.buffer(2e-6, join_style=2)])
+        if not g.is_valid:
+            g = g.buffer(0)
+        fc['features'][j]['geometry'] = g.__geo_interface__
+    return filled
+
+
 def stamp(k):
     st = os.stat(os.path.join(YEARS, k + '.geojson'))
     return [st.st_mtime_ns, st.st_size]
@@ -578,9 +663,14 @@ def coast_key(args):
         fc = json.load(f)
     if fc.get('coast') == 'pieces':
         # срез собран из кусков, обрезанных маской заранее (v4, 27.09.2026):
-        # берег уже тот же, резать нечего
-        return k, 0.0, 0.0, 0.0, stamp(k), time.perf_counter() - t
+        # берег уже тот же, резать нечего; швы-щели - заливаются
+        thin = fill_thin_holes(fc, k)
+        if not dry and thin > 0:
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(fc, f, ensure_ascii=False)
+        return k, 0.0, thin, 0.0, stamp(k), time.perf_counter() - t
     cut, fill, alien = coast_fc(fc, k)
+    fill += fill_thin_holes(fc, k)
     if not dry and (cut > 0 or fill > 0):
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(fc, f, ensure_ascii=False)

@@ -120,6 +120,7 @@ def _slice_keys():
     keys += ['1945-07-06',    # западная Саксония и Тюрингия переданы в советскую зону (25.06-06.07)
              '1945-07-24',    # Штирия - британская зона
              '1945-08-08',    # Мюльфиртель - советская зона с 01.08
+             '1945-08-09',    # война с Японией: Монголия красная (12.10.2026)
              '1945-09-25',    # уход из Финнмарка
              '1945-12-01']    # вывод войск из Чехословакии (FRUS 1945, т. IV, d504-d505)
     return sorted(set(keys))
@@ -167,7 +168,7 @@ EXTRA_SRC = w2t.load('EXTRA_SRC')
 # среза (slice_sigs.named_inputs) видела их правку.
 CUTS = w2t.load('CUTS')
 CUT_FILES = ('cut_west_berlin_1945.geojson', 'cut_west_vienna_1945.geojson',
-             'cut_muehlviertel_1945.geojson')
+             'cut_muehlviertel_1945.geojson', 'cut_us_zone_cz_1945.geojson')
 
 # ---- куски, которые считаются не полем, а прямым списком -------------------
 # Изолированные театры, где якорей мало, а границы известны точно.
@@ -188,17 +189,53 @@ def clip(g, lon0=-1e3, lat0=-1e3, lon1=1e3, lat1=1e3):
     return g.intersection(box(lon0, lat0, lon1, lat1))
 
 
+
+# острова Хабомаи (Зелёный, Юрий, Танфильева, Анучина, Полонского и мелкие): к востоку
+# от Кунашира и к югу от Шикотана
+HABOMAI_BOX = box(145.75, 43.15, 146.5, 43.67)
+
 def extra_geom(eid):
     """Геометрия изолированного театра (считается лениво)."""
     if eid in _g:
         return _g[eid]
     if eid == 'FINNMARK':
-        g = clip(ne('Norway', ['Finnmark']), lon0=28.8)
+        # 10.10.2026: вместо меридиана 28.8° в. д. (красил Вадсё, Вардё,
+        # Бётсфьорд, Берлевог и восток Несебю, где советских гарнизонов не
+        # было) - коммуна Сёр-Варангер по OSM (relation 406510, граница не
+        # менялась с 1858 года): войска «som ligger i Sör-Varanger» выведены
+        # 25.09.1945 (Finnmarken, Vadsø, 25.09.1945, s. 2). Розыск:
+        # WORKFILES/kb-steps/proofs_1010/ww2_1945/REPORT.md
+        with open(os.path.join(DATA, 'ww2', 'finnmark_1944-1945.geojson'),
+                  encoding='utf-8') as fh:
+            g = unary_union([shape(f['geometry']).buffer(0)
+                             for f in json.load(fh)['features']])
     elif eid == 'BORNHOLM':
         g = clip(ne('Denmark', ['Hovedstaden']), 14.5, 54.9, 15.3, 55.4)
-    elif eid == 'MANCHURIA':
-        g = unary_union([ne('China', ['Heilongjiang', 'Jilin', 'Liaoning']),
-                         clip(ne('China', ['Inner Mongol']), lon0=111.5)])
+    elif eid in ('MANCHURIA', 'XILINGOL'):
+        # 10.10.2026: вместо меридиана 111.5° в. д. (рамка без документа: красила
+        # Хух-Хото, Уланчаб, Баотоу и Ордос, где советских войск не было, а Чэндэ
+        # оставляла чёрным) - Маньчжоу-го с Жэхэ по OHM и Квантун по OSM;
+        # Шилин-Гол с Долоннуром - отдельным окном до 09.10.1945. Розыск:
+        # WORKFILES/kb-steps/geom_1010/g2_1945/REPORT.md
+        fn = 'manchuria_1945.geojson' if eid == 'MANCHURIA' else 'xilingol_1945.geojson'
+        with open(os.path.join(DATA, 'ww2', fn), encoding='utf-8') as fh:
+            g = unary_union([shape(f['geometry']).buffer(0)
+                             for f in json.load(fh)['features']])
+    elif eid == 'MONGOLIA':
+        # 12.10.2026: куратор «крась!» - с начала войны с Японией (09.08.1945)
+        # армии Забайкальского фронта стоят на земле Монголии, её войска под
+        # командованием фронта; до 31.12.1945, дальше сфера. Граница - OSM.
+        with open(os.path.join(DATA, 'borders', 'mongolia_osm.geojson'),
+                  encoding='utf-8') as fh:
+            g = unary_union([shape(f['geometry']).buffer(0)
+                             for f in json.load(fh)['features']])
+    elif eid == 'LINZ_NORTH':
+        # 10.10.2026: Линц на левом берегу Дуная (Урфар) - советская зона по
+        # соглашению 09.07.1945; поле с шагом 0,05° Дунай в Линце не различает
+        with open(os.path.join(DATA, 'ww2', 'linz_north_1945.geojson'),
+                  encoding='utf-8') as fh:
+            g = unary_union([shape(f['geometry']).buffer(0)
+                             for f in json.load(fh)['features']])
     elif eid == 'KOREA_N':
         g = clip(unary_union([ne('North Korea'), ne('South Korea')]), lat0=38.0)
     elif eid == 'SAKHALIN_S':
@@ -220,6 +257,16 @@ def extra_geom(eid):
         with open(os.path.join(DATA, 'kurils', 'all.geojson')) as fh:
             g = unary_union([shape(f['geometry'])
                              for f in json.load(fh)['features']])
+        g = g.difference(HABOMAI_BOX)
+    elif eid == 'KURILS_HABOMAI':
+        # 10.10.2026: Хабомаи заняты 03-05.09.1945 («9月1日から9月5日までの間に
+        # 国後島、色丹島及び歯舞群島のすべてを占領» - Кабинет министров Японии,
+        # www8.cao.go.jp/hoppo/mondai/02.html); срез 03.09 красил их до занятия.
+        # Розыск: WORKFILES/kb-steps/proofs_1010/ww2_1945/REPORT.md
+        with open(os.path.join(DATA, 'kurils', 'all.geojson')) as fh:
+            g = unary_union([shape(f['geometry'])
+                             for f in json.load(fh)['features']])
+        g = g.intersection(HABOMAI_BOX)
     else:
         raise SystemExit(f'неизвестный кусок {eid}')
     # берег один раз (v4): кусок театра режется маской суши OSM и кэшируется
@@ -425,7 +472,8 @@ SOURCE = (
     '(Польша, Румыния, Болгария, Венгрия, Югославия, Чехословакия, Австрия, '
     'восточная Германия) - тем же полем внутри маски стран, куда Красная армия '
     'вошла; Финнмарк, Борнхольм, Маньчжурия, Северная Корея, Южный Сахалин и '
-    'Курилы - прямым списком (Natural Earth admin-1). Показ бинарный: военная '
+    'Курилы - прямым списком (Natural Earth admin-1; Финнмарк - коммуна '
+    'Сёр-Варангер по OSM). Показ бинарный: военная '
     'оккупация = имперский контроль = красное. Проверка - tools/check_ww2.py '
     'по data/crosscheck/ww2_cities.csv')
 

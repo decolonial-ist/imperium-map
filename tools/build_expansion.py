@@ -97,6 +97,73 @@ CACHE = bd.CACHE
 
 SIMPLIFY = 0.005    # ~0.5 км: на 0.02 упрощение утапливало приморские города
 DIGITS = 3
+MIN_PART = 1e-5     # порог мелочи, град² (~0,1 км², как ISLE_KM2 маски)
+ISLE_PP = 0.2       # компактность 4πS/P² острова; у обрезка вычитания меньше
+
+
+def simplify_keep_isles(geom, tol=SIMPLIFY):
+    """Упростить срез и вернуть острова, которые упрощение раздавило.
+
+    Упрощение с сохранением топологии не даёт частям наползать друг на друга и
+    сплющивает островок рядом с соседями: Свеаборг (Суоменлинна) у Гельсингфорса
+    из 0,26 км² становился 0,05 км² и уходил под порог мелочи MIN_PART - на
+    одних срезах 1815-1918 годов крепость была, на других нет (10.10.2026,
+    check_losses_pre20). Часть крупнее порога, от которой после упрощения не
+    осталось ничего крупнее порога, возвращается неупрощённой - если она
+    компактна, как остров (обрезки вычитаний вытянуты и так не возвращаются)."""
+    import math
+    import preclip
+    s = geom.simplify(tol)
+    if not s.is_valid:
+        s = s.buffer(0)
+    from shapely.strtree import STRtree
+    big = STRtree([p for p in preclip.polys_list(s) if p.area > MIN_PART])
+    lost = []
+    for p in preclip.polys_list(geom):
+        if p.area <= MIN_PART or 4 * math.pi * p.area / p.length ** 2 < ISLE_PP:
+            continue
+        if not len(big.query(p, predicate='intersects')):
+            lost.append(p)
+    if lost:
+        s = unary_union([s] + lost)
+        if not s.is_valid:
+            s = s.buffer(0)
+    return isles_to_land(s)
+
+
+ISLE_FIX_DEG2 = 2e-3   # ~5-20 км²: мелкие части, которые сверяются с маской
+ISLE_WET = 0.5         # доля моря маски, с которой часть заменяется сушей
+
+
+def isles_to_land(geom):
+    """Мелкую часть, которую упрощение раздуло в море, заменить сушей маски.
+
+    Барьерные острова у северного берега Аляски (0,2 км² суши) после упрощения
+    до 0,005° на 80 % лежали в море - check_sea_crumbs 10.10.2026, 87 срезов
+    1799-1866. Часть мельче ISLE_FIX_DEG2, у которой больше ISLE_WET площади в
+    море маски OSM, заменяется её пересечением с сушей маски (без упрощения)."""
+    import preclip
+    import coast_osm as co
+    meta, keys, boxes, tree, kind, land, sea = co.mask()
+    out, changed = [], False
+    for p in preclip.polys_list(geom):
+        if p.area >= ISLE_FIX_DEG2:
+            out.append(p)
+            continue
+        idx = [int(i) for i in tree.query(p, predicate='intersects')]
+        wet = sum(p.intersection(boxes[i] if kind[i] == 'S' else sea[i]).area
+                  for i in idx if kind[i] == 'S' or (kind[i] == 'C' and sea[i] is not None))
+        if wet <= ISLE_WET * p.area:
+            out.append(p)
+            continue
+        changed = True
+        dry = preclip.polys(unary_union([p.intersection(land[i]) for i in idx
+                                         if kind[i] != 'S' and land[i] is not None]))
+        out.extend(q for q in preclip.polys_list(dry) if q.area > MIN_PART)
+    if not changed:
+        return geom
+    g = unary_union(out)
+    return g if g.is_valid else g.buffer(0)
 
 
 def d(s):
@@ -142,6 +209,51 @@ SUB_BUF = 0.005
 # в воде (check_sea_crumbs: северные Курилы и Чукотка у 180-го меридиана).
 # Поэтому здесь запас прежний, 0,05°: он ничего живого не режет
 LATE_SUB_BUF = 0.05
+
+# Острова-сироты (10.10.2026). Основы раннего окна (historical-basemaps,
+# атласы) рисуют берег и острова по-своему, а вычитания идут по суше NE и OSM.
+# Остров или береговой кусок основы, который чуть мимо маски вычитания,
+# переживал вычитание и висел красной крошкой за сотни километров от империи:
+# островок у Таймыра 1632-1917, острова Обской губы 1500-1885, 735 км² у мыса
+# Наварин 1783-1917 (мимо Чукотки NE), лента по Енисею в Хакасии 1600-1700,
+# Курилы до 1799, Сахалин до 1857, Посьет до 1859. Правило: кусок меньше
+# ORPHAN_KM2, который ближе ORPHAN_NEAR к действующему вычитанию и дальше
+# ORPHAN_NEAR от кусков крупнее ORPHAN_KM2, - остаток вычтенной земли.
+# Не трогаются куски внутри действующей оккупации и внутри приобретения
+# площадью меньше 5 град² (острова и крепости своей строкой: Соловки, Керчь).
+# Розыск: WORKFILES/kb-steps/geom_1010/orphans_eval2.txt
+ORPHAN_KM2 = 2000.0
+ORPHAN_NEAR = 0.3
+
+
+def drop_orphans(geom, cut, keep):
+    """-> (geom без сирот, снятые км²). cut - объединение действующих
+    вычитаний, keep - список геометрий, которые не трогать."""
+    if geom is None or geom.is_empty or cut is None or cut.is_empty:
+        return geom, 0.0
+    parts = list(geom.geoms) if geom.geom_type == 'MultiPolygon' else [geom]
+
+    def km2(p):
+        return p.area * 111.32 ** 2 * math.cos(math.radians(p.centroid.y))
+    big = [p for p in parts if km2(p) >= ORPHAN_KM2]
+    if not big:
+        return geom, 0.0
+    big_u = unary_union(big)
+    left, gone = [], 0.0
+    for p in parts:
+        a = km2(p)
+        if (a < ORPHAN_KM2 and p.distance(cut) <= ORPHAN_NEAR
+                and p.distance(big_u) > ORPHAN_NEAR
+                and not any(k.intersects(p) for k in keep)):
+            gone += a
+            continue
+        left.append(p)
+    return (unary_union(left) if gone else geom), gone
+
+
+def orphan_keep(adds):
+    return [g for a, g in ((a, reg_geom(a['reg'])) for a in adds)
+            if a['kind'] == 'оккупация' or g.area < 5]
 
 
 def A(reg, frm, name, act, src, to=None, clip=None, kind='территория'):
@@ -871,8 +983,8 @@ SRC.update({k: ('cs', v) for k, v in bd.CSHAPES_SLICES.items()
 # Московского княжества не знает вовсе (его место занимает «Blue Horde») -
 # тот же класс дефекта, что у world_1930. Поэтому основой окна 1450-1492 взят
 # КОНТУР 1492 ГОДА, из которого вычитается то, чего у Москвы на дату ещё нет:
-# новгородская земля до 15.01.1478, Вологда с Заозерьем до 11.08.1471, Тверь
-# до 12.09.1485, Вятка до 16.08.1489 (SUBS выше). Приобретения этого окна
+# новгородская земля до 24.01.1478, Вологда с Заозерьем до 20.08.1471, Тверь
+# до 21.09.1485, Вятка до 25.08.1489 (SUBS выше). Приобретения этого окна
 # обрезаны контуром 1492 г. (clip='1492'), поэтому срезы 1492 и 1500 годов от
 # правки не поменялись ни на градус.
 SRC['1450'] = ('none', None)
@@ -1061,22 +1173,23 @@ def build(key):
         before = geom.area
         geom = geom.difference(cut)
         log.append(f'- вычитания: {before:.0f} -> {geom.area:.0f} град²')
+        geom, orph = drop_orphans(preclip.polys(geom), cut, orphan_keep(adds))
+        if orph:
+            log.append(f'- острова-сироты у вычитаний: {orph:.0f} км²')
     # v4: щели до берега между кусками (клетки маски, где сходятся границы двух
     # и более кусков) - заливка по объединению, как раньше по целому срезу
     geom = preclip.polys(geom)
     geom, seams = preclip.fill_seams(geom, key, preclip.seam_cells(pieces))
     if seams:
         log.append(f'+ швы между кусками: залито {seams:.0f} км²')
-    geom = geom.simplify(SIMPLIFY)
-    if not geom.is_valid:
-        geom = geom.buffer(0)
+    geom = simplify_keep_isles(geom)
     # v4 (27.09.2026): куски уже обрезаны маской суши OSM и достроены до берега,
     # поэтому чистка по Natural Earth (clip_to_land, drop_sea_parts,
     # drop_thin_parts, despeckle) выключена - она снимала бы настоящие острова
     # OSM, которых у NE нет. Порог мелочи - 1e-5 град² (~0,1 км², как ISLE_KM2
     # маски): мельче только обрезки упрощения и вычитаний.
     geoms = [g for g in (list(geom.geoms) if geom.geom_type == 'MultiPolygon'
-                         else [geom]) if g.area > 1e-5]
+                         else [geom]) if g.area > MIN_PART]
     geoms, crumbs = drop_sub_crumbs(geoms, cuts, occ, adds)
     if crumbs:
         log.append(f'- крошки между вычитаниями: {crumbs}')
@@ -1114,7 +1227,7 @@ def build(key):
                    'ещё или уже нет. Приобретения приближены современными '
                    'административными единицами (Natural Earth admin-1), '
                    'кроме Русской Америки - её контур берём из среза источника '
-                   '1815 г. Даты актов по старому стилю, как в ПСЗРИ. '
+                   '1815 г. Даты - по новому стилю (с 27.09.2026), старый стиль в скобках. '
                    'Собрано tools/build_expansion.py, проверка - '
                    'tools/check_expansion.py по data/crosscheck/expansion.csv'),
     }
@@ -1205,7 +1318,7 @@ def build_delta(key, fc, rows, sub_rows=()):
             g = g.intersection(src_geom(a['clip']))
         if a['kind'] != 'оккупация' and subcut is not None:
             g = g.difference(subcut)
-        g = g.simplify(SIMPLIFY).buffer(0)
+        g = simplify_keep_isles(g)
         before = geom.area
         geom = unary_union([geom, g]).buffer(0)
         names.append(a['name'])
@@ -1236,8 +1349,13 @@ def build_delta(key, fc, rows, sub_rows=()):
         geom = geom.difference(cut).buffer(0)
         names.append('-' + x['name'])
         log.append(f'-Δ {x["name"]}: {before:.0f} -> {geom.area:.0f} град²')
+    # острова-сироты: дельта доливает куски основы (fill_source_gaps) - снять
+    # их тем же правилом, что в build()
+    geom, orph = drop_orphans(preclip.polys(geom), subcut, orphan_keep(adds))
+    if orph:
+        log.append(f'-Δ острова-сироты у вычитаний: {orph:.0f} км²')
     geoms = [g for g in (list(geom.geoms) if geom.geom_type == 'MultiPolygon' else [geom])
-             if g.area > 1e-5]
+             if g.area > MIN_PART]
     geom = unary_union(geoms)
     if not geom.is_valid:
         geom = geom.buffer(0)
@@ -1867,9 +1985,9 @@ def update_manifest(written):
     mf['note_resistance'] = (
         'показ бинарный (правило куратора 19.08.2026): территория, где идёт '
         'война за контроль, в контур не входит, сколько бы актов ни было '
-        'подписано. Горная Чечня южнее Терека - до 19.08.1859, горный '
-        'Дагестан - до 25.08.1859 (сдача Шамиля у Гуниба), левобережье Кубани '
-        '- до 21.05.1864. Даты и пруфы из базы кампаний decolonial.ist '
+        'подписано. Горная Чечня южнее Терека - до 31.08.1859, горный '
+        'Дагестан - до 06.09.1859 (сдача Шамиля у Гуниба), левобережье Кубани '
+        '- до 02.06.1864 (даты по новому стилю; в базе кампаний они по старому: 19.08, 25.08.1859, 21.05.1864). Даты и пруфы из базы кампаний decolonial.ist '
         '(data/campaigns/*.json), список RESIST в tools/build_expansion.py, '
         'разбор - data/crosscheck/control_vs_act.csv')
     with open(path, 'w', encoding='utf-8') as f:

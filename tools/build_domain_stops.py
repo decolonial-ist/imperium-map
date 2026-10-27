@@ -125,6 +125,11 @@ def key_to_iso(key):
 
 def build(domain_id, thresh_arg, quiet=False):
     dom = load(os.path.join(DOM, domain_id + '.json'))
+    if dom.get('manual_stops'):
+        # шаги домена подобраны руками (empire: яркие шаги главной базы знаний)
+        if not quiet:
+            print('%-11s шаги заданы руками - пропуск' % domain_id)
+        return None
     region = shape(dom['geometry']).buffer(dom.get('stops_buffer_deg', 0.5))
     rprep = prep(region)
     b = region.bounds

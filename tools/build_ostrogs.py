@@ -107,6 +107,7 @@ def read_rows(path=SRC):
 # куратор расширил слой («Р3 вноси») - гражданское заселение отнятой земли
 # тоже точка, а не только гарнизон.
 import build_texts as _bt   # noqa: E402  (подписи - data/text/TEXTS.md)
+NO_RED_RULE = {'garrison'}   # гарнизоны внутри выреза: правило красной земли не действует
 KIND_WORD = _bt.labels('point.kind')   # подписи в data/text/TEXTS.md, ключи point.kind.*
 # ПРАВИЛО ОДНО ДЛЯ ВСЕХ ТИПОВ (куратор 25.09.2026). С 17.09 станица, село,
 # зимовье и уездная управа были изъяты из правила красного: горели от
@@ -132,7 +133,12 @@ def build(rows, skipped=None):
         # красного ещё нет. Предприятие, заведённое внутри давно занятой земли,
         # ничего про захват не говорит и только мельтешит на ползунке -
         # появилось и тут же погасло
-        red = red_from(lon, lat)
+        # ГАРНИЗОН ОККУПАЦИОННЫХ ВОЙСК (12.10.2026) - правило красной земли не
+        # действует: гарнизон стоит внутри выреза из красного (Ичкерия
+        # 1994-1996), а вырез делает страница по слою постсоветских эпизодов,
+        # срезы его не знают. По срезам земля вокруг Грозного красная с XIX
+        # века, и без исключения гарнизон не показался бы ни на одной дате.
+        red = None if kind in NO_RED_RULE else red_from(lon, lat)
         if red is not None and str(red) <= str(r['founded']):
             if skipped is not None:
                 skipped.append((r['name_ru'], KIND_WORD[kind],
@@ -156,7 +162,8 @@ def build(rows, skipped=None):
                 # заводов и факторий, а у крепостей - только там, где земля
                 # покраснела ПОЗЖЕ постройки; крепость, поставленная внутри
                 # уже красного, тоже светится всегда, иначе её нет вовсе.
-                'red_from': red_visible(kind, r['founded'], lon, lat),
+                'red_from': (None if kind in NO_RED_RULE
+                             else red_visible(kind, r['founded'], lon, lat)),
                 'lon': lon, 'lat': lat, 'radius_km': km,
                 'source': r['source'], 'note': r['note'],
                 'kind': kind, 'kind_ru': KIND_WORD[kind],

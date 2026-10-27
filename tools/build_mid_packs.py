@@ -53,7 +53,7 @@ from build_lite import TOL_MID_COAST as TOL_COAST  # noqa: E402
 Q = '1e6'                      # шаг сетки ~0,0004° на охвате империи
 BUDGET = 450 * 1024            # сжатыми; ~5 с на медленном 3G, фоном
 # эпохи - верхний уровень нарезки: внутри них даты делят дуги, на стыках нет
-ERAS = ['1914-07-19', '1922', '1992']
+ERAS = ['1914-08-01', '1922', '1992']
 PARAMS = {'tol': TOL, 'tol_coast': TOL_COAST, 'q': Q, 'budget': BUDGET, 'eras': ERAS, 'v': 2}
 
 
