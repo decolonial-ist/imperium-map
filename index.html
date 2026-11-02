@@ -153,6 +153,10 @@
     text-transform:uppercase; }
   body.embed #date { font-size:20px; min-width:104px; }
   body.embed #entity { display:none; }
+  #stepCap:empty { display:none; }
+  #stepCap { position:absolute; left:12px; bottom:108px; max-width:540px; max-height:38%; overflow:auto;
+    z-index:5; padding:8px 12px; border-radius:8px; background:rgba(15,19,25,.92); color:#e7ecf0;
+    font-size:14px; line-height:1.4; }
   #fullMap { margin-left:auto; font-size:11.5px; color:#b7c1ca; text-decoration:none;
     border:1px solid #39424e; border-radius:6px; padding:3px 8px; white-space:nowrap;
     flex:0 0 auto; }
@@ -198,6 +202,7 @@
     body.embed #bar { height:122px; }
     body.embed #satCtl { bottom:134px; }
     body.embed #legend { display:none; }          /* во встройке цвета объясняет страница */
+    #stepCap { bottom:134px; right:12px; max-width:none; }
 
     #fullMap { margin-left:auto; }
   }
@@ -753,6 +758,11 @@ async function bootEmbed() {
   }
   EMB = {b: bundle};
   EMBED.dom = bundle;
+  if (bundle.captions) {                     // шаги, отобранные руками: подпись видна сразу
+    const c = document.createElement('div');
+    c.id = 'stepCap';
+    document.body.appendChild(c);
+  }
   const steps = bundle.steps.filter(s => {
     const t = dayMs(s.d);
     return (EMBED.from === null || t >= EMBED.from || s === bundle.steps[0])
@@ -776,9 +786,16 @@ async function bootEmbed() {
       map.once('load', res);
       setTimeout(res, 6000);               // подложка молчит - рисуем без неё
     });
-    for (const id of ['by', 'sphere', 'core', 'core-outline', 'ostrog'])
+    for (const id of ['chri-border', 'ua-border', 'by', 'sphere', 'core', 'core-outline', 'ostrog'])
       if (!map.getSource(id)) map.addSource(id, {...GJ, data: EMPTY});
+    // Границы Украины (весь Крым) и Ичкерии - те же линии, что на полной карте:
+    // подложка держит их только обрывками (см. блок границ в полной загрузке).
+    const BORDER = {'line-color': '#68686c',
+      'line-width': ['interpolate', ['exponential', 1.2], ['zoom'],
+                     1, 0.8, 3, 1.1, 5, 1.6, 8, 2.4, 14, 5]};
     const L = [
+      ['chri-border-line', 'line', 'chri-border', BORDER],
+      ['ua-border-line', 'line', 'ua-border', BORDER],
       ['by-fill', 'fill', 'by', {'fill-color': '#d9553d', 'fill-opacity': 0.28}],
       ['by-line', 'line', 'by', {'line-color': '#c9584a', 'line-width': 1}],
       ['sphere-fill', 'fill', 'sphere', {'fill-color': '#d9553d', 'fill-opacity': 0.28}],
@@ -790,6 +807,9 @@ async function bootEmbed() {
     ];
     for (const [id, type, source, paint] of L)
       if (!map.getLayer(id)) map.addLayer({id, type, source, paint});
+    for (const [id, file] of [['chri-border', 'ichkeria'], ['ua-border', 'ukraine']])
+      DFETCH('data/borders/' + file + '_osm.geojson').then(r => r.json())
+        .then(fc => map.getSource(id).setData(fc)).catch(() => {});
     // клик уводит в полную карту на это же место и дату: попапу истории точки
     // нужны все слои разом, а встроенная карта живёт одним пакетом
     map.on('click', e => window.open(FULL_MAP_URL + '?d='
@@ -816,6 +836,7 @@ const asFC = g => g ? {type: 'FeatureCollection',
 function renderEmbed(t, fromPicker) {
   const step = stepAt(t).s;
   setLayer('core', asFC(step.red));        // заодно обновит обводку без шва 180°
+  if ($('stepCap')) $('stepCap').textContent = step.why;
   map.getSource('ostrog').setData(asFC(step.ostrog));
   map.getSource('sphere').setData(asFC(step.sphere));
   map.getSource('by').setData(asFC(step.by));
@@ -1255,6 +1276,7 @@ function dateFromUrl() {
 }
 
 function urlSetDate(t) {                  // адрес идёт за ползунком - можно копировать
+  if (EMBED) return;                      // ?embed= не терять: иначе перезагрузка откроет полную карту
   const d = new Date(t);
   const p = n => String(n).padStart(2, '0');
   const q = `?d=${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`;

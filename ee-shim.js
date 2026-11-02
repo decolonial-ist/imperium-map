@@ -374,7 +374,9 @@ class Map {
     // полуостров обведён ею, а не обрывками чужих заявок.
     for (const l of style.layers)
       if (l['source-layer'] === 'boundary' && l.type === 'line') {
-        const claim = ['!', ['has', 'claimed_by']];
+        // Морские границы не рисуем ни у кого (куратор 01.11.2026): в Азове они
+        // складывались в кольцо посреди воды.
+        const claim = ['all', ['!', ['has', 'claimed_by']], ['!=', ['get', 'maritime'], 1]];
         l.filter = l.filter ? ['all', l.filter, claim] : claim;
       }
     // Подписи российских единиц на чужой земле: в OSM рядом с «Автономна
