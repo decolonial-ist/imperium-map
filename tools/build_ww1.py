@@ -575,7 +575,7 @@ def slice_sig(key, anchors):
                  ss.sha_file(os.path.join(tools, 'preclip.py')), preclip.rules()],
         'key': key,
         'base': ss.sha_file(os.path.join(DATA, 'years', BASE_KEY + '.geojson')),
-        'ne': ss.sha_file(os.path.join(be.CACHE, 'ne_admin1.geojson')),
+        'ne': __import__('preclip').ne_sha(),   # с файлами подмены NE -> OSM (02.11.2026)
         'inputs': ss.named_inputs(os.path.abspath(__file__),
                                   exclude=(os.path.basename(ANCHORS), 'ww1_front.geojson')),
         'anchors': [[a['city'], a['theatre'], side_at(a, day)] for a in anchors],

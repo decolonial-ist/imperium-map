@@ -31,6 +31,9 @@ import argparse
 import gzip
 import json
 import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import memguard  # noqa: E402  (число процессов от свободной памяти, 01.11.2026)
 import subprocess
 import sys
 from multiprocessing import get_context
@@ -162,7 +165,7 @@ def fit(keys, out):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--all', action='store_true')
-    ap.add_argument('--workers', type=int, default=max(1, min(8, (os.cpu_count() or 4) - 2)))
+    ap.add_argument('--workers', type=int, default=memguard.default_workers())
     a = ap.parse_args()
     if not os.path.exists(os.path.join(BIN, 'geo2topo')):
         sys.exit('geo2topo не найден: `npm ci` в корне репо')

@@ -196,6 +196,7 @@ def oblasts():
     """Области РФ: (имя по-русски, латиницей, геометрия) — подпись эпизода."""
     with open(os.path.join(CACHE, 'ne_admin1.geojson'), encoding='utf-8') as f:
         d = json.load(f)
+    import ne_override; ne_override.apply(d['features'])   # NE -> OSM (02.11.2026)
     out = []
     for feat in d['features']:
         p = feat['properties']
@@ -383,6 +384,7 @@ def ne_pick(admin, names):
     if '__ne' not in _p20:
         with open(os.path.join(CACHE, 'ne_admin1.geojson'), encoding='utf-8') as f:
             _p20['__ne'] = json.load(f)['features']
+        import ne_override; ne_override.apply(_p20['__ne'])   # NE -> OSM (02.11.2026)
     feats = [f for f in _p20['__ne'] if f['properties'].get('admin') == admin]
     if names is not None:
         sel = [f for f in feats if f['properties'].get('name') in names]

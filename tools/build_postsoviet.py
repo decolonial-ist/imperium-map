@@ -182,6 +182,7 @@ def ne(admin, names):
     if '__ne' not in _cache:
         with open(os.path.join(CACHE, 'ne_admin1.geojson'), encoding='utf-8') as f:
             _cache['__ne'] = json.load(f)['features']
+        import ne_override; ne_override.apply(_cache['__ne'])   # NE -> OSM (02.11.2026)
     sel = [f for f in _cache['__ne']
            if f['properties'].get('admin') == admin
            and (names is None or f['properties'].get('name') in names)]

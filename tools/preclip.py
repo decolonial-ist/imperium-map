@@ -53,7 +53,8 @@ def _path(kind, ident, h):
 def ne_sha():
     """Хеш файла Natural Earth admin-1 (часть подписи регионов), раз на процесс."""
     import slice_sigs as ss
-    return ss.sha_file(os.path.join(ROOT, 'cache', 'ne_admin1.geojson'))
+    import ne_override   # файлы подмены NE -> OSM входят в подпись (02.11.2026)
+    return ss.sha_file(os.path.join(ROOT, 'cache', 'ne_admin1.geojson')) + '+' + ne_override.files_sha()
 
 
 def piece_sig(kind, ident, sig, make):

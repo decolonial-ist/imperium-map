@@ -334,6 +334,7 @@ def ne_feats():
     if not _ne_cache.get('__feats'):
         _ne_cache['__feats'] = json.load(
             open(os.path.join(CACHE, 'ne_admin1.geojson'), encoding='utf-8'))['features']
+        import ne_override; ne_override.apply(_ne_cache['__feats'])   # NE -> OSM (02.11.2026)
     return _ne_cache['__feats']
 
 
@@ -784,7 +785,7 @@ def slice_sig(sl, day):
                  ss.sha_file(os.path.join(tools, 'geoclean.py')),
                  ss.sha_file(os.path.join(tools, 'preclip.py')), preclip.rules()],
         'base': [BASE, ss.sha_file(os.path.join(CACHE, 'cshapes20.geojson'))],
-        'ne': ss.sha_file(os.path.join(CACHE, 'ne_admin1.geojson')),
+        'ne': __import__('preclip').ne_sha(),   # с файлами подмены NE -> OSM (02.11.2026)
         'slice': sl, 'windows': wins,
         'groups': {g: grp(g) for g in sorted(groups)},
         'adds': [a for a in ADDS if day >= d(a['frm'])],

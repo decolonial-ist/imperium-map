@@ -107,6 +107,13 @@ def admin1_features(cache_dir):
         path = os.path.join(cache_dir, 'ne_admin1.geojson')
         with open(path, encoding='utf-8') as f:
             _land['feats'] = json.load(f)['features']
+        # подмена генерализованных единиц NE полигонами OSM (tools/ne_override.py,
+        # 02.11.2026): прямые рёбра по 40-260 км у границ областей - в OSM живые
+        try:
+            import ne_override
+            ne_override.apply(_land['feats'])
+        except ImportError:
+            pass
     return _land['feats']
 
 

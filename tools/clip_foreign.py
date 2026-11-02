@@ -103,6 +103,7 @@ def foreign_since_geom(date):
     if not names:
         return None
     ne = json.load(open(os.path.join(CACHE, 'ne_admin1.geojson'), encoding='utf-8'))
+    import ne_override; ne_override.apply(ne['features'])   # NE -> OSM (02.11.2026)
     parts = [shape(f['geometry']).buffer(0) for f in ne['features']
              if str(f['properties'].get('admin', '')) in names]
     return unary_union(parts) if parts else None
@@ -112,6 +113,7 @@ def foreign_geom():
     ne = gc.load_json(os.path.join(CACHE, 'ne_admin1.geojson')) \
         if hasattr(gc, 'load_json') else json.load(
             open(os.path.join(CACHE, 'ne_admin1.geojson'), encoding='utf-8'))
+    import ne_override; ne_override.apply(ne['features'])   # NE -> OSM (02.11.2026)
     parts = [shape(f['geometry']).buffer(0) for f in ne['features']
              if str(f['properties'].get('admin', '')) in FOREIGN]
     if not parts:

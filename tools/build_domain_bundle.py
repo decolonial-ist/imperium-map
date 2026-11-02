@@ -250,7 +250,19 @@ def build(domain_id, max_steps, window=None, w_from=None, w_to=None):
         # шаг ПЕРЕД окном нужен: иначе первая половина окна рисуется пустой
         before = [s for s in allstops if ms(s['d']) < t0]
         allstops = (before[-1:] if before else []) + inside
-    steps = pick(allstops, max_steps)
+    # куратор 01.11.2026: у народа все известные шаги, а не выборка. Подписи - только
+    # у шагов, написанных руками (data/domains/<id>_steps.json, tools/build_steps_embed.py);
+    # служебное «контур изменился на N км²» читателю не показываем
+    manual_path = os.path.join(DOM, domain_id + '_steps.json')
+    manual = load(manual_path)['stops'] if os.path.exists(manual_path) else None
+    if manual:
+        t0 = ms(w_from) if w_from else -8.64e15
+        t1 = ms(w_to, True) if w_to else 8.64e15
+        byd = {s['d']: dict(s, why='') for s in allstops}
+        byd.update({s['d']: s for s in manual if t0 <= ms(s['d']) <= t1})
+        steps = sorted(byd.values(), key=lambda s: ms(s['d']))
+    else:
+        steps = pick(allstops, max_steps)
 
     # ---- сырьё -------------------------------------------------------------
     years = [(str(k), ms(str(k))) for k in load(os.path.join(DATA, 'manifest.json'))['years']]
@@ -270,6 +282,16 @@ def build(domain_id, max_steps, window=None, w_from=None, w_to=None):
                     continue
                 loss.append((ms(pr['from']), ms(pr['to'], True) if pr.get('to')
                              else 8.64e15, pr.get('kind'), g))
+
+    # вырезы удержания (build_uprisings): на полной карте их режет RCUT в index.html
+    rcp = os.path.join(DATA, 'resistance', 'cuts.geojson')
+    if os.path.exists(rcp):
+        for f in load(rcp).get('features', []):
+            pr = f['properties']
+            g = geom_of(f)
+            if g is None or not g.intersects(frame):
+                continue
+            loss.append((ms(pr['hold_from']), ms(pr['hold_to'], True), 'hold', g))
 
     ps = []
     psp = os.path.join(DATA, 'postsoviet.geojson')
@@ -396,6 +418,9 @@ def build(domain_id, max_steps, window=None, w_from=None, w_to=None):
         'steps': out_steps,
     }
     out['clip'] = list(frame.bounds)
+    # 01.11.2026 куратор о подписях шагов народа: «убирай пока. нахуй они не нужны» -
+    # подпись под картой у встройки народа выключена; ручные шаги остаются остановками
+    out['captions'] = False
     out['window'] = [w_from, w_to] if (w_from or w_to) else None
     name = domain_id + ('_' + window if window else '') + '_bundle.json'
     path = os.path.join(DOM, name)

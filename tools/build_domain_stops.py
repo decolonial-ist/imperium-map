@@ -40,7 +40,7 @@ import json
 import math
 import os
 
-from shapely.geometry import box, shape
+from shapely.geometry import Point, box, shape
 from shapely.ops import unary_union
 from shapely.prepared import prep
 
@@ -232,6 +232,24 @@ def build(domain_id, thresh_arg, quiet=False):
                 add(day_after(p['to']), 'постсоветский эпизод: %s, конец' % nm,
                     W_EVENT['ps'])
 
+    # вырезы удержания (data/resistance/cuts.geojson): земля, которую восставшие
+    # или чужая армия держали внутри красного. Пакет встройки режет ими красное
+    # (build_domain_bundle), но без остановки на дате выреза шаг ползунка
+    # не появлялся: 01.11.2026 куратор увидел Ромны и Полтавщину 1708-1709
+    # только там, где подпись стояла руками. Остановка - начало окна и день
+    # после его конца, вес как у потерь контроля.
+    rcp = os.path.join(DATA, 'resistance', 'cuts.geojson')
+    if os.path.exists(rcp):
+        for f in hits(load(rcp).get('features', []), rprep, region, lat, min_ev):
+            p = f['properties']
+            nm = p.get('place') or p.get('name_ru') or p.get('name') or 'вырез'
+            if p.get('hold_from'):
+                add(p['hold_from'], 'не под контролем империи: %s, начало' % nm,
+                    W_EVENT['loss'])
+            if p.get('hold_to'):
+                add(day_after(p['hold_to']), 'не под контролем империи: %s, конец' % nm,
+                    W_EVENT['loss'])
+
     # потери контроля: по эпизоду целиком
     lman = os.path.join(DATA, 'losses', 'manifest.json')
     if os.path.exists(lman):
@@ -254,16 +272,30 @@ def build(domain_id, thresh_arg, quiet=False):
 
     op = os.path.join(DATA, 'ostrogs', 'ostrogs.geojson')
     if os.path.exists(op):
-        for f in hits(load(op).get('features', []), rprep, region, lat, min_ev):
+        # Точка берётся по своему центру, а не по площади кружка (01.11.2026):
+        # гарнизон радиусом 4-6 км (Киев 1654, Чигирин 1676, правый берег 1711)
+        # даёт 50-110 км² и не проходил порог площади в 428 км² у рамки
+        # Украины, хотя остановка «гарнизон поставлен / снят» - это и есть шаг
+        # ползунка. Порог площади писался против соседей, задевающих рамку
+        # углом; у точки такого края нет.
+        pts = [f for f in load(op).get('features', [])
+               if f.get('geometry')
+               and rprep.intersects(shape(f['geometry']).buffer(0))]
+        # у части точек дата - голый год («1764»): дополняем до дня, как
+        # ключи срезов (1764 -> 1764-01-01)
+        def iso(v):
+            v = str(v)
+            return v if len(v) == 10 else (v + '-01-01' if len(v) == 4 else v + '-01')
+        for f in pts:
             p = f['properties']
             nm = p.get('name', 'острог')
             if p.get('from'):
-                add(p['from'], 'острог %s поставлен' % nm, W_EVENT['ostrog'])
+                add(iso(p['from']), 'острог %s поставлен' % nm, W_EVENT['ostrog'])
             if p.get('red_from'):
-                add(p['red_from'], 'острог %s: земля вокруг закрашена' % nm,
+                add(iso(p['red_from']), 'острог %s: земля вокруг закрашена' % nm,
                     W_EVENT['ostrog'])
             if p.get('to'):
-                add(day_after(p['to']), 'острог %s снят' % nm, W_EVENT['ostrog'])
+                add(day_after(iso(p['to'])), 'острог %s снят' % nm, W_EVENT['ostrog'])
 
     out = {
         'domain': domain_id,

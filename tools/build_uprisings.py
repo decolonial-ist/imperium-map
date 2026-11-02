@@ -113,6 +113,7 @@ def _ne():
     if 'ne' not in _cache:
         with open(os.path.join(CACHE, 'ne_admin1.geojson'), encoding='utf-8') as f:
             _cache['ne'] = json.load(f)['features']
+        import ne_override; ne_override.apply(_cache['ne'])   # NE -> OSM (02.11.2026)
     return _cache['ne']
 
 

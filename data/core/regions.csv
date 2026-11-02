@@ -128,7 +128,7 @@ OSSETIA_MTN,"[('file', 'ossetia/gornaya.geojson')]","Горная Осетия: 
 равнине и в вырез не входят"
 MINUSINSK,"[('file', 'krasnoyarsk/minusinsk.geojson')]",
 KRASNOYARSK_SOUTH,"[('file', 'krasnoyarsk/krasnoyarsk_south.geojson'), ('minus_file', 'siberia/steps/kazachinsky.geojson'), ('minus_file', 'siberia/steps/krasnoyarsk_south_steps.geojson')]","остаток: Балахтинский, Новосёловский, Пировский, Тасеевский районы; без ступеней KAZACHINSKY, KRAS_*, KANSK_LAND, ACHINSK_CHULYM; правка 30.09.2026"
-UA_LEFT,"[('ne', 'Ukraine', ['Chernihiv', 'Poltava']), ('file', 'ukraine/sumy_hetman.geojson'), ('file', 'ukraine/hetman_pereiaslav.geojson')]","--- Украина -------------------------------------------------------------
+UA_LEFT,"[('ne', 'Ukraine', ['Chernihiv', 'Poltava']), ('file', 'ukraine/sumy_hetman.geojson'), ('file', 'ukraine/hetman_pereiaslav.geojson'), ('file', 'ukraine/sumy_shostka.geojson'), ('file', 'ukraine/deulino_bryansk.geojson'), ('file', 'ukraine/deulino_bryansk_extra.geojson'), ('ne', 'Ukraine', ['Sumy']), ('minus_file', 'ukraine/bryansk_trubchevsk_suzemka.geojson'), ('minus_file', 'ukraine/sumy_putyvl_buryn.geojson'), ('minus_file', 'ukraine/sumy_sloboda.geojson')]","--- Украина -------------------------------------------------------------
 Гетманщина: полки Войска Запорожского на левом берегу. Харьковщина
 ОТСЮДА УБРАНА (02.09.2026): слободские полки подчинялись не гетману, а
 воеводе Белгородского разряда, и Переяславская рада их не касалась
@@ -157,6 +157,8 @@ UA_ZAPOROZHYE,"[('file', 'ukraine/zaporozhye_volnosti.geojson'), ('ne', 'Ukraine
 Запорожская область добирается целиком: районами она покрыта на 99,6 %,
 и оставшаяся полоска давала зубец на стыке с контуром источника"
 UA_WILD_FIELD,"[('file', 'ukraine/wild_field.geojson')]",
+UA_SLOBODA_S_IZIUM,"[('file', 'ukraine/sloboda_south_of_izium_line.geojson')]","Харьковщина южнее Изюмской черты (Коломак - Мжа - Северский Донец, крепости черты Изюм, Змиёв, Новая Водолага - кругами 5 км на черте). 02.11.2026: заменяет обрезку UA_SLOBODA срезом основы 1700 года, у которой южный край шёл одной прямой на 137 км. Сборка контура - ~/tmp/WORKFILES/kb-steps/sloboda_line_0211/build_lines.py"
+UA_SLOBODA_S_UKRLINE,"[('file', 'ukraine/sloboda_south_of_ukrainian_line.geojson')]","Харьковщина южнее Украинской линии (Орель - Берестовая - Берека - Северский Донец). 02.11.2026, та же сборка"
 UA_LUGANSK_STEPPE,"[('ne', 'Ukraine', [""Luhans'k""])]","Луганщина берётся ОБЛАСТЬЮ, а не районами (02.09.2026): семь районов из
 восьми покрывали 86 % области, и на стыке с грубым контуром источника
 оставались зубцы и красный клин (куратор: «квадраты, вздроч какая-то»).
@@ -200,6 +202,7 @@ BIALYSTOK,"[('ne_minus', 'Poland', ['Podlachian'], ['poland/krolestwo_1815.geojs
 19.09.2026: Подляское воеводство МИНУС Царство Польское - иначе в
 Белостокскую область попадали Сувалки и Ломжа (Августовское воеводство
 Варшавского герцогства, потом Царства) и краснели с 1807 года"
+PL_PRUSSIA_BEYOND,"[('ne', 'Poland', ['Greater Poland', 'Kuyavian-Pomeranian', 'Pomeranian', 'West Pomeranian', 'Lubusz', 'Lower Silesian', 'Opole', 'Silesian', 'Warmian-Masurian', 'Łódź', 'Masovian', 'Świętokrzyskie', 'Lesser Poland']), ('minus_file', 'poland/krolestwo_1815.geojson')]","Прусская (и австрийская у Кракова) земля нынешней Польши вне Царства Польского (контур OHM): куда контур источника 1815 и 1880 годов наплывал прямыми рёбрами западнее Калиша и Ченстоховы (кадр 1830, 02.11.2026). Подляское не берём: Белостокская область красная своей строкой"
 PL_KINGDOM,"[('file', 'poland/krolestwo_1815.geojson')]","Царство Польское целиком (19.09.2026): контур источника недобирает его
 края - Калиш у прусской границы не краснел до 1914 года, воеводства
 внутри ядра на 93-98 %. Геометрия - OpenHistoricalMap, relation 2692576"

@@ -42,6 +42,9 @@
 import argparse
 import json
 import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import memguard  # noqa: E402  (число процессов от свободной памяти, 01.11.2026)
 import subprocess
 import sys
 
@@ -223,7 +226,7 @@ def main():
     # data/years_lite (years_mid); топология, опись и штамп - по всем
     # (tools/rebuild.py --changed, 24.09.2026)
     ap.add_argument('--keys')
-    ap.add_argument('--workers', type=int, default=max(1, min(8, (os.cpu_count() or 4) - 2)))
+    ap.add_argument('--workers', type=int, default=memguard.default_workers())
     a = ap.parse_args()
     if a.level == 'mid':
         return main_mid(a)

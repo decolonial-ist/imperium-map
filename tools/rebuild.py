@@ -42,6 +42,9 @@ import csv
 import hashlib
 import json
 import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import memguard  # noqa: E402  (число процессов от свободной памяти, 01.11.2026)
 import re
 import shutil
 import subprocess
@@ -782,7 +785,7 @@ def main():
     ap.add_argument('--dry-run', action='store_true')
     ap.add_argument('--keys', help='с --changed: пересобрать и эти ключи (через запятую) - '
                                    'после правки кода, которую подписи не видят')
-    ap.add_argument('--workers', type=int, default=max(1, min(8, (os.cpu_count() or 4) - 2)))
+    ap.add_argument('--workers', type=int, default=memguard.default_workers())
     a = ap.parse_args()
     os.makedirs(TMP, exist_ok=True)
     T0 = time.perf_counter()
