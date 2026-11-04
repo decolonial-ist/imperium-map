@@ -146,7 +146,7 @@ tersk_stanitsy.geojson краснел контуром 1783 года разом"
 TEREK_NAUR,"[('file', 'chechnya/naursky.geojson')]",
 MOZDOK,"[('file', 'chechnya/mozdok.geojson')]",
 CHECHNYA_MTN_1925,"[('file', 'chechnya/mountains_1920_1925.geojson')]",Горная Чечня 1920-1925: «За Шаро-Аргуном советской власти не существует»
-UA_KYIV,"[('ne', 'Ukraine', ['Kiev', 'Kiev City'])]",
+UA_KYIV,"[('file', 'ukraine/kyiv_enclave_1686.geojson')]","Киевский плацдарм по Вечному миру 1686 (ПСЗРИ т. II № 1186, с. 774-775): Ирпень - Днепр - Стугна с Васильковом, полоса за Стайками. 03.11.2026: вместо NE Kiev + Kiev City с обрезкой срезом 1700 (прямые рёбра). Сборка - ~/tmp/WORKFILES/kb-steps/kyiv_enclave_0311/build_enclave.py"
 UA_RIGHT,"[('ne', 'Ukraine', ['Zhytomyr', 'Vinnytsya', ""Khmel'nyts'kyy"", 'Cherkasy', 'Kirovohrad'])]",
 UA_VOLHYNIA,"[('ne', 'Ukraine', ['Volyn', 'Rivne'])]",
 UA_ZAPOROZHYE,"[('file', 'ukraine/zaporozhye_volnosti.geojson'), ('ne', 'Ukraine', ['Zaporizhzhya'])]","--- УКРАИНА: настоящие районы вместо контура источника (02.09.2026) ----
@@ -165,7 +165,7 @@ UA_LUGANSK_STEPPE,"[('ne', 'Ukraine', [""Luhans'k""])]","Луганщина бе
 Граница области совпадает с той, что рисует базовая карта, — стык чистый"
 UA_OCHAKOV,"[('file', 'ukraine/ochakov_oblast.geojson'), ('ne', 'Ukraine', ['Mykolayiv']), ('minus_file', 'ukraine/bug_east.geojson')]","Очаковская область лежала между Бугом и Днестром: левый берег Буга (Баштанский район, восток Николаевского и вся Николаевская область Natural Earth) до 26.09.2026 вырезался вместе с ней до 1791 года, а с ним угол 1774 года и 62 % Кинбурнского полуострова. Режем по линии Буга OSM"
 UA_BUDJAK,"[('file', 'ukraine/budjak.geojson')]",
-UA_KYIV_RIGHT,"[('file', 'ukraine/kyiv_right_bank.geojson')]",
+UA_KYIV_RIGHT,"[('file', 'ukraine/kyiv_right_bank_1686.geojson')]","03.11.2026: файл дополнен Вышгородским, Бучанским, Обуховским и Фастовским районами минус плацдарм 1686 года - иначе основа 1700/1715 красила Обухов и Вышгородщину"
 UA_KIROVOHRAD_STEPPE,"[('file', 'ukraine/kirovohrad_steppe.geojson'), ('ne', 'Ukraine', ['Kirovohrad'])]",
 UA_VOLHYNIA_EAST,"[('file', 'ukraine/volhynia_east.geojson')]",
 UA_GALICIA_1914,"[('ne', 'Ukraine', [""L'viv"", ""Ivano-Frankivs'k"", ""Ternopil'"", 'Chernivtsi'])]","Восточная Галиция и Буковина, занятые в 1914-1915 годах: у империи была
@@ -207,7 +207,7 @@ PL_KINGDOM,"[('file', 'poland/krolestwo_1815.geojson')]","Царство Пол�
 края - Калиш у прусской границы не краснел до 1914 года, воеводства
 внутри ядра на 93-98 %. Геометрия - OpenHistoricalMap, relation 2692576"
 DUCHY_WARSAW,"[('file', 'poland/ohm_varshavskoe_gercogstvo_1809-1815.geojson')]","Варшавское герцогство 1809-1815 - OpenHistoricalMap, relation 2692577"
-RP_1667,"[('ne', 'Ukraine', None), ('ne', 'Belarus', None), ('ne', 'Lithuania', None), ('ne', 'Latvia', None), ('ne', 'Poland', None), ('and_file', 'poland/ohm_rp_1667-1773.geojson')]","Земля Речи Посполитой на дату - контуры OpenHistoricalMap (CC0)
+RP_1667,"[('ne', 'Ukraine', None), ('ne', 'Belarus', None), ('ne', 'Lithuania', None), ('ne', 'Latvia', None), ('ne', 'Poland', None), ('and_file', 'poland/ohm_rp_1667-1773.geojson'), ('minus_file', 'ukraine/kyiv_enclave_1686.geojson')]","Земля Речи Посполитой на дату - контуры OpenHistoricalMap (CC0)
 1667-1773, 1773-1793, 1793-1795 в пределах нынешних Украины, Беларуси,
 Литвы, Латвии и Польши (22.09.2026, BACKLOG Б6 п. 11). Сверка 19.09
 нашла, что приближения нынешними областями красят польскую землю до
@@ -215,7 +215,7 @@ RP_1667,"[('ne', 'Ukraine', None), ('ne', 'Belarus', None), ('ne', 'Lithuania', 
 Дубно, правобережье Киевщины, запад Кировоградщины, курляндские края
 в Лифляндии, а контур источника 1783 года - правобережье у Черкасс.
 Вычитание окнами до ратификации следующего раздела: сами земли раздела
-в контур «после раздела» не входят и не режутся"
+в контур «после раздела» не входят и не режутся 03.11.2026: минус Киевский плацдарм 1686 года - контур OHM держит в Речи Посполитой Демидов и Стайки, отданные царю Вечным миром"
 RP_1773,"[('ne', 'Ukraine', None), ('ne', 'Belarus', None), ('ne', 'Lithuania', None), ('ne', 'Latvia', None), ('ne', 'Poland', None), ('and_file', 'poland/ohm_rp_1773-1793.geojson')]",
 RP_1793,"[('ne', 'Ukraine', None), ('ne', 'Belarus', None), ('ne', 'Lithuania', None), ('ne', 'Latvia', None), ('ne', 'Poland', None), ('and_file', 'poland/ohm_rp_1793-1795.geojson')]",
 RP_P1,"[('ne', 'Belarus', None), ('ne', 'Latvia', None), ('and_file', 'poland/ohm_rp_1667-1773.geojson'), ('minus_file', 'poland/ohm_rp_1773-1793.geojson')]","Земли разделов по тем же контурам: что ушло из Речи Посполитой к
@@ -539,6 +539,7 @@ BUDJAK_IZMAIL,"[('file', 'ukraine/budjak_izmail.geojson')]","Измаил (и К
 BUDJAK_KILIA,"[('file', 'ukraine/kilia_hromada.geojson')]",Килия: Килийская громада по OSM (rel 13298111) - Килия падала раньше Измаила в 1770 и 1806 годах. 27.09.2026
 MD_BENDERY,"[('ne', 'Moldova', ['Causeni', 'Anenii Noi', 'Ștefan Vodă'])]","Бендерская райя: Каушанский, Новоаненский и Штефан-Водский районы Natural Earth (Бендеры и Приднестровье - в MOLDOVA_LEFT). Это единицы, которые OCC10_MD_E исключает как райю. 27.09.2026"
 MD_BUDJAK,"[('ne', 'Moldova', ['Cahul', 'Cantemir', 'Cimişlia', 'Basarabeasca', 'Taraclia', 'Comrat'])]","Буджак в нынешней Молдове (ногайская степь между Бендерами, Аккерманом и Измаилом): шесть единиц Natural Earth, которые OCC10_MD_E исключает как Буджак. 27.09.2026"
+NOVAYA_ZEMLYA,"[('file', 'arctic/novaya_zemlya.geojson')]","Новая Земля: городской округ OSM (relation 1329568), суша - по маске OSM. 03.11.2026: до того остров красился основами кусками (юг с 1700 по hb, Кармакулы с 1886 по CShapes, север с 1922) без документа"
 FRANZ_JOSEF_LAND,"[('file', 'arctic/franz_josef_land.geojson')]","Земля Франца-Иосифа: контур архипелага OSM (rel 3068295), суша - по маске OSM. 27.09.2026"
 SEVERNAYA_ZEMLYA,"[('file', 'arctic/severnaya_zemlya.geojson')]",Северная Земля: контур архипелага OSM (rel 3718999). 27.09.2026
 WRANGEL,"[('file', 'arctic/wrangel.geojson')]",Остров Врангеля с Геральдом: OSM rel 1866564 (через 180°). 27.09.2026

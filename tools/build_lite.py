@@ -83,9 +83,13 @@ ND_MID = 5
 # Острова в полосе мельче TOL*_COAST²·4 на этих уровнях не рисуются.
 TOL_COAST = 0.05
 TOL_MID_COAST = 0.012      # ~2 пикселя на масштабе 8; 1968: 161 КБ сжатыми против 144 до OSM
+# 03.11.2026, обобщение ярусов (generalize.py): протока уже generalize.CLOSE сливается (кэш
+# cache/gen_union), части и дырки меньше MIN_KM2 снимаются. Средний ярус (z 4,5-8, пиксель 2-20 км) и облегчённый (z<4,5)
+MIN_KM2_MID = 5.0
+MIN_KM2_LITE = 20.0
 
 
-def lighten(fc, tol, nd, tol_coast=None):
+def lighten(fc, tol, nd, tol_coast=None, key=None):
     parts = []
     for f in fc.get('features', []):
         g = f.get('geometry')
@@ -104,6 +108,13 @@ def lighten(fc, tol, nd, tol_coast=None):
     if tol_coast:
         import coast_osm
         band = coast_osm.coast_band()
+        # 03.11.2026: капли - островки дельт и шхер меньше пикселя; сливаем протоки
+        # уже CLOSE и снимаем части и дырки меньше MIN_KM2 (tools/generalize.py)
+        import generalize as _gen
+        mn = MIN_KM2_MID if tol <= 0.005 else MIN_KM2_LITE
+        g = _gen.generalize(key, g, mn, band)
+        if g is None or g.is_empty:
+            return None
         # упрощение с сохранением топологии бывает невалидным на касаниях
         # частей (срезы ПМВ у Вазы, 26.09.2026) - чистим до наложения на полосу
         gc_ = g.simplify(tol_coast, preserve_topology=True).buffer(0)
@@ -121,11 +132,10 @@ def lighten(fc, tol, nd, tol_coast=None):
         g = g.buffer(0)
     g = drop_slivers(g, tol * tol * 4)
     if g is not None and not g.is_empty and band is not None:
-        from shapely.geometry import MultiPolygon, Point
-        small = tol_coast * tol_coast * 4
-        ps = list(g.geoms) if g.geom_type == 'MultiPolygon' else [g]
-        keep = [q for q in ps if q.area >= small or not band.contains(q.representative_point())]
-        g = (MultiPolygon(keep) if len(keep) > 1 else keep[0]) if keep else None
+        # 04.11.2026: упрощение ужимает уцелевшие острова ниже порога (дельта Лены:
+        # 2-5 км² после среза 5 км²) - мелочь снимается ещё раз, в км², после упрощения
+        import generalize as _gen
+        g = _gen.drop_small(g, mn)
     if g is None or g.is_empty:
         return None
     return gc.sort_polygons(gc.sanitize_geom(mapping(g)))
@@ -135,7 +145,7 @@ def _one(job):
     """Один срез уровня: (ключ, путь-источник, путь-вывод, допуски) -> (ключ, байт, охват)."""
     k, src, dst, tol, nd, tol_coast, level = job
     with open(src, encoding='utf-8') as f:
-        g = lighten(json.load(f), tol, nd, tol_coast)
+        g = lighten(json.load(f), tol, nd, tol_coast, key=k)
     if g is None:
         return k, None, None
     return k, write(dst, g, 'data/years/%s.geojson' % k, level=level), \

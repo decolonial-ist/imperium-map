@@ -48,11 +48,12 @@ STATE = os.path.join(CACHE, 'fine_cells.json')
 BIN = os.path.join(ROOT, 'node_modules', '.bin')
 BASE = 10.0
 MIN = 2.5
+MIN_KM2_FINE = 1.5   # обобщение тонкого яруса (03.11.2026, generalize.py; протока - generalize.CLOSE)
 OFF = 0.00037
 Q = '1e5'
 BUDGET = 200 * 1024
 SAME = 1e-8                    # град², ~100 м²: кусок «тот же»
-PARAMS = {'base': BASE, 'min': MIN, 'off': OFF, 'q': Q, 'budget': BUDGET, 'v': 2}
+PARAMS = {'base': BASE, 'min': MIN, 'off': OFF, 'q': Q, 'budget': BUDGET, 'v': 3, 'gen': [MIN_KM2_FINE]}
 
 
 def key_date(k):
@@ -144,6 +145,12 @@ def clip_key(args):
             fc = json.load(f)
         parts = [shape(ft['geometry']).buffer(0) for ft in fc['features'] if ft.get('geometry')]
         g = unary_union([p for p in parts if not p.is_empty]).buffer(0) if parts else None
+    # 03.11.2026: тонкий ярус (z>=8, пиксель 0,15-0,6 км) - протоки уже generalize.CLOSE сливаются,
+    # части и дырки меньше 1,5 км² снимаются (капли дельт и крошки швов); data/years не трогаем
+    if g is not None and not g.is_empty:
+        import coast_osm
+        import generalize as _gen
+        g = _gen.generalize(k, g, MIN_KM2_FINE, coast_osm.coast_band())
     hit, moved, twin = [], [], {}
     if g is not None and not g.is_empty:
         b = g.bounds

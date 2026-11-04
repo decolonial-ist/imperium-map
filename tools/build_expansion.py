@@ -1335,6 +1335,11 @@ def build_delta(key, fc, rows, sub_rows=()):
     if by is not None:
         geom = fill_source_gaps(geom, by, report=[])
     _inc = preclip.cut_sea(preclip.polys(geom.difference(_before_fill)))
+    # 03.11.2026: в build() заливки идут ДО вычитаний, а в дельте готовый срез уже без
+    # вычитаний - fill_source_gaps принимал вырезанное (Верхняя Печора до 1639, 7 град²)
+    # за щель у основы и доливал его обратно. Приращение режется действующими вычитаниями.
+    if subcut is not None and not _inc.is_empty:
+        _inc = preclip.polys(_inc.difference(subcut))
     geom = preclip.polys(unary_union([_before_fill, _inc]))
     # прибавившиеся вычитания - после приобретений, как в build(); действующие
     # окна оккупации не режутся
@@ -1570,6 +1575,10 @@ def patch_slice(key, adds, subs, extra_note=None):
         feat = dict(feat)
         g2 = (clean_local(g2, sub_geom.buffer(0.05), lambda x: gc.finish(x, CACHE)) if pieces
               else gc.finish(g2, CACHE))
+        # 03.11.2026: difference даёт GeometryCollection с вырожденной линией нулевой длины
+        # (срез 1953-06-17: 1638 полигонов + 1 LineString) - check_geometry падал на нём
+        import preclip as _pc
+        g2 = _pc.polys(g2)
         feat['geometry'] = _round_n(mapping(g2), LATE_DIGITS)
         feats.append(feat)
     if subs and touched:
@@ -1683,6 +1692,12 @@ def patch_slice(key, adds, subs, extra_note=None):
             for spec, name, why, frm, to in adds + subs]
         if extra_note:
             p['late_note'] = extra_note
+    # 03.11.2026: у среза 1953-06-17 после слияния фич ядро стало GeometryCollection
+    # (1638 полигонов + вырожденная линия) и ронял check_geometry - пишем только полигоны
+    import preclip as _pc
+    for _f in feats:
+        if _f.get('geometry') and _f['geometry'].get('type') not in ('Polygon', 'MultiPolygon'):
+            _f['geometry'] = _round_n(mapping(_pc.polys(shape(_f['geometry']))), LATE_DIGITS)
     fc['features'] = feats
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(gc.sanitize_obj(fc), f, ensure_ascii=False)

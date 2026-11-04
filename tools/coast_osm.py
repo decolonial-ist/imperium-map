@@ -151,6 +151,19 @@ def footprint():
                     continue
                 tr = STRtree([box(x, y, x + 1, y + 1) for x, y in cand])
                 cells.update(cand[i] for i in tr.query(part, predicate='intersects'))
+    # 03.11.2026: арктические архипелаги (Земля Франца-Иосифа, Северная Земля) никогда не
+    # попадали в срезы, потому что маска строилась по срезам, а срезы резались маской -
+    # севернее 79° клеток не было вовсе. Клетки файлов data/arctic/*.geojson - в охват всегда.
+    import glob
+    for ap in glob.glob(os.path.join(DATA, 'arctic', '*.geojson')):
+        with open(ap, encoding='utf-8') as f:
+            fc = json.load(f)
+        for ft in fc['features']:
+            if not ft.get('geometry'):
+                continue
+            x0, y0, x1, y1 = shape(ft['geometry']).bounds
+            cells.update((x, y) for x in range(math.floor(x0), math.ceil(x1))
+                         for y in range(math.floor(y0), math.ceil(y1)))
     ext = {((x + dx + 180) % 360 - 180, y + dy) for x, y in cells
            for dx in (-1, 0, 1) for dy in (-1, 0, 1)}
     return {c for c in ext if -90 <= c[1] < 90}

@@ -66,10 +66,10 @@ VEN,cs:101,
 PER,cs:135,
 CHL,cs:155,
 GUY,cs:110,
-BKH,file:central_asia/bukhara_emirate.geojson#core,"Российская империя, протектораты; 02.11.2026: контур OHM (relation 2961275) лежит в central_asia/ohm_bukhara_1873_1920.geojson - переводить вместе с регионами BUKHARA_EMIRATE/SUGHD_1868/ZERAVSHAN, иначе чёрные щели между красным и сферой"
+BKH,file:central_asia/bukhara_emirate.geojson#core,"Российская империя, протектораты. 03.11.2026: контур OpenHistoricalMap (relation 2961275, central_asia/ohm_bukhara_1873_1920.geojson) НЕ взят: его южная граница идёт по Амударье и оставляет снаружи бухарские бекства левого берега - Чарджуй (5 км за линией) и Керки (3,5 км); прямых рёбер ≥80 км в нынешнем файле нет"
 BKH-DZ,file:central_asia/bukhara_emirate.geojson#darvaz,
 BKH-WP,file:central_asia/bukhara_emirate.geojson#wpamir,
-KHV,file:central_asia/khiva_khanate.geojson,"02.11.2026: контур OHM (relation 2851348) лежит в central_asia/ohm_khiva_1873_1920.geojson - переводить вместе с регионом KHIVA_KHANATE и TM_DASHOGUZ_DESERT"
+KHV,file:central_asia/khiva_khanate.geojson,"03.11.2026: контур OpenHistoricalMap (relation 2851348, central_asia/ohm_khiva_1873_1920.geojson) НЕ взят: сама Хива (8,7 км) и Ургенч (33 км) у него снаружи, площадь 4,0 град² против 7,3; прямых рёбер ≥80 км в нынешнем файле нет"
 URY,ne1:Russia:Tuva,
 MDA-1834,file:occ10/occ10_md_w.geojson,"Молдавское княжество без Бессарабии (регион OCC10_MD_W), 1834-1836"
 WAL-1834,file:occ10/wallachia_1834_1836.geojson,"Валашское княжество: Мунтения, Олтения, Браилов (регионы OCC10_*), 1834-1836"
