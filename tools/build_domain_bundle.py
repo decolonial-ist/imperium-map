@@ -36,7 +36,7 @@ import math
 import os
 
 import shapely
-from shapely.geometry import box, mapping, shape
+from shapely.geometry import Point, box, mapping, shape
 from shapely.ops import unary_union
 
 import sys
@@ -59,10 +59,14 @@ MAX_STEPS = 12
 # рамке с запасом в 40%, и у Нохчи по краям кадра стояли две прямые красные
 # стены - край обрезки. Считаем на диапазон пропорций окна от 0,55 (телефон
 # в столбик) до 1,9 (широкая встройка).
-CLIP_PAD = 0.4
+# 08.11.2026, куратор по встройке Украины на 1853 («а это что за прямые линии?»):
+# пружина камеры пускает территорию до края экрана, то есть в кадр попадает
+# земля на целый экран за рамкой, а резка шла в 40% с потолком 3° - и с востока
+# стоял прямой меридиан 44,6°. Запас - 1,2 размера рамки, потолок 30°.
+CLIP_PAD = 1.2
 ASPECT_MAX = 1.9
 ASPECT_MIN = 0.55
-CLIP_MAX_DEG = 3.0
+CLIP_MAX_DEG = 30.0
 # «Рейд не вырезает» - то же правило, что в index.html (NO_CUT) и build_losses
 NO_CUT = {'contested'}
 
@@ -127,6 +131,14 @@ def clean(g, frame, tol, nd):
     g = g.simplify(tol, preserve_topology=True).buffer(0)
     if g.is_empty:
         return None
+    # 08.11.2026, куратор («вздрочь»): ободки толщиной в пиксель вдоль чужих границ
+    # (Дунай у Валахии 1853, 20-100 км²) и косы-ниточки снимаем: тонкие (4A/L < 0,06°)
+    # и мелкие (< 0,02 град², около 150 км²) куски
+    parts = list(g.geoms) if g.geom_type == 'MultiPolygon' else [g]
+    parts = [p for p in parts if not (p.area < 0.02 and p.length > 0 and 4 * p.area / p.length < 0.06)]
+    if not parts:
+        return None
+    g = unary_union(parts) if len(parts) > 1 else parts[0]
     # Округление координат делаем СЕТКОЙ ТОЧНОСТИ, а не round() по месту.
     # 31.08.2026: у Украинцев слой империи не рисовался целиком, и виноват был
     # обычный round до четвёртого знака - он сводил соседние вершины в одну и
@@ -243,6 +255,13 @@ def build(domain_id, max_steps, window=None, w_from=None, w_to=None):
     tol = fw / 1500.0                     # около пикселя на обзорном кадре
     nd = max(3, min(5, int(round(math.log10(1500.0 / fw))) + 2))
     allstops = load(os.path.join(DOM, domain_id + '_stops.json'))['stops']
+    # 07.11.2026: шаги раньше начала времени домена (build_domains.py, 'time') в пакет
+    # не идут: встройка Украины открывалась 1500 годом с красной Чернигово-Северщиной,
+    # куратор: «с самого начала нашего исчисления россия владела частью украины. ты
+    # понимаешь как это звучит?». Шаг несёт полное состояние, «шаг до» не нужен.
+    t_dom = (dom.get('time') or [None])[0]
+    if t_dom and not (w_from or w_to):
+        allstops = [s for s in allstops if ms(s['d']) >= ms(t_dom)]
     if w_from or w_to:
         t0 = ms(w_from) if w_from else -8.64e15
         t1 = ms(w_to, True) if w_to else 8.64e15
@@ -312,9 +331,13 @@ def build(domain_id, max_steps, window=None, w_from=None, w_to=None):
             g = geom_of(f)
             if g is None or not g.intersects(frame):
                 continue
+            # 07.11.2026: во встройку идут ТОЧКИ (центр острога из свойств), как в полной
+            # карте (ostrogDot): слой ostrog-dot типа circle полигон-кружок не рисует,
+            # и куратор не увидел гарнизоны на шаге 1650 («почему гарнизонов не отмечено?»)
+            pt = Point(pr['lon'], pr['lat']) if 'lon' in pr and 'lat' in pr else g.centroid
             ost.append((ms(pr['from']),
                         ms(pr['to'], True) if pr.get('to') else 8.64e15,
-                        ms(pr['red_from']) if pr.get('red_from') else 8.64e15, g))
+                        ms(pr['red_from']) if pr.get('red_from') else 8.64e15, pt))
 
     sph = []
     sp = os.path.join(DATA, 'sphere.geojson')
@@ -388,9 +411,8 @@ def build(domain_id, max_steps, window=None, w_from=None, w_to=None):
             step['red'] = g
         og = [g for (t0, t1, tred, g) in ost if t0 <= t <= t1 and t < tred]
         if og:
-            g = clean(unary_union(og), frame, tol, nd)
-            if g:
-                step['ostrog'] = g
+            step['ostrog'] = {'type': 'MultiPoint',
+                              'coordinates': [[round(q.x, nd), round(q.y, nd)] for q in og]}
         sg = [g for (t0, t1, g) in sph if t0 <= t <= t1]
         if sg:
             g = clean(unary_union(sg), frame, tol, nd)
@@ -419,8 +441,10 @@ def build(domain_id, max_steps, window=None, w_from=None, w_to=None):
     }
     out['clip'] = list(frame.bounds)
     # 01.11.2026 куратор о подписях шагов народа: «убирай пока. нахуй они не нужны» -
-    # подпись под картой у встройки народа выключена; ручные шаги остаются остановками
-    out['captions'] = False
+    # подпись под картой у встройки народа выключена; ручные шаги остаются остановками.
+    # 07.11.2026: у главной (empire, шаги подобраны руками) подпись остаётся - 01.11 её
+    # выключило заодно, встройка главной шла без текста шагов.
+    out['captions'] = bool(dom.get('manual_stops'))
     out['window'] = [w_from, w_to] if (w_from or w_to) else None
     name = domain_id + ('_' + window if window else '') + '_bundle.json'
     path = os.path.join(DOM, name)

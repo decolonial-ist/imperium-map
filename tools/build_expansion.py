@@ -690,6 +690,67 @@ def fill_water(geom, share=0.6, max_km2=100000.0):
     return res if res.is_valid else res.buffer(0)
 
 
+def fill_new_holes(geom, base, max_area):
+    """Закрыть дырки меньше max_area град², которых не было у базового контура.
+
+    Дырка считается старой, если её центроид лежит в дырке base (озеро-море,
+    чужой анклав источника). Возвращает (геометрия, число закрытых).
+    """
+    def _polys(g):
+        if g.geom_type == 'Polygon':
+            return [g]
+        if hasattr(g, 'geoms'):
+            return [p for x in g.geoms for p in _polys(x)]
+        return []
+    polys = _polys(geom)
+    old = []
+    for g in _polys(base):
+        old += [Polygon(r) for r in g.interiors]
+    out, n = [], 0
+    for g in polys:
+        keep = []
+        for r in g.interiors:
+            h = Polygon(r)
+            if h.area < max_area and not any(o.contains(h.representative_point()) for o in old):
+                n += 1
+                continue
+            keep.append(r)
+        out.append(Polygon(g.exterior, keep) if len(keep) != len(g.interiors) else g)
+    return unary_union(out).buffer(0), n
+
+
+def fill_gaps_near(geom, base, max_area, touch, eps=0.01):
+    """Закрыть щели меньше max_area град², примыкающие к touch, даже если их
+    связывает с внешней чернотой волосяной канал (уже 2*eps град).
+
+    08.11.2026: щель между куском оккупации (rp1792/wilno, nowogrodek, brzesc)
+    и присоединённой землёй (BY_CENTER минус RP_1793) лежит в контуре Речи
+    Посполитой OHM и не закрыта ни одним куском. В 1792-м её закрывала заливка
+    дырок, в 1793-1795 вычитание RP_1793 режет её обратно и оставляет вдоль
+    линии OHM полоску SUB_BUF, через которую щель «течёт» наружу - дыркой она
+    не считается (чёрные клинья с прямыми рёбрами у Минска и Лунинца). Старые
+    дырки базового контура (озеро, чужой анклав) не трогаем.
+    """
+    def _polys(g):
+        if g.geom_type == 'Polygon':
+            return [g]
+        if hasattr(g, 'geoms'):
+            return [p for x in g.geoms for p in _polys(x)]
+        return []
+    old = [Polygon(r) for g in _polys(base) for r in g.interiors]
+    fills = []
+    for g in _polys(geom.buffer(eps)):
+        for r in g.interiors:
+            h = Polygon(r)
+            if (h.area < max_area
+                    and not any(o.contains(h.representative_point()) for o in old)
+                    and h.buffer(2 * eps).intersects(touch)):
+                fills.append(h.buffer(eps))
+    if fills:
+        geom = unary_union([geom] + fills).buffer(0)
+    return geom, len(fills)
+
+
 def fill_holes(geom, max_area=3.0):
     """Заделать внутренние дырки современной нарезки.
 
@@ -1097,6 +1158,14 @@ def build(key):
                       + (f'; обрезано контуром источника {a["clip"]} г.'
                          if a['clip'] else '')})
     geom = unary_union(pieces)
+    # 08.11.2026, куратор по встройке Украины 1792 («пустоты странные»): между
+    # соседними рисованными кусками оккупации (poland/rp1792/*.geojson) остаются
+    # щели-дырки до 0,6 град² - чёрные треугольники в Белоруссии. Закрываем дырки
+    # ДО вычитаний и только те, которых нет у контура источника: содержательные
+    # вырезы (удержания 1708-1709, имамат) идут ниже вычитаниями и не трогаются.
+    geom, _nh = fill_new_holes(geom, src_geom(bkey), 0.8)
+    if _nh:
+        log.append(f'+ щели между кусками закрыты: {_nh}')
     # Швы между контуром источника и добавленными областями оставляют дырки:
     # у среза 1721-08-30 на стыке Ништадтских приобретений с контуром 1715 г.
     # зияла дыра 1.04 град² поперёк Чудского озера. Закрываем ЗДЕСЬ - до
@@ -1149,6 +1218,12 @@ def build(key):
     occ = unary_union(occ) if occ else None
     if occ is not None and not occ.is_valid:
         occ = occ.buffer(0)
+    # 08.11.2026: щели между соседними кусками оккупации (rp1792/*) закрыты
+    # выше (fill_new_holes), но вычитание RP_1773 резало их обратно - под
+    # защитой были только сами куски. Защищаем куски ВМЕСТЕ с закрытыми
+    # щелями между ними; чужие дырки (вне объединения оккупаций) не трогаем.
+    if occ is not None:
+        occ, _ = fill_new_holes(occ, src_geom(bkey), 0.8)
     # v4: вычитания режут срез одним объединённым куском, а не по одному
     cuts = []
     for s in subs:
@@ -1173,6 +1248,10 @@ def build(key):
         before = geom.area
         geom = geom.difference(cut)
         log.append(f'- вычитания: {before:.0f} -> {geom.area:.0f} град²')
+        if occ is not None:
+            geom, _ng = fill_gaps_near(geom, src_geom(bkey), 0.8, occ)
+            if _ng:
+                log.append(f'+ щели у оккупации после вычитаний: {_ng}')
         geom, orph = drop_orphans(preclip.polys(geom), cut, orphan_keep(adds))
         if orph:
             log.append(f'- острова-сироты у вычитаний: {orph:.0f} км²')

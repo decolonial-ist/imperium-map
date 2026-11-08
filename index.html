@@ -747,11 +747,15 @@ async function bootEmbed() {
   const base = 'data/domains/';
   let idx = null, bundle = null;
   try {
-    idx = await DFETCH(base + EMBED.id + '_bundles.json')
+    // 07.11.2026: пакет встройки - два запроса, их всегда сверяем с сервером
+    // (условный GET, 304 при совпадении): Chrome по эвристике держал старый
+    // пакет Ичкерии и после пересборки показывал прежнюю узкую рамку
+    const fresh = u => fetch(u, {cache: 'no-cache'});
+    idx = await fresh(base + EMBED.id + '_bundles.json')
       .then(r => r.ok ? r.json() : null);
     const file = idx ? bundleFor(idx, EMBED.from, EMBED.to).file
                      : EMBED.id + '_bundle.json';
-    bundle = await DFETCH(base + file).then(r => r.json());
+    bundle = await fresh(base + file).then(r => r.json());
   } catch (e) {
     fatal(T('err.embed', {id: EMBED.id, msg: (e && e.message) || e}));
     return;
@@ -807,8 +811,8 @@ async function bootEmbed() {
     ];
     for (const [id, type, source, paint] of L)
       if (!map.getLayer(id)) map.addLayer({id, type, source, paint});
-    for (const [id, file] of [['chri-border', 'ichkeria'], ['ua-border', 'ukraine']])
-      DFETCH('data/borders/' + file + '_osm.geojson').then(r => r.json())
+    for (const [id, file] of [['chri-border', 'ichkeria_osm'], ['ua-border', 'ukraine_osm_sea']])
+      DFETCH('data/borders/' + file + '.geojson').then(r => r.json())
         .then(fc => map.getSource(id).setData(fc)).catch(() => {});
     // клик уводит в полную карту на это же место и дату: попапу истории точки
     // нужны все слои разом, а встроенная карта живёт одним пакетом
@@ -862,14 +866,31 @@ function renderEmbed(t, fromPicker) {
 
 // ---- приёмник данных слоя --------------------------------------------------
 // Показ считается ОДИН РАЗ (render), а куда его класть - решает эта функция.
+let CORE_LAST = null;          // последний срез ядра - для пересчёта обводки
+let FRONT_BOX = null;          // театр фронта (градусы): внутри него обводка ядра не рисуется
 function setLayer(name, fc) {
   const src = map.getSource(name);
   if (src) src.setData(fc || EMPTY);
   // обводка ядра живёт отдельным источником линий (см. outlineOf)
   if (name === 'core') {
-    const o = map.getSource('core-outline');
-    if (o) o.setData(outlineOf(fc || EMPTY));
+    CORE_LAST = fc || EMPTY;
+    refreshCoreOutline();
   }
+  // 07.11.2026 (куратор о Донбассе: «границы красные видны внутри уже захваченной
+  // земли. они ни к чему. удали»): граница России 1992 года внутри занятого
+  // DeepState театра - внутренняя, обводку ядра там гасим; внешний край театра
+  // рисует обводка фронта (withFrontOutline), построенная по объединению с ядром.
+  if (name === 'front') {
+    const nb = (fc && fc.box) || null;
+    if (JSON.stringify(nb) !== JSON.stringify(FRONT_BOX)) {
+      FRONT_BOX = nb;
+      refreshCoreOutline();
+    }
+  }
+}
+function refreshCoreOutline() {
+  const o = map.getSource('core-outline');
+  if (o) o.setData(outlineOf(CORE_LAST || EMPTY, FRONT_BOX));
 }
 
 // ---- обводка ядра без шва антимеридиана ------------------------------------
@@ -889,7 +910,8 @@ const onGridLine = v => {
 };
 const onCellCut = (a, b) => !!FINE_GRID && ((Math.abs(a[0] - b[0]) < 1e-9 && onGridLine(a[0]))
   || (Math.abs(a[1] - b[1]) < 1e-9 && onGridLine(a[1])));
-function outlineOf(fc) {
+const inBox = (c, b) => !!b && c[0] >= b[0] && c[0] <= b[2] && c[1] >= b[1] && c[1] <= b[3];
+function outlineOf(fc, box) {
   const feats = [];
   const rings = [];
   for (const f of (fc.features || [])) {
@@ -902,7 +924,8 @@ function outlineOf(fc) {
     let cur = [];
     for (let i = 0; i < r.length; i++) {
       const c = r[i];
-      if (i > 0 && ((onAM(c) && onAM(r[i - 1])) || onCellCut(c, r[i - 1]))) {   // ребро по антимеридиану или разрез ячейки: разрыв
+      if (i > 0 && ((onAM(c) && onAM(r[i - 1])) || onCellCut(c, r[i - 1])
+                    || (inBox(c, box) && inBox(r[i - 1], box)))) {   // ребро по антимеридиану, разрез ячейки или внутри театра фронта: разрыв
         if (cur.length > 1) feats.push(cur);
         cur = [c];
         continue;
@@ -1832,9 +1855,9 @@ function trimFront(fc, coreFC, coreKey, dayKey) {
              Math.max(b[2], q[2]), Math.max(b[3], q[3])] : q.slice();
   }
   if (!b) return fc;
-  const core = coreNear(coreFC, coreKey,
-    [Math.floor(b[0]), Math.floor(b[1]), Math.ceil(b[2]), Math.ceil(b[3])]);
-  if (!core.length) return fc;
+  const box = [Math.floor(b[0]), Math.floor(b[1]), Math.ceil(b[2]), Math.ceil(b[3])];
+  const core = coreNear(coreFC, coreKey, box);
+  if (!core.length) return withFrontOutline(fc, [], box);
   let out;
   try {
     out = {type: 'FeatureCollection', features: fc.features.map(f => {
@@ -1851,9 +1874,97 @@ function trimFront(fc, coreFC, coreKey, dayKey) {
     console.warn('подрезка фронта не удалась:', e);
     return fc;
   }
+  out = withFrontOutline(out, core, box);
   if (FRONTCACHE.size > 20) FRONTCACHE.delete(FRONTCACHE.keys().next().value);
   FRONTCACHE.set(ck, out);
   return out;
+}
+// Обводка фронта (07.11.2026, куратор о Донбассе: «границы красные видны внутри
+// уже захваченной земли. они ни к чему. удали»). Раньше линия шла вокруг каждого
+// занятого куска снимка, и швы между кусками и с ядром читались как границы.
+// Теперь линия - внешний край объединения занятых кусков с ядром поблизости:
+// один объект s = 'outline', слой front-occupied-line берёт только его.
+function withFrontOutline(fc, core, box) {
+  try {
+    const occ = (fc.features || [])
+      .filter(f => f.geometry && f.properties.s === 'occupied'
+                   && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'))
+      .map(f => f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates);
+    if (!occ.length) return fc;
+    const u = polygonClipping.union(...occ, ...(core.length ? [core] : []));
+    // Площадь кольца (град², по Гауссу) и «тонкость»: щель между куском DeepState
+    // и границей ядра 1992 года - кольцо ничтожной площади или нитевидное
+    // (площадь к квадрату периметра меньше 0,002). Такие дырки не обводим и
+    // закрываем заливкой, чтобы шов не читался чёрной нитью.
+    const ringArea = r => { let a = 0; for (let i = 1; i < r.length; i++) a += r[i - 1][0] * r[i][1] - r[i][0] * r[i - 1][1]; return Math.abs(a) / 2; };
+    const ringLen = r => { let l = 0; for (let i = 1; i < r.length; i++) l += Math.hypot(r[i][0] - r[i - 1][0], r[i][1] - r[i - 1][1]); return l; };
+    const sliver = r => { const a = ringArea(r), l = ringLen(r); return a < 5e-4 || (l > 0 && a / (l * l) < 0.002); };
+    // ребро по стороне театра - разрез ядра под фронт, не граница
+    const onSide = (a, c) => (Math.abs(a[0] - c[0]) < 1e-9 && (Math.abs(a[0] - box[0]) < 1e-9 || Math.abs(a[0] - box[2]) < 1e-9))
+                          || (Math.abs(a[1] - c[1]) < 1e-9 && (Math.abs(a[1] - box[1]) < 1e-9 || Math.abs(a[1] - box[3]) < 1e-9));
+    // Край куска DeepState и граница ядра 1992 года - из разных источников и
+    // расходятся на сотни метров: объединение оставляет вдоль границы нить и
+    // щели. Ребро обводки, оба конца которого ближе NEAR к контуру ядра, - шов,
+    // не граница: в обводку не идёт, а рисуется цветом заливки (слой front-seam),
+    // чтобы щель не читалась чёрной нитью. Контур ядра - в сетке 0,1°.
+    const NEAR = 0.004;
+    const grid = new Map(), cell = 0.1, gk = (x, y) => Math.floor(x / cell) + ':' + Math.floor(y / cell);
+    for (const poly of core) for (const ring of poly) for (let i = 1; i < ring.length; i++) {
+      const a = ring[i - 1], c = ring[i];
+      const x0 = Math.floor(Math.min(a[0], c[0]) / cell), x1 = Math.floor(Math.max(a[0], c[0]) / cell);
+      const y0 = Math.floor(Math.min(a[1], c[1]) / cell), y1 = Math.floor(Math.max(a[1], c[1]) / cell);
+      for (let gx = x0; gx <= x1; gx++) for (let gy = y0; gy <= y1; gy++) {
+        const key = gx + ':' + gy; if (!grid.has(key)) grid.set(key, []); grid.get(key).push([a, c]);
+      }
+    }
+    const dSeg = (p, a, c) => {
+      const dx = c[0] - a[0], dy = c[1] - a[1], l2 = dx * dx + dy * dy;
+      let t = l2 ? ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2 : 0; t = Math.max(0, Math.min(1, t));
+      return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
+    };
+    const nearCore = p => {
+      const gx = Math.floor(p[0] / cell), gy = Math.floor(p[1] / cell);
+      for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+        const segs = grid.get((gx + i) + ':' + (gy + j)); if (!segs) continue;
+        for (const [a, c] of segs) if (dSeg(p, a, c) < NEAR) return true;
+      }
+      return false;
+    };
+    const lines = [], seams = [], fillers = [];
+    for (const poly of u) {
+      poly.forEach((ring, k) => {
+        if (k > 0 && sliver(ring)) { fillers.push([ring]); return; }   // щель: закрыть, не обводить
+        if (k === 0 && sliver(ring)) return;                             // нитевидный обрывок: без обводки
+        let cur = [], seam = [];
+        const flush = () => { if (cur.length > 1) lines.push(cur); cur = []; if (seam.length > 1) seams.push(seam); seam = []; };
+        let prevNear = nearCore(ring[0]);
+        for (let i = 0; i < ring.length; i++) {
+          const c = ring[i], isNear = nearCore(c);
+          if (i > 0 && onSide(c, ring[i - 1])) { flush(); cur = [c]; prevNear = isNear; continue; }
+          if (i > 0 && isNear && prevNear) {                             // ребро вдоль контура ядра - шов
+            if (cur.length > 1) lines.push(cur); cur = [c];
+            if (!seam.length) seam.push(ring[i - 1]); seam.push(c);
+          } else {
+            if (seam.length > 1) seams.push(seam); seam = [];
+            cur.push(c);
+          }
+          prevNear = isNear;
+        }
+        flush();
+      });
+    }
+    const feats = fc.features.slice();
+    if (fillers.length) feats.push({type: 'Feature', properties: {s: 'occupied', filler: 1},
+      geometry: {type: 'MultiPolygon', coordinates: fillers}});
+    if (seams.length) feats.push({type: 'Feature', properties: {s: 'seam'},
+      geometry: {type: 'MultiLineString', coordinates: seams}});
+    feats.push({type: 'Feature', properties: {s: 'outline'},
+      geometry: {type: 'MultiLineString', coordinates: lines}});
+    return {type: 'FeatureCollection', box, features: feats};
+  } catch (e) {
+    console.warn('обводка фронта не удалась:', e);
+    return fc;
+  }
 }
 
 // Ключ снимка фронта на дату: последний снимок DeepStateMAP не позже t.
@@ -3376,7 +3487,12 @@ addLossStops();
               'line-width': ['interpolate', ['exponential', 1.2], ['zoom'],
                              1, 0.8, 3, 1.1, 5, 1.6, 8, 2.4, 14, 5]}});
   }).catch(() => {});
-  grab('data/borders/ukraine_osm.geojson').then(fc => {
+  // Граница Украины - отношение OSM admin_level=2: суша и морская граница по
+  // территориальным водам, 12 миль (около 22 км) от берега, с линией в Керченском
+  // проливе. Куратор 07.11.2026: «где ты видел чтобы украинцы так рисовали границы
+  // Крыма? почему не используешь версию по 20 км от берега?» - так рисуют украинские
+  // официальные карты. Контур Картографии по берегу (ukraine_kartographia.geojson) снят.
+  grab('data/borders/ukraine_osm_sea.geojson').then(fc => {
     if (!fc || !fc.features || !fc.features.length) return;
     map.addSource('ua-border', {...GJ, data: fc});
     // Толщина - та же формула, что у государственных границ подложки
@@ -3482,8 +3598,12 @@ addLossStops();
   map.addLayer({id: 'front-occupied', type: 'fill', source: 'front',
     filter: ['==', ['get', 's'], 'occupied'],
     paint: {'fill-color': '#a41f12', 'fill-opacity': 0.6}});
+  // шов между куском DeepState и ядром - цветом заливки, закрывает щель (withFrontOutline)
+  map.addLayer({id: 'front-seam', type: 'line', source: 'front',
+    filter: ['==', ['get', 's'], 'seam'],
+    paint: {'line-color': '#a41f12', 'line-opacity': 0.6, 'line-width': 2.5}});
   map.addLayer({id: 'front-occupied-line', type: 'line', source: 'front',
-    filter: ['==', ['get', 's'], 'occupied'],
+    filter: ['==', ['get', 's'], 'outline'],   // внешний край, см. withFrontOutline
     paint: {'line-color': '#d43b28', 'line-width': 1}});
 
   // ---- потери имперского контроля на своей территории --------------------
@@ -3556,6 +3676,8 @@ addLossStops();
       if (base === undefined) continue;
       map.setPaintProperty(id, 'fill-opacity', satOn ? Math.min(base, 0.38) : base);
     }
+    // шов фронта (front-seam) красится как заливка занятого - приглушается с ней
+    if (map.getLayer('front-seam')) map.setPaintProperty('front-seam', 'line-opacity', satOn ? 0.38 : 0.6);
     $('satCtl').classList.toggle('on', satOn);
     $('satCap').textContent = satOn ? T('sat.cap_on') : T('sat.cap_off');
     $('satCtl').title = satOn ? T('sat.title_on') : T('sat.title_off');

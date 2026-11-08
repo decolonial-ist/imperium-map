@@ -52,7 +52,7 @@ FILES = [
     'data/ostrogs/ostrogs.geojson',
     'data/satellite/chechnya_1993_1994.geojson',
     'data/borders/ichkeria_osm.geojson',
-    'data/borders/ukraine_osm.geojson',
+    'data/borders/ukraine_osm_sea.geojson',
     'data/crimea_outline.geojson',
     'data/basetiles/manifest.json',
 ]
