@@ -668,23 +668,40 @@ def stamp(k):
     return [st.st_mtime_ns, st.st_size]
 
 
+def _only_polys(fc):
+    """09.11.2026: заливка швов/берега может оставить в срезе GeometryCollection с
+    вырожденной линией (1953-06-17: 1638 полигонов + LineString) - check_geometry
+    падает на 'coordinates'. Пишем только полигоны."""
+    import preclip
+    from shapely.geometry import shape, mapping
+    for ft in fc.get('features', []):
+        g = ft.get('geometry')
+        if g and g.get('type') not in ('Polygon', 'MultiPolygon'):
+            ft['geometry'] = mapping(preclip.polys(shape(g)))
+
+
 def coast_key(args):
     k, dry = args
     t = time.perf_counter()
     path = os.path.join(YEARS, k + '.geojson')
     with open(path, encoding='utf-8') as f:
         fc = json.load(f)
+    # срез с GeometryCollection (см. _only_polys) переписывается, даже если берег не менялся
+    gc_bad = any(ft.get('geometry') and ft['geometry'].get('type') not in ('Polygon', 'MultiPolygon')
+                 for ft in fc.get('features', []))
     if fc.get('coast') == 'pieces':
         # срез собран из кусков, обрезанных маской заранее (v4, 27.09.2026):
         # берег уже тот же, резать нечего; швы-щели - заливаются
         thin = fill_thin_holes(fc, k)
-        if not dry and thin > 0:
+        if not dry and (thin > 0 or gc_bad):
+            _only_polys(fc)
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump(fc, f, ensure_ascii=False)
         return k, 0.0, thin, 0.0, stamp(k), time.perf_counter() - t
     cut, fill, alien = coast_fc(fc, k)
     fill += fill_thin_holes(fc, k)
-    if not dry and (cut > 0 or fill > 0):
+    if not dry and (cut > 0 or fill > 0 or gc_bad):
+        _only_polys(fc)
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(fc, f, ensure_ascii=False)
     return k, cut, fill, alien, stamp(k), time.perf_counter() - t

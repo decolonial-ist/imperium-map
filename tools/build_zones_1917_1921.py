@@ -613,6 +613,12 @@ def build(sl, base, base_raw):
         geom = unary_union([geom, pers]).buffer(0)
         unions.append(pers)
         log.append(f'Персия, районы гарнизонов: +{pers.area:.2f} град²')
+    # 08.11.2026: волосяные щели между вырезами и приливаемыми кусками (Збруч
+    # 28.07.1920) - обводка рисовала их красной линией внутри красного
+    _near = unary_union([c for c in cuts] + [g for g in (west_in, west) if not g.is_empty]) if (cuts or not west.is_empty) else None
+    geom, _ns = be.close_slits(geom, near=_near)
+    if _ns:
+        log.append(f'волосяные щели внутри красного закрыты: {_ns}')
     geom = preclip.polys(geom)
     # швы: клетки маски, где сходятся границы приливаемых кусков и основы, и все
     # береговые клетки растрового запада (его клетки не доходят до берега)

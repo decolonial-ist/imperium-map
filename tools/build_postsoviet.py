@@ -117,10 +117,8 @@ AKHALGORI_BOX = (44.25, 41.0, 46.0, 43.5)
 # Абхазия»): северо-восточная доля абхазского полигона, ~1500 кв. км. До
 # 12.08.2008 её держала Грузия. Рамка не задевает ни Сухуми, ни Гали.
 KODORI_BOX = (41.55, 42.85, 42.2, 43.4)
-# Горная Чечня: рамка южнее 43.05° - Веденский, Шатойский, Итум-Калинский,
-# Шаройский и Ножай-Юртовский районы. Грозный (43.32), Шали (43.15) и
-# Урус-Мартан (43.13) остаются севернее.
-CHECHNYA_MTN_BOX = (44.0, 41.0, 47.0, 43.05)
+# Горная Чечня рамкой южнее 43.05° снята 08.11.2026: вторая война идёт по
+# районам OpenStreetMap (см. geometries(), _steps).
 
 # ---- рисованные приближения -------------------------------------------------
 # Ровно два места, где машиночитаемого контура нет ни в одном нашем источнике,
@@ -290,6 +288,37 @@ def geometries():
     _naur = chechnya_file('naursky.geojson')
     _shelk = chechnya_file('shelkovskoy.geojson')
     _north_all = unary_union([_naur, _shelk, chechnya_file('opposition_1993_1994.geojson')])
+    # Вторая война (08.11.2026, куратор: «там явно не в два шага вся страна
+    # перекрасилась»): захват Ичкерии по районам OpenStreetMap
+    # (data/chechnya/districts_2000.geojson) по датам ячейки «Военная
+    # интервенция» C1201. Каждый ключ - вырез: контур Чечни минус районы,
+    # уже захваченные к этому дню (даты - ячейка «Военная интервенция» C1201 и добор домена Нохчи 09.11.2026,
+    # WORK/nohchi/NOTICE_OT_KARTY_RAYONY_VTOROY_VOYNY_2026-11-09.md); последний вырез - Шаройский район до 18.05.2000.
+    with open(os.path.join(DATA, 'chechnya', 'districts_2000.geojson'), encoding='utf-8') as f:
+        _dj = json.load(f)
+    _d = {x['properties']['name'].split(' (')[0]: shape(x['geometry']).buffer(0)
+          for x in _dj['features']}
+    _steps = [
+        ('ichkeria_cut_19991020', ['Наурский район', 'Шелковской район', 'Надтеречный район']),
+        ('ichkeria_cut_19991112', ['Гудермесский район']),
+        ('ichkeria_cut_19991113', ['Сунженский район']),
+        ('ichkeria_cut_19991118', ['Ачхой-Мартановский район']),
+        ('ichkeria_cut_19991203', ['городской округ Аргун']),
+        ('ichkeria_cut_19991208', ['Урус-Мартановский район']),
+        ('ichkeria_cut_19991214', ['Шалинский район', 'Грозненский район']),
+        ('ichkeria_cut_20000105', ['Ножай-Юртовский район']),
+        ('ichkeria_cut_20000111', ['Веденский район']),
+        ('ichkeria_cut_20000206', ['городской округ Грозный']),
+        ('ichkeria_cut_20000210', ['Итум-Калинский район', 'Курчалоевский район']),
+        ('ichkeria_cut_20000229', ['Шатойский район']),
+    ]
+    _taken = []
+    _ich = {}
+    for _k, _names in _steps:
+        _taken += [_d[n] for n in _names]
+        _ich[_k] = (chechnya.difference(unary_union(_taken).buffer(0.0005)).buffer(0),
+                    'контур Чечни (OpenStreetMap) минус районы, захваченные к этому дню '
+                    '(data/chechnya/districts_2000.geojson, OpenStreetMap)', False)
     g = {
         'transnistria': (pmr, 'DeepStateMAP, статичный контур '
                               'data/deepstate/territories.geojson', False),
@@ -327,9 +356,7 @@ def geometries():
                              'OpenStreetMap relation 1749736', True),
         'chechnya_shelkovskoy': (chechnya.intersection(_shelk), 'Шелковской '
                                  'район, OpenStreetMap relation 1749743', True),
-        'chechnya_mountains': (chechnya.intersection(box(*CHECHNYA_MTN_BOX)),
-                               'Natural Earth admin-1 (Chechnya) южнее 43.05° '
-                               'с.ш. - горные районы', True),
+        **_ich,
         # Буферные зоны 2008 года - ПО ЗАНЯТЫМ МУНИЦИПАЛИТЕТАМ (28.08.2026).
         # История контура: сперва два нарисованных прямоугольника (92% и 79%
         # периметра строго по осям - на карте две линейки); потом целые регионы

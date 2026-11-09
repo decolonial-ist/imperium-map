@@ -737,6 +737,7 @@ def fill_gaps_near(geom, base, max_area, touch, eps=0.01):
         if hasattr(g, 'geoms'):
             return [p for x in g.geoms for p in _polys(x)]
         return []
+    import preclip
     old = [Polygon(r) for g in _polys(base) for r in g.interiors]
     fills = []
     for g in _polys(geom.buffer(eps)):
@@ -745,10 +746,65 @@ def fill_gaps_near(geom, base, max_area, touch, eps=0.01):
             if (h.area < max_area
                     and not any(o.contains(h.representative_point()) for o in old)
                     and h.buffer(2 * eps).intersects(touch)):
+                # 09.11.2026: заливы и шхеры, замкнутые дилатацией (Турку 1714-1743,
+                # оккупация Финляндии), - не щели: берём только дырки, которые
+                # больше чем наполовину суша
+                hl = preclip.cut_sea(h)
+                if hl is None or hl.is_empty or hl.area < 0.5 * h.area:
+                    continue
                 fills.append(h.buffer(eps))
     if fills:
         geom = unary_union([geom] + fills).buffer(0)
     return geom, len(fills)
+
+
+def close_slits(geom, w=0.012, near=None):
+    """Закрыть волосяные щели внутри красного: каналы уже w град (~1 км),
+    у которых красное с обеих сторон.
+
+    08.11.2026 (куратор: «что за линии внутри красного вне границ стран»,
+    «снова граница внутри красного»): вычитание с припуском SUB_BUF оставляет
+    вдоль границы вычитаемого контура полоску 0,005 град там, где с другой
+    стороны стоит кусок оккупации или свой кусок (линия OHM Речи Посполитой у
+    Киева 1792, Збруч 1920). Заливка её не видит (в ней нет чёрного на экране),
+    а обводка ядра рисует оба берега полоски - красная линия внутри красного.
+    Морфологическое замыкание радиусом w: из разницы берём только тонкие части
+    (ширина 2S/P меньше 1,3w) и только сушу (preclip.cut_sea), чтобы не
+    замостить лиманы и проливы. near - геометрия вычитаний: щели живут только
+    у их границ, и замыкание считается в полосе 0,05 град вокруг них (на всём
+    срезе до упрощения buffer шёл десятки минут). Возвращает (геометрия, число).
+    """
+    import preclip
+    work = geom
+    if near is not None:
+        hood = near.boundary.buffer(0.05)
+        work = geom.intersection(hood)
+        if work.is_empty:
+            return geom, 0
+    closed = work.buffer(w, join_style=2).buffer(-w, join_style=2)
+    slit = closed.difference(work)
+    if near is not None:
+        # края полосы hood - не щели: берём только нутро полосы с запасом
+        slit = slit.intersection(near.boundary.buffer(0.05 - 2 * w))
+    # 09.11.2026 (check_geometry после --all): замыкание перекидывало хорды через
+    # мелкие заливы и вогнутости (прямая 56 км у 82,0/55,7 в 1713-1753, дырки у
+    # Турку 1714-1743 и на Соже 1918). Щель - это канал, у которого красное с
+    # ОБЕИХ длинных сторон: не меньше 80 % периметра куска лежит на границе
+    # исходной геометрии. У хорды через залив с красным соприкасается ~половина.
+    edge = work.boundary.buffer(1e-4)
+    thin = [p for p in preclip.polys_list(slit)
+            if p.area > 1e-6 and 2 * p.area / p.length < w * 1.3
+            and p.boundary.intersection(edge).length / p.length > 0.8]
+    if not thin:
+        return geom, 0
+    land = preclip.cut_sea(unary_union(thin))
+    if land is None or land.is_empty:
+        return geom, 0
+    # обрезки cut_sea, не касающиеся красного, - не заливать
+    land = unary_union([q for q in preclip.polys_list(land) if q.intersects(geom)]) if land.geom_type != 'Polygon' else land
+    if land.is_empty:
+        return geom, 0
+    return unary_union([geom, land]).buffer(0), len(thin)
 
 
 def fill_holes(geom, max_area=3.0):
@@ -1252,6 +1308,9 @@ def build(key):
             geom, _ng = fill_gaps_near(geom, src_geom(bkey), 0.8, occ)
             if _ng:
                 log.append(f'+ щели у оккупации после вычитаний: {_ng}')
+        geom, _ns = close_slits(geom, near=cut)
+        if _ns:
+            log.append(f'+ волосяные щели внутри красного закрыты: {_ns}')
         geom, orph = drop_orphans(preclip.polys(geom), cut, orphan_keep(adds))
         if orph:
             log.append(f'- острова-сироты у вычитаний: {orph:.0f} км²')
@@ -1433,6 +1492,10 @@ def build_delta(key, fc, rows, sub_rows=()):
         geom = geom.difference(cut).buffer(0)
         names.append('-' + x['name'])
         log.append(f'-Δ {x["name"]}: {before:.0f} -> {geom.area:.0f} град²')
+    if sub_rows:
+        geom, _ns = close_slits(geom, near=subcut)
+        if _ns:
+            log.append(f'+Δ волосяные щели внутри красного закрыты: {_ns}')
     # острова-сироты: дельта доливает куски основы (fill_source_gaps) - снять
     # их тем же правилом, что в build()
     geom, orph = drop_orphans(preclip.polys(geom), subcut, orphan_keep(adds))

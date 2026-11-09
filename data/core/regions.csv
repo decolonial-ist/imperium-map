@@ -149,7 +149,7 @@ CHECHNYA_MTN_1925,"[('file', 'chechnya/mountains_1920_1925.geojson')]",Горн�
 UA_KYIV,"[('file', 'ukraine/kyiv_enclave_1686.geojson')]","Киевский плацдарм по Вечному миру 1686 (ПСЗРИ т. II № 1186, с. 774-775): Ирпень - Днепр - Стугна с Васильковом, полоса за Стайками. 03.11.2026: вместо NE Kiev + Kiev City с обрезкой срезом 1700 (прямые рёбра). Сборка - ~/tmp/WORKFILES/kb-steps/kyiv_enclave_0311/build_enclave.py"
 UA_RIGHT,"[('ne', 'Ukraine', ['Zhytomyr', 'Vinnytsya', ""Khmel'nyts'kyy"", 'Cherkasy', 'Kirovohrad'])]",
 UA_VOLHYNIA,"[('ne', 'Ukraine', ['Volyn', 'Rivne'])]",
-UA_ZAPOROZHYE,"[('file', 'ukraine/zaporozhye_volnosti.geojson'), ('ne', 'Ukraine', ['Zaporizhzhya'])]","--- УКРАИНА: настоящие районы вместо контура источника (02.09.2026) ----
+UA_ZAPOROZHYE,"[('file', 'ukraine/zaporozhye_volnosti.geojson'), ('ne', 'Ukraine', ['Zaporizhzhya']), ('file', 'ukraine/zaporozhye_kalmius.geojson')]","--- УКРАИНА: настоящие районы вместо контура источника (02.09.2026) ----
 Разбор — MAP-MATERIALS/ukraine/. Контур источника внутри Украины красит
 шестнадцать областей из двадцати семи не по акту, а сам по себе, и ведёт
 границу прямыми отрезками до 340 км. Геометрия — районы OpenStreetMap,
@@ -317,7 +317,7 @@ OCC10B_TR_KIRKLARELI,"[('file', 'occ10b/occ10b_tr_kirklareli.geojson')]",
 OCC10B_TR_TEKIRDAG,"[('file', 'occ10b/occ10b_tr_tekirdag.geojson')]",
 OCC10B_BG_SHUMEN_VARNA,"[('file', 'occ10b/occ10b_bg_shumen.geojson'), ('file', 'occ10b/occ10b_bg_varna.geojson')]",
 RP_P3,"[('ne', 'Ukraine', None), ('ne', 'Belarus', None), ('ne', 'Lithuania', None), ('ne', 'Latvia', None), ('and_file', 'poland/ohm_rp_1793-1795.geojson'), ('minus_file', 'poland/krolestwo_1815.geojson')]",
-GALICIA_AUSTRIA,"[('file', 'borders/galicia_austria_1815_1879.geojson'), ('minus_file', 'ukraine/hotin_raya.geojson')]","Австрийская сторона российско-австрийской границы 1815-1914. Контур
+GALICIA_AUSTRIA,"[('file', 'borders/galicia_austria_1815_1879.geojson'), ('minus_file', 'ukraine/hotin_raya.geojson'), ('minus_file', 'borders/moldova_osm.geojson')]","Австрийская сторона российско-австрийской границы 1815-1914. Контур
 источника world_1815 проводит эту границу ПРЯМОЙ: один отрезок 285 км
 от 24,26/50,16 под Сокалем до 20,27/49,89 под Краковом и ещё 140 км до
 26,04/49,63 под Тернополем. Тот же отрезок, вершина в вершину, стоит на
@@ -509,7 +509,7 @@ fetch_ddr1953.py в скретчпаде картографа, розыск -
 MAP-MATERIALS/peresmotr_resheniy_2026-09-18/rozysk/sat_dopolnenie_2026-09-22.md"
 MEMELLAND,"[('file', 'borders/memelland_ohm_1920-1923.geojson')]","Мемельский край - прусский до Версаля, с 10.01.1920 под Антантой
 (22.09.2026, BACKLOG Б6 п. 13). Контур 1920-1923 - OpenHistoricalMap"
-DON_HOST,"[('file', 'steppe/don_host_1786.geojson')]","--- степь: самоуправные земли до госуправления (22.09.2026) ------------
+DON_HOST,"[('file', 'steppe/don_host_1786.geojson'), ('file', 'steppe/don_host_west_ua.geojson')]","--- степь: самоуправные земли до госуправления (22.09.2026) ------------
 Правило «контроль, а не акт», прецедент Запорожья (вычтено до разгрома
 Сечи 04.05.1775): пока землёй правит свой круг или хан, а у империи на
 ней только крепости-точки, земля не красная. Ответ куратора на строку
@@ -522,7 +522,7 @@ YAIK_TOWNS,"[('file', 'steppe/yaik_uralsk_guryev.geojson')]",
 DDR_1953_13,"[('file', 'satellite/ddr_1953_13_gorodov.geojson')]",
 DDR_1953_3,"[('file', 'satellite/ddr_1953_3_goroda.geojson')]",
 FINLAND,"[('ne', 'Finland', None)]",--- прочее ---------------------------------------------------------------
-MOLDOVA,"[('ne', 'Moldova', None)]",
+MOLDOVA,"[('file', 'borders/moldova_osm.geojson')]","Молдова по OSM (admin_level=2), не Natural Earth: у NE вдоль границы с Украиной щель до 8 км - чёрная полоса внутри красного 1812-1917 и дырка 98 км² у Бричан 1828-1879 (09.11.2026)"
 SAKHALIN,"[('ne', 'Russia', ['Sakhalin'])]",
 TUVA,"[('ne', 'Russia', ['Tuva'])]",
 ALASKA,"[('alaska',)]",
@@ -674,3 +674,7 @@ OCC10B_BG_VARNA,"[('file', 'occ10b/occ10b_bg_varna.geojson')]",Варна 1828-1
 PUTYVL_UEZD,"[('file', 'ukraine/sumy_putyvl_buryn.geojson')]","Путивльский уезд Москвы: Путивльская, Бурынская и Новослободская громады Сумщины (tools/fetch_ua_units.py, группа putyvl_buryn, 02.11.2026). Заведён 07.11.2026 для вычитания до захвата Путивля 16.08.1500"
 SEVERSK_BASE_1500,"[('ne', 'Russia', ['Bryansk']), ('ne', 'Ukraine', ['Chernihiv', 'Sumy'])]","Северщина, которую контур источника 1500 (historical-basemaps) красит с начала 1500 года: Стародуб, Глухов, Любеч, Брянск. На срезе 1492 в этих трёх областях красного нет (0 км²), так что вычитание ничего лишнего не снимает. Заведён 07.11.2026"
 KYIV_OBL_LEFT,"[('ne', 'Ukraine', ['Kiev', 'Kiev City']), ('minus_file', 'poland/ohm_rp_1773-1793.geojson'), ('minus_file', 'ukraine/kyiv_right_bank_1686.geojson')]","Левобережная Киевщина: Киевская область и Киев к востоку от границы Речи Посполитой 1773-1793 (OHM) и минус правобережные районы (kyiv_right_bank_1686). В UA_LEFT (Черниговская, Полтавская, Сумская, файлы Переяслава) левобережных районов Киевской области не было, и между контуром источника и Днепром у Киева оставался чёрный клин 30,5-30,8E, 50,7-51,5N (куратор 08.11.2026 по кадрам 1790-1794: «пустоты странные»). Переяславский и Киевский полки Гетманщины, под прямым управлением с упразднения гетманства 21.11.1764, как UA_LEFT."
+UA_TOR,"[('file', 'ukraine/donbas_tor_1676.geojson')]","Донбасс 1676-1783 (08.11.2026, куратор: «исправил прямые линии»): до этого Донецкая область до среза основы 1783 года шла по грубой основе historical-basemaps (93 % чёрного, прямые рёбра 130/55/50 км у Лисичанска и Барвенково). Тор (1676) и округа - Краматорский район OpenStreetMap."
+UA_BAKHMUT,"[('file', 'ukraine/donbas_bakhmut_1703.geojson')]","Бахмут (1703) и земли Бахмутского уезда до черты Войска Донского 1786 года (Крынка - Булавин): Бахмутский район и северо-запад Горловского района OpenStreetMap."
+UA_SLAVYANOSERBIA,"[('file', 'ukraine/donbas_slavyanoserbia_1753.geojson')]","Славяносербия (1753): правый берег Донца от Бахмута до Лугани - Алчевский район, северо-запад Луганского района (до черты Войска по Белой и Лугани) и правобережье Северодонецкого района (Лисичанск, третья рота)."
+UA_DON_WEST,"[('file', 'steppe/don_host_west_ua.geojson')]","Земля Войска Донского к западу от российских районов (украинская сторона черты 1786 года: Кальмиус - Крынка - Булавин - Белая - Лугань - Донец): в DON_HOST тот же файл вычитается до 25.02.1775, здесь - приобретение с этого дня. Полоса Войска севернее Донца (станица Луганская) не взята - приближение, розыск b_kazachi_zemli_granitsy_2026-09-22.md."
