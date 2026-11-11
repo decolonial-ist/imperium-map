@@ -1111,6 +1111,64 @@ SRC['1450'] = ('none', None)
 # С 1500 года основа - снова контур источника.
 SRC['1492'] = ('none', None)
 SRC_ORDER = sorted(SRC, key=key_date)
+# 10.11.2026: окно 1500-1529 тоже собирается из районов OSM, без контура источника.
+# Контур 1500 года давал 1 января 1500 скачок на 833 тыс. км² без события (Югра,
+# Кола, степь до Воронежа, Вятка и Пермь целиком), терял Ижорскую землю и нёс
+# хорды по 100-170 км (южный край, дырка Рязани). Земли 1492 года (MSK15_*) идут
+# до 1530, приобретения 1494-1521 - строки MSK16_* (розыск
+# ~/tmp/WORKFILES/kb-steps/geom_1500/REPORT.md). Сам контур 1500 года остаётся в SRC:
+# им обрезаны (clip) Северщина 1500-1503 и он же нужен hb_name. С 1530 года основа -
+# снова контур источника.
+EMPTY_BASE = {'1500', '1530'}
+# Строки, чья геометрия - кусок контура того же источника (hb_name): в окне без
+# основы их заменяют строки по районам (MSK16_PSKOV_1510, MSK16_RYAZAN_1521).
+# Сами строки живут дальше, с 1530 года, с прежними датами актов.
+EMPTY_BASE_SKIP = {'1500': {'PSKOV_LAND', 'RYAZAN_LAND'},
+                   # 10.11.2026, окно 1530-1599: прежние строки целыми краями с обрезкой контуром
+                   # 1600 года (Казань, Нижняя Волга, Башкирия, Сибирское ханство) заменены
+                   # строками M1530_* по районам (розыск kb-steps/geom_1530)
+                   '1530': {'PSKOV_LAND', 'RYAZAN_LAND', 'VOLGA_KAZAN', 'VOLGA_LOWER',
+                            'BASHKIRIA', 'SIB_WEST'}}
+
+
+# 11.11.2026, «чини прямые»: контуры источника 1600, 1650, 1700 и 1715 годов красили
+# целыми двадцать одну область (чернозёмный юг, Поволжье, Прикамье, Зауралье), где
+# у карты не было курируемых строк: Самара и Саратов краснели с 1600 года вместе со
+# степью за Волгой. Внутри зоны G1600_ZONE контур источника не используется: красное
+# дают только строки G1600_* по районам с датами (розыск kb-steps/geom_1600) и прежние
+# строки. Югра и мансийские волости в зону не входят - ждут решения куратора.
+BASE_CUT = {'1600': 'G1600_ZONE', '1650': 'G1600_ZONE', '1700': 'G1600_ZONE',
+            '1715': 'G1600_ZONE'}
+# Прежние строки целыми краями (обрезка контуром 1600 года) в зоне тоже не красят:
+# VOLGA_LOWER делала Самару, Саратов и Пензу красными с 1556 года
+BASE_CUT_ROWS = {'VOLGA_KAZAN', 'VOLGA_LOWER', 'SIB_WEST'}
+# Строки по районам, которые ещё не наступили, заливками щелей не закрашиваются
+PENDING_PREFIX = ('G1600_',)
+_BASE_CUT_CACHE = {}
+
+
+def base_geom(bkey):
+    """Основа среза: контур источника либо пусто для окон, собранных из районов."""
+    if bkey in EMPTY_BASE:
+        from shapely.geometry import Polygon
+        return Polygon()
+    if bkey in BASE_CUT:
+        if bkey not in _BASE_CUT_CACHE:
+            g = src_geom(bkey).difference(reg_geom(BASE_CUT[bkey]))
+            _BASE_CUT_CACHE[bkey] = g if g.is_valid else g.buffer(0)
+        return _BASE_CUT_CACHE[bkey]
+    return src_geom(bkey)
+
+
+def pending_geom(day):
+    """Районы строк PENDING_PREFIX, чья дата ещё не наступила (None, если таких нет)."""
+    gs = [reg_geom(a['reg']) for a in ADDS
+          if a['reg'].startswith(PENDING_PREFIX) and d(a['frm']) > day]
+    if not gs:
+        return None
+    g = unary_union(gs)
+    return g if g.is_valid else g.buffer(0)
+
 # дальше 25.12.1917 начинается реконструкция зоны контроля 1917-1921 - её
 # срезы собирает другой билдер, сюда мы не лезем
 RECON_FROM = date(1917, 12, 25)
@@ -1158,6 +1216,8 @@ def base_year(key):
     У баз из CShapes (с 1886 года) полного набора государств мира в том же
     формате нет, и щели там не заливаем - только сообщаем о них.
     """
+    if key in EMPTY_BASE:
+        return None
     kind, val = SRC[key]
     return val if kind == 'hb' else None     # 'none' - тоже None
 
@@ -1183,6 +1243,9 @@ def active(day):
             and (a['to'] is None or day < d(a['to']))]
     subs = [s for s in SUBS if (s['frm'] is None or d(s['frm']) <= day)
             and (s['to'] is None or day < d(s['to']))]
+    skip = EMPTY_BASE_SKIP.get(base_key_for(day))
+    if skip:
+        adds = [a for a in adds if a['reg'] not in skip]
     return adds, subs
 
 
@@ -1190,8 +1253,10 @@ def build(key):
     """Собрать срез key. -> (fc, лог) либо (None, причина) если правок нет."""
     day = key_date(key)
     bkey = base_key_for(day)
-    geom = src_geom(bkey)
+    geom = base_geom(bkey)
     adds, subs = active(day)
+    if bkey in EMPTY_BASE_SKIP:
+        adds = [a for a in adds if a['reg'] not in EMPTY_BASE_SKIP[bkey]]
     if not adds and not subs:
         return None, 'правок нет', 0
     log, added, removed = [], [], []
@@ -1202,6 +1267,8 @@ def build(key):
         g = reg_geom(a['reg'])
         if a['clip']:
             g = g.intersection(src_geom(a['clip']))
+        if bkey in BASE_CUT and a['reg'] in BASE_CUT_ROWS:
+            g = g.difference(reg_geom(BASE_CUT[bkey]))
         pieces.append(g)
         if g.area > 0.5:
             log.append(f'+ {a["name"]} ({a["frm"]}): кусок {g.area:.1f} град²')
@@ -1214,12 +1281,13 @@ def build(key):
                       + (f'; обрезано контуром источника {a["clip"]} г.'
                          if a['clip'] else '')})
     geom = unary_union(pieces)
+    _raw = geom
     # 08.11.2026, куратор по встройке Украины 1792 («пустоты странные»): между
     # соседними рисованными кусками оккупации (poland/rp1792/*.geojson) остаются
     # щели-дырки до 0,6 град² - чёрные треугольники в Белоруссии. Закрываем дырки
     # ДО вычитаний и только те, которых нет у контура источника: содержательные
     # вырезы (удержания 1708-1709, имамат) идут ниже вычитаниями и не трогаются.
-    geom, _nh = fill_new_holes(geom, src_geom(bkey), 0.8)
+    geom, _nh = fill_new_holes(geom, base_geom(bkey), 0.8)
     if _nh:
         log.append(f'+ щели между кусками закрыты: {_nh}')
     # Швы между контуром источника и добавленными областями оставляют дырки:
@@ -1267,6 +1335,12 @@ def build(key):
     # морские заливы - приращение режем морем маски OSM
     _inc = preclip.cut_sea(preclip.polys(geom.difference(_before_fill)))
     geom = preclip.polys(unary_union([_before_fill, _inc]))
+    # 11.11.2026: заливки щелей не красят районы, чья строка ещё не наступила
+    _pend = pending_geom(day)
+    if _pend is not None:
+        _pend = _pend.difference(_raw)
+        if not _pend.is_empty:
+            geom = preclip.polys(geom.difference(_pend))
     # Действующее окно оккупации вычитаниями не режется (22.09.2026, пачка 7):
     # вычитание RP_1793 чернит землю Речи Посполитой, а гарнизоны в ней -
     # оккупация, красная до дня ухода войск; окно само кончается этим днём
@@ -1279,7 +1353,7 @@ def build(key):
     # защитой были только сами куски. Защищаем куски ВМЕСТЕ с закрытыми
     # щелями между ними; чужие дырки (вне объединения оккупаций) не трогаем.
     if occ is not None:
-        occ, _ = fill_new_holes(occ, src_geom(bkey), 0.8)
+        occ, _ = fill_new_holes(occ, base_geom(bkey), 0.8)
     # v4: вычитания режут срез одним объединённым куском, а не по одному
     cuts = []
     for s in subs:
@@ -1305,7 +1379,7 @@ def build(key):
         geom = geom.difference(cut)
         log.append(f'- вычитания: {before:.0f} -> {geom.area:.0f} град²')
         if occ is not None:
-            geom, _ng = fill_gaps_near(geom, src_geom(bkey), 0.8, occ)
+            geom, _ng = fill_gaps_near(geom, base_geom(bkey), 0.8, occ)
             if _ng:
                 log.append(f'+ щели у оккупации после вычитаний: {_ng}')
         geom, _ns = close_slits(geom, near=cut)
@@ -1353,7 +1427,7 @@ def build(key):
         'approximate': True,
         'expansion': True,
         'base': (('земли Москвы по районам OSM (MSK15_* в adds.csv, 28.09.2026), '
-                  'без контура источника') if SRC[bkey][0] == 'none' else
+                  'без контура источника') if (SRC[bkey][0] == 'none' or bkey in EMPTY_BASE) else
                  f'контур источника {bkey} ('
                  + ('historical-basemaps' if SRC[bkey][0] == 'hb'
                     else 'CShapes 2.0') + ')'),
@@ -1450,10 +1524,16 @@ def build_delta(key, fc, rows, sub_rows=()):
     if subcut is not None and occ:
         subcut = subcut.difference(unary_union(occ).buffer(0))
     log, names, new_pieces = [], [], []
+    _skip = EMPTY_BASE_SKIP.get(base_key_for(day), ())
     for a in rows:
+        if a['reg'] in _skip:
+            continue
         g = reg_geom(a['reg'])
         if a.get('clip'):
             g = g.intersection(src_geom(a['clip']))
+        _bk = base_key_for(day)
+        if _bk in BASE_CUT and a['reg'] in BASE_CUT_ROWS:
+            g = g.difference(reg_geom(BASE_CUT[_bk]))
         if a['kind'] != 'оккупация' and subcut is not None:
             g = g.difference(subcut)
         g = simplify_keep_isles(g)
@@ -1478,6 +1558,9 @@ def build_delta(key, fc, rows, sub_rows=()):
     # за щель у основы и доливал его обратно. Приращение режется действующими вычитаниями.
     if subcut is not None and not _inc.is_empty:
         _inc = preclip.polys(_inc.difference(subcut))
+    _pend = pending_geom(day)
+    if _pend is not None and not _inc.is_empty:
+        _inc = preclip.polys(_inc.difference(_pend))
     geom = preclip.polys(unary_union([_before_fill, _inc]))
     # прибавившиеся вычитания - после приобретений, как в build(); действующие
     # окна оккупации не режутся

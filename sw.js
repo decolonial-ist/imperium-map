@@ -113,6 +113,11 @@ self.addEventListener('fetch', e => {
     })());
     return;
   }
+  // 10.11.2026: пакеты встроек (data/domains) в версию данных не входят - их
+  // пересобирают отдельно от срезов. Из кэша по версии читатель полной карты
+  // получал бы старый пакет до следующей смены версии, хотя встройка просит
+  // сверку с сервером (fetch no-cache). Пакеты идут мимо воркера.
+  if (/\/data\/domains\//.test(url.pathname)) return;
   if (!isData(url)) return;
   e.respondWith((async () => {
     const name = dataCacheName(await readVersion());

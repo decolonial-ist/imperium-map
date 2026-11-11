@@ -170,6 +170,57 @@ def clean(g, frame, tol, nd):
     return obj
 
 
+def pack_topology(steps):
+    """10.11.2026: красное шагов - одной топологией (как data/years_lite.topo.json).
+
+    Соседние шаги делят почти все границы, а пакет хранил полную геометрию
+    каждого шага: у Украины 294 шага давали 11,9 МБ (3,8 МБ в сжатии). В
+    топологии общая дуга лежит один раз: 2,9 МБ (0,85 МБ в сжатии). Без
+    квантования (-q нет): координаты байт в байт те же, сетка точности clean()
+    не трогается. Шаг держит в red имя объекта топологии, карта собирает
+    геометрию при показе (index.html, redOf). Нет geo2topo - пакет остаётся
+    прежним, карта читает оба вида.
+    """
+    import hashlib
+    import subprocess
+    import tempfile
+    geo2topo = os.path.join(ROOT, 'node_modules', '.bin', 'geo2topo')
+    if not os.path.exists(geo2topo):
+        print('geo2topo не найден (%s): пакет без топологии; `cd %s && npm ci`'
+              % (geo2topo, ROOT), file=sys.stderr)
+        return None
+    names, order = {}, []
+    for st in steps:
+        g = st.get('red')
+        if not g:
+            continue
+        h = hashlib.md5(json.dumps(g, sort_keys=True).encode()).hexdigest()
+        if h not in names:
+            names[h] = 'r%d' % len(names)
+            order.append((names[h], g))
+        st['_red'] = names[h]
+    if not order:
+        return None
+    with tempfile.TemporaryDirectory() as tmp:
+        files = []
+        for name, g in order:
+            fp = os.path.join(tmp, name + '.json')
+            with open(fp, 'w', encoding='utf-8') as f:
+                json.dump({'type': 'Feature', 'properties': {}, 'geometry': g}, f)
+            files.append(name + '=' + fp)
+        res = subprocess.run([geo2topo] + files, capture_output=True, text=True)
+    if res.returncode != 0:
+        print('geo2topo упал: %s' % res.stderr[:300], file=sys.stderr)
+        for st in steps:
+            st.pop('_red', None)
+        return None
+    topo = json.loads(res.stdout)
+    for st in steps:
+        if '_red' in st:
+            st['red'] = st.pop('_red')
+    return topo
+
+
 def pick(stops, n):
     """Оставить n остановок: по весу, но с разгоном по времени.
 
@@ -446,6 +497,9 @@ def build(domain_id, max_steps, window=None, w_from=None, w_to=None):
     # выключило заодно, встройка главной шла без текста шагов.
     out['captions'] = bool(dom.get('manual_stops'))
     out['window'] = [w_from, w_to] if (w_from or w_to) else None
+    topo = pack_topology(out_steps)
+    if topo:
+        out['topo'] = topo
     name = domain_id + ('_' + window if window else '') + '_bundle.json'
     path = os.path.join(DOM, name)
     with open(path, 'w', encoding='utf-8') as f:

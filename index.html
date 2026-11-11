@@ -184,7 +184,12 @@
     #bar { height:136px; padding:7px 10px 8px; }
     #topline { flex-wrap:wrap; gap:6px 10px; }
     #entity { display:none; }
-    #legend { margin-left:0; flex:1 0 100%; gap:10px; font-size:11px; }
+    /* 10.11.2026: строка легенды длиннее экрана телефона (460 px при 375) раздвигала
+       страницу - заставка и кнопки съезжали вправо. Строка сжимается, последний
+       пункт (перечень точек) обрезается многоточием. */
+    #legend { margin-left:0; flex:1 1 100%; min-width:0; overflow:hidden; gap:10px; font-size:11px; }
+    #legend > span { flex:0 0 auto; }
+    #legend > span:last-of-type { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; }
     #date { font-size:21px; min-width:0; }
     #controls { flex-wrap:wrap; row-gap:8px; gap:6px; }
     #sliderWrap { flex:1 0 100%; order:2; }       /* ползунок отдельной строкой */
@@ -836,10 +841,26 @@ function stepAt(t) {
 }
 const asFC = g => g ? {type: 'FeatureCollection',
   features: [{type: 'Feature', properties: {}, geometry: g}]} : EMPTY;
+// 10.11.2026: красное шагов лежит в пакете топологией (bundle.topo, сборка
+// tools/build_domain_bundle.py, pack_topology): шаг держит имя объекта, геометрия
+// собирается из общих дуг при первом показе шага. Пакет без топологии (red -
+// сама геометрия) читается как раньше.
+const RED_MEMO = new Map();
+function redOf(step) {
+  const r = step.red;
+  if (typeof r !== 'string') return r;
+  if (RED_MEMO.has(r)) return RED_MEMO.get(r);
+  const t = EMB.b.topo;
+  const g = (t && t.objects[r] && window.topojson)
+    ? topojson.feature(t, t.objects[r]).geometry : null;
+  if (RED_MEMO.size > 24) RED_MEMO.delete(RED_MEMO.keys().next().value);
+  RED_MEMO.set(r, g);
+  return g;
+}
 
 function renderEmbed(t, fromPicker) {
   const step = stepAt(t).s;
-  setLayer('core', asFC(step.red));        // заодно обновит обводку без шва 180°
+  setLayer('core', asFC(redOf(step)));        // заодно обновит обводку без шва 180°
   if ($('stepCap')) $('stepCap').textContent = step.why;
   map.getSource('ostrog').setData(asFC(step.ostrog));
   map.getSource('sphere').setData(asFC(step.sphere));
