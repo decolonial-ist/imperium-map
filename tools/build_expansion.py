@@ -1169,6 +1169,31 @@ def pending_geom(day):
     g = unary_union(gs)
     return g if g.is_valid else g.buffer(0)
 
+PEND_GROW = 0.02    # град: кайма у отложенного района, ~2 км
+
+
+def pending_cut(day, red):
+    """Что заливкам щелей красить нельзя (11.11.2026, крошки в Поволжье и на
+    Урале): отложенные районы PENDING_PREFIX с каймой PEND_GROW внутри зоны
+    выреза BASE_CUT, минус действующие куски red. Между соседними районами
+    зоны лежат волосяные щели (0,0003-0,002 град); заливки красили щель у
+    района, чья дата не пришла, и на срезе оставалась красная крошка
+    0,1-5 км² посреди чёрного. Щель между двумя красными районами под кайму
+    не попадает и заливается как раньше."""
+    pend = pending_geom(day)
+    if pend is None:
+        return None
+    bkey = base_key_for(day)
+    if bkey in BASE_CUT:
+        g = pend.buffer(PEND_GROW).intersection(reg_geom(BASE_CUT[bkey]))
+    else:
+        g = pend
+    if red is not None and not red.is_empty:
+        g = g.difference(red)
+    if not g.is_valid:
+        g = g.buffer(0)
+    return None if g.is_empty else g
+
 # дальше 25.12.1917 начинается реконструкция зоны контроля 1917-1921 - её
 # срезы собирает другой билдер, сюда мы не лезем
 RECON_FROM = date(1917, 12, 25)
@@ -1336,11 +1361,9 @@ def build(key):
     _inc = preclip.cut_sea(preclip.polys(geom.difference(_before_fill)))
     geom = preclip.polys(unary_union([_before_fill, _inc]))
     # 11.11.2026: заливки щелей не красят районы, чья строка ещё не наступила
-    _pend = pending_geom(day)
+    _pend = pending_cut(day, _raw)
     if _pend is not None:
-        _pend = _pend.difference(_raw)
-        if not _pend.is_empty:
-            geom = preclip.polys(geom.difference(_pend))
+        geom = preclip.polys(geom.difference(_pend))
     # Действующее окно оккупации вычитаниями не режется (22.09.2026, пачка 7):
     # вычитание RP_1793 чернит землю Речи Посполитой, а гарнизоны в ней -
     # оккупация, красная до дня ухода войск; окно само кончается этим днём
@@ -1394,6 +1417,8 @@ def build(key):
     geom, seams = preclip.fill_seams(geom, key, preclip.seam_cells(pieces))
     if seams:
         log.append(f'+ швы между кусками: залито {seams:.0f} км²')
+        if _pend is not None:
+            geom = preclip.polys(geom.difference(_pend))
     geom = simplify_keep_isles(geom)
     # v4 (27.09.2026): куски уже обрезаны маской суши OSM и достроены до берега,
     # поэтому чистка по Natural Earth (clip_to_land, drop_sea_parts,
@@ -1405,6 +1430,9 @@ def build(key):
     geoms, crumbs = drop_sub_crumbs(geoms, cuts, occ, adds)
     if crumbs:
         log.append(f'- крошки между вычитаниями: {crumbs}')
+    geoms, crumbs = drop_land_crumbs(geoms, occ, adds)
+    if crumbs:
+        log.append(f'- крошки на суше: {crumbs}')
     geom = unary_union(geoms)
     sea = wet = thin = specks = pinholes = 0
     # Курируемые точные береговые линии общая чистка не трогает (22.09.2026):
@@ -1491,6 +1519,45 @@ def drop_sub_crumbs(parts, cuts, occ, adds, small=0.05, ring=0.03):
     return keep, n
 
 
+LAND_CRUMB_KM2 = 6.0   # крупнее - уже не обрезок, а кусок района
+LAND_CRUMB_BAND = 0.005  # град: кайма ~500 м вокруг части
+LAND_CRUMB_DRY = 0.95  # доля суши в кайме, с которой часть - не остров
+
+
+def drop_land_crumbs(parts, occ, adds):
+    """Крошки красного на суше (12.11.2026): у районов G1600_, M1530_, MSK16_
+    в файлах есть оторванные куски в 0,1-5 км², а вычитания отрезают от
+    района такие же обрезки; вычитаний вокруг нет, и drop_sub_crumbs их не
+    видит. Часть мельче LAND_CRUMB_KM2 снимается, если её кайма - суша по
+    маске OSM: у острова кайма - море. Не трогаются части в окнах оккупации,
+    строки EARLY_PROTECT и части, которые сами составляют половину и больше
+    своей строки (крепость, город)."""
+    import preclip
+    cand = []
+    for i, p in enumerate(parts):
+        c = p.centroid
+        if p.area * 111.32 ** 2 * math.cos(math.radians(c.y)) < LAND_CRUMB_KM2:
+            cand.append(i)
+    if not cand:
+        return parts, 0
+    rows = [(a['reg'], reg_geom(a['reg'])) for a in adds]
+    gone = set()
+    for i in cand:
+        p = parts[i]
+        if occ is not None and occ.intersects(p):
+            continue
+        pt = p.representative_point()
+        mine = [(n, g) for n, g in rows if g.contains(pt)]
+        if any(n in EARLY_PROTECT or p.area >= 0.5 * g.area for n, g in mine):
+            continue
+        band = p.buffer(LAND_CRUMB_BAND).difference(p)
+        dry = preclip.cut_sea(band)
+        if dry is None or dry.is_empty or dry.area < LAND_CRUMB_DRY * band.area:
+            continue
+        gone.add(i)
+    return [p for i, p in enumerate(parts) if i not in gone], len(gone)
+
+
 def _add_meta(a):
     return {'name': a['name'], 'from': a['frm'], 'to': a['to'],
             'act': a['act'], 'source': a['src'], 'kind': a['kind'],
@@ -1558,9 +1625,11 @@ def build_delta(key, fc, rows, sub_rows=()):
     # за щель у основы и доливал его обратно. Приращение режется действующими вычитаниями.
     if subcut is not None and not _inc.is_empty:
         _inc = preclip.polys(_inc.difference(subcut))
-    _pend = pending_geom(day)
-    if _pend is not None and not _inc.is_empty:
-        _inc = preclip.polys(_inc.difference(_pend))
+    if not _inc.is_empty and pending_geom(day) is not None:
+        _red = [reg_geom(a['reg']) for a in adds if a['reg'].startswith(PENDING_PREFIX)]
+        _pend = pending_cut(day, unary_union(_red).buffer(0) if _red else None)
+        if _pend is not None:
+            _inc = preclip.polys(_inc.difference(_pend))
     geom = preclip.polys(unary_union([_before_fill, _inc]))
     # прибавившиеся вычитания - после приобретений, как в build(); действующие
     # окна оккупации не режутся
@@ -1586,6 +1655,9 @@ def build_delta(key, fc, rows, sub_rows=()):
         log.append(f'-Δ острова-сироты у вычитаний: {orph:.0f} км²')
     geoms = [g for g in (list(geom.geoms) if geom.geom_type == 'MultiPolygon' else [geom])
              if g.area > MIN_PART]
+    geoms, _lc = drop_land_crumbs(geoms, unary_union(occ) if occ else None, adds)
+    if _lc:
+        log.append(f'-Δ крошки на суше: {_lc}')
     geom = unary_union(geoms)
     if not geom.is_valid:
         geom = geom.buffer(0)
